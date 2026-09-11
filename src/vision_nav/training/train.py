@@ -72,6 +72,55 @@ def _log_formats(requested) -> list[str]:
     return formats
 
 
+def _assert_constant_schedule(model: PPO) -> None:
+    """Refuse to resume when a hyperparameter schedule is non-constant.
+
+    SB3 schedules are functions of ``progress_remaining``, which is recomputed
+    from *this* call's ``total_timesteps``.  Resuming therefore restarts any
+    non-constant schedule from the top, so a run resumed at 1.5M would get the
+    learning rate a fresh run gets at step 0.  That is a silent correctness
+    bug, not a crash, so it is checked rather than assumed.
+    """
+    for name in ("lr_schedule", "clip_range", "clip_range_vf"):
+        schedule = getattr(model, name, None)
+        if schedule is None or not callable(schedule):
+            continue
+        values = {round(float(schedule(p)), 12) for p in (1.0, 0.5, 0.0)}
+        if len(values) > 1:
+            raise ValueError(
+                f"cannot resume: '{name}' is a non-constant schedule "
+                f"(values across training: {sorted(values)}). Resuming would "
+                "restart it from the beginning, which is not equivalent to "
+                "continuous training. Train from scratch at the full budget "
+                "instead, or make the schedule constant."
+            )
+
+
+def _load_for_resume(path: str, vec_env, device: str) -> PPO:
+    """Load a checkpoint to continue training, with the gotchas checked."""
+    checkpoint = Path(path)
+    if not checkpoint.exists():
+        raise FileNotFoundError(f"resume_from checkpoint not found: {checkpoint}")
+
+    model = PPO.load(checkpoint, env=vec_env, device=device)
+    _assert_constant_schedule(model)
+
+    if model.observation_space != vec_env.observation_space:
+        raise ValueError(
+            "cannot resume: the checkpoint's observation space "
+            f"{model.observation_space} does not match the env's "
+            f"{vec_env.observation_space}"
+        )
+
+    print(
+        f"Resuming from {checkpoint} at {model.num_timesteps:,} steps.\n"
+        "  NOTE: algorithm hyperparameters come from the checkpoint, not from\n"
+        "  configs/algo/. Changes there will NOT take effect on a resume.",
+        flush=True,
+    )
+    return model
+
+
 def train(cfg: DictConfig) -> dict:
     """Run one training job. Returns the final validation metrics."""
     run_dir = Path(cfg.train.output_dir) / cfg.train.run_name
@@ -101,14 +150,18 @@ def train(cfg: DictConfig) -> dict:
     if "activation_fn" in policy_kwargs:
         policy_kwargs["activation_fn"] = getattr(torch.nn, policy_kwargs["activation_fn"])
 
-    model = PPO(
-        policy=algo.pop("policy", "MlpPolicy"),
-        env=vec_env,
-        seed=cfg.train.seed,
-        device=device,
-        policy_kwargs=policy_kwargs,
-        **algo,
-    )
+    resume_from = cfg.train.get("resume_from", None)
+    if resume_from:
+        model = _load_for_resume(resume_from, vec_env, device)
+    else:
+        model = PPO(
+            policy=algo.pop("policy", "MlpPolicy"),
+            env=vec_env,
+            seed=cfg.train.seed,
+            device=device,
+            policy_kwargs=policy_kwargs,
+            **algo,
+        )
     model.set_logger(logger)
 
     validation = ValidationCallback(
@@ -129,15 +182,22 @@ def train(cfg: DictConfig) -> dict:
         ]
     )
 
+    already_done = model.num_timesteps if resume_from else 0
     print(
         f"\nTraining '{cfg.train.run_name}' | {cfg.train.total_timesteps:,} steps "
-        f"| {cfg.train.n_envs} envs | device={device}\n",
+        f"this run"
+        + (f" (cumulative target {already_done + cfg.train.total_timesteps:,})" if already_done else "")
+        + f" | {cfg.train.n_envs} envs | device={device}\n",
         flush=True,
     )
+    # With reset_num_timesteps=False, SB3 treats total_timesteps as ADDITIONAL
+    # steps on top of the checkpoint's count, so train.total_timesteps always
+    # means "steps to run in this invocation".
     model.learn(
         total_timesteps=cfg.train.total_timesteps,
         callback=callbacks,
         progress_bar=cfg.train.progress_bar,
+        reset_num_timesteps=not resume_from,
     )
 
     model.save(run_dir / "final_model")

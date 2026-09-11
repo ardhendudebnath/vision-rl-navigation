@@ -22,6 +22,9 @@ train:
   seed: 0
 
   total_timesteps: 30_000
+  # Present so `train.resume_from=...` is overridable from the CLI; Hydra
+  # refuses to override a key the config does not declare.
+  resume_from: null
   n_envs: 4
   subprocess: false
   device: auto

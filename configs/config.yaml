@@ -13,7 +13,14 @@ train:
   output_dir: runs
   seed: 0
 
+  # Steps to run in THIS invocation. On a resume these are additional steps on
+  # top of the checkpoint's count, not a cumulative target.
   total_timesteps: 1_500_000
+  # Path to a saved model to continue training from. Hyperparameters then come
+  # from the checkpoint, not from configs/algo/. Resuming is only equivalent to
+  # continuous training when the schedules are constant; train.py refuses
+  # otherwise rather than silently restarting them.
+  resume_from: null
   n_envs: 8
   # Worker processes cost more than they save here: an env step is ~0.5 ms,
   # comparable to the IPC round trip. Set true only for heavier observations.
