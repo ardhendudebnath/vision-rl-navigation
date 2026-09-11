@@ -14,9 +14,9 @@ Phases are numbered as in the roadmap's Section 3.
 | 2c | Domain randomisation over shifts (what 2b argues for) | **Done** — gap not closed, failure mode changed |
 | 2d | Compute sweep to 4.0M steps (tests the "needs more training" excuse) | **Done** — rejected |
 | 2e | Caution-vs-progress reward ablation (3 arms) | **Done** — rejected; one real SPL win |
-| 2f | Lidar beam-count experiment (32 / 64 / 128) | **Done** — **perception was the bottleneck** |
-| 2g | Multi-seed replication of the key arms | Next — required before any writeup |
-| 3 | Vision-conditioned RL (egocentric depth/RGB-D + CNN encoder) | After 2g |
+| 2f | Lidar beam-count experiment (32 / 64 / 128) | **Done** — decisive on one seed |
+| 2g | Multi-seed replication (4 seeds x 2 arms) | **Done** — **2f does not replicate** |
+| 3 | Vision-conditioned RL (egocentric depth/RGB-D + CNN encoder) | Next |
 | 4 | Technical report, demo video, packaging | Not started |
 | 5 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real via ROS 2 | Not started |
 
@@ -449,23 +449,89 @@ observation is harder to learn from at a fixed 1.5M-step budget and fixed
 either more compute for the 128 arm or a wider network, both of which are
 confounded with the beam count unless controlled.
 
-## The caveat that limits every result above
+## Phase 2g — Multi-seed replication: 2f does not survive
 
-**Every arm in Phases 2c-2f is a single training seed.** The paired tests are
-over *episodes*: they establish that these particular trained policies differ
-on these worlds, with the world-difficulty pairing controlled. They say
-nothing about *training-seed* variance, and RL results are notoriously
-seed-sensitive — differences of this size routinely appear between seeds of an
-identical configuration.
+Every arm in Phases 2c-2f was a single training seed, with significance
+measured by pairing over *episodes*. That pairing controls world difficulty
+and correctly answers "do these two policies differ on these worlds" — but it
+is silent on training-seed variance. Phase 2g measures that variance directly:
+both beam arms retrained on seeds 1-3, joining the existing seed-0 runs for
+**four seeds per arm**, with the seed as the unit of analysis and an exact
+permutation test (see `scripts/seed_analysis.py`).
 
-So the correct statement of the headline result is: *one* 64-beam policy beat
-*one* 32-beam policy, significantly, across 100 held-out worlds per condition,
-with a mechanism that predicts the effect in advance. That is suggestive and
-worth reporting; it is not yet established.
+### The result
 
-**Phase 2g, re-running the key arms across 3-5 seeds, is the highest-value
-remaining work and should happen before any of this goes into a report.** It
-is also why the 64-vs-128 non-monotonicity should not be over-interpreted.
+`narrow`, one value per training seed, 100 held-out worlds each:
+
+| Arm | Per-seed success | Mean +/- sd |
+|---|---|---|
+| 32 beams | 0.63, 0.68, 0.66, 0.52 | 0.623 +/- 0.071 |
+| 64 beams | 0.70, 0.58, 0.64, 0.74 | 0.665 +/- 0.070 |
+
+| Condition | Metric | Delta | p (exact) | Verdict |
+|---|---|---|---|---|
+| narrow | success | +0.042 | 0.457 | not significant |
+| narrow | SPL | +0.025 | 0.514 | not significant |
+| narrow | collision | +0.003 | 1.000 | not significant |
+| dense | success | +0.073 | 0.229 | not significant |
+| dense | SPL | +0.069 | 0.171 | not significant |
+| nominal | success | +0.007 | 0.800 | not significant |
+
+**The seed-to-seed spread (+/-0.07) is larger than the effect (+0.042).** The
+arms' ranges overlap almost entirely: 0.52-0.68 against 0.58-0.74.
+
+### How the single-seed comparison went wrong
+
+Phase 2f reported `narrow` collisions falling 0.110 -> 0.030 as evidence that
+better perception prevented crashes. Across seeds the two arms are
+**indistinguishable**: 0.077 +/- 0.025 versus 0.080 +/- 0.048. Seed 0 of the
+32-beam arm happened to be its *worst* for collisions, and seed 0 of the
+64-beam arm its *best*. The single-seed comparison measured that coincidence
+and nothing else.
+
+This is worth keeping in the record as the clearest illustration in the
+project of why single-seed RL comparisons mislead, and why the episode-level
+CIs in Phases 2c-2f — which were correctly computed — still supported a
+conclusion they could not bear.
+
+### A subtlety worth noting
+
+Best-validation SPL *did* separate completely across seeds: every 64-beam seed
+(0.787 +/- 0.009) above every 32-beam seed (0.743 +/- 0.014). That looks like
+strong evidence and is not, for two reasons. It is a **maximum** over ~30
+validation points during training, which both biases it upward and suppresses
+its variance; and it is measured on the DR training distribution rather than
+on the held-out benchmark conditions. When a selection statistic and a
+held-out measurement disagree, the held-out measurement wins.
+
+### What survives
+
+- The direction is positive in all six condition x metric comparisons, and the
+  validation separation is real. A small genuine effect is plausible. But the
+  six deltas are not independent, so their consistency cannot be converted
+  into a p-value.
+- **The robust conclusion of the whole study is untouched**: the classical
+  planner beats every learned policy on every condition, by margins far larger
+  than the seed spread (0.850 vs 0.665 on `narrow`).
+- Every other single-seed finding in Phases 2c-2f, including the `abl_step`
+  SPL win, should now be treated as **unreplicated**.
+
+### What would settle the perception question
+
+The geometry still predicts an effect, so the experiment deserves a better
+design rather than abandonment:
+
+1. **More seeds.** At 4-vs-4 the smallest reachable two-sided p is 2/70 =
+   0.029; resolving +0.04 against a +/-0.07 spread needs roughly ten seeds per
+   arm.
+2. **A larger contrast.** 16 versus 64 beams moves the resolution threshold
+   from 1.1 m to 4.5 m — a much bigger manipulation than 32 versus 64, and one
+   that should clear the seed noise if the mechanism is real.
+3. **Measure the mechanism directly.** Instead of inferring perception limits
+   from success rate, measure how often the beams miss a traversable gap.
+   That isolates the mechanism from everything else the policy does, needs no
+   training, and has no seed variance at all. This is the cheapest and most
+   informative of the three, and should come first.
 
 ## Phase 3 — Vision-conditioned RL (next)
 

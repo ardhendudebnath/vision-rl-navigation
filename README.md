@@ -31,9 +31,9 @@ decision below follows from wanting that comparison to be trustworthy.
 | Domain randomisation over shifts | Done — did not close the gap |
 | Compute sweep to 4.0M steps | Done — rejects the compute explanation |
 | Caution-vs-progress reward ablation | Done — rejects the reward explanation |
-| Lidar beam-count experiment | Done — **perception was the bottleneck** |
-| Multi-seed replication of the key arms | Next (and needed before any writeup) |
-| Vision-conditioned RL (egocentric observations + CNN) | After that |
+| Lidar beam-count experiment | Done — looked decisive on one seed |
+| Multi-seed replication (4 seeds × 2 arms) | Done — **the beam result does not replicate** |
+| Vision-conditioned RL (egocentric observations + CNN) | Next |
 
 Detail and rationale: [`docs/project_plan.md`](docs/project_plan.md).
 
@@ -168,7 +168,59 @@ not about caution at all: the baseline was *dawdling even when it succeeded*,
 and charging more per step cleans up the paths. Worth keeping; it does not
 touch the clutter problem.
 
-### It was perception — and the geometry says why
+### Perception looked like the answer — then did not replicate
+
+**Read this section before the one below it.** The 64-beam result reported
+next was produced from a single training seed per arm. Re-running both arms
+across **four seeds each** dissolves it.
+
+`narrow`, success rate, one value per training seed (100 held-out worlds each):
+
+| Arm | Per-seed success | Mean ± sd |
+|---|---|---|
+| 32 beams | 0.63, 0.68, 0.66, 0.52 | 0.623 ± 0.071 |
+| 64 beams | 0.70, 0.58, 0.64, 0.74 | 0.665 ± 0.070 |
+
+Exact permutation test with the **seed** as the unit of analysis:
+**+0.042, p = 0.457.** Not significant. The same holds on `dense`
+(+0.073, p = 0.229) and `nominal` (+0.007, p = 0.800).
+
+**The seed-to-seed spread (±0.07) is larger than the effect (+0.042).** The
+two arms' ranges overlap almost completely: 0.52–0.68 against 0.58–0.74.
+
+Worse for the original claim, the collision result was pure seed luck. Phase
+2f reported `narrow` collisions falling 0.110 → 0.030. Across seeds, the two
+arms are **identical**: 0.077 ± 0.025 versus 0.080 ± 0.048. Seed 0 of the
+32-beam arm happened to be its *worst* for collisions and seed 0 of the
+64-beam arm its *best*, and the single-seed comparison picked up exactly that.
+
+What survives is weak and honest: the direction is positive in all six
+condition×metric comparisons, and best-validation SPL separated completely
+across seeds (every 64-beam seed above every 32-beam seed, 0.787 ± 0.009 vs
+0.743 ± 0.014). But those six deltas are not independent, and "best validation
+SPL" is a *maximum* over ~30 checkpoints, which both inflates it and
+suppresses its variance. The held-out benchmark is the honest measure, and it
+does not resolve an effect at n = 4.
+
+**So: 64 beams may help a little; this experiment cannot show that it does.**
+The geometric argument below still predicts an effect and is still worth
+testing — it simply needs more seeds, or a larger beam contrast, than four
+runs per arm can settle.
+
+### The lesson, which applies to every result above
+
+Phases 2c–2f each compared **single training runs** with significance measured
+by pairing over *episodes*. Pairing over episodes controls world difficulty
+and is the right test for "do these two policies differ on these worlds" — but
+it is silent on training-seed variance, and here that variance turned out to
+be larger than every effect being reported. Treat the single-seed findings
+above (including the `abl_step` SPL win) as unreplicated.
+
+The one conclusion that is robust to all of this: **the classical planner beats
+every learned policy on every condition**, by margins far larger than the seed
+spread (0.850 vs 0.665 on `narrow`).
+
+### The geometric argument that motivated the beam experiment
 
 Compute, training distribution and reward balance were all eliminated. The
 remaining suspect was the sensor, and the arithmetic is blunt:
@@ -183,38 +235,31 @@ With 32 beams the robot could not reliably see a gap it would fit through
 beyond **2.24 m** — barely more than a body length of lookahead. Doubling to
 64 beams pushes that to 4.48 m.
 
-Retraining with 64 beams, everything else identical, gives the **first
-statistically significant success-rate improvement under clutter in the whole
-project**:
+On a single seed per arm, retraining with 64 beams appeared to give the first
+significant success-rate improvement under clutter: `narrow` success +0.070,
+paired over episodes, 95% CI [+0.006, +0.134]. **That is the result the
+multi-seed replication above dissolves**, and it is left here as the record of
+what a single-seed comparison looked like when it was wrong.
 
-| `narrow`, paired vs 32-beam baseline (n=100) | Δ | 95% CI | |
-|---|---|---|---|
-| success | **+0.070** | [+0.006, +0.134] | **significant** |
-| SPL | **+0.066** | [+0.006, +0.126] | **significant** |
+128 beams was no better than the 32-beam baseline anywhere. With the seed
+analysis in hand, that non-monotonicity is best read as seed noise too, not as
+evidence about observation dimensionality.
 
-Collisions on `narrow` fall from 0.110 to **0.030**, and `dense` SPL improves
-+0.086 [+0.002, +0.171]. `beams64` is the strongest learned policy in the
-study: 0.700 success on `narrow` against classical's 0.850, up from 0.630.
+### What would actually settle it
 
-**More beams is not monotonically better.** 128 beams is no better than the
-32-beam baseline on any condition, and significantly *worse* than 64 on
-`dense` SPL (−0.108 [−0.203, −0.014]). The plausible reading is that a 133-d
-observation is harder to learn from at a fixed 1.5M-step budget and fixed
-network size — but that is a hypothesis, not a result.
+The geometry predicts a real effect, so the experiment is worth doing
+properly rather than abandoning:
 
-### The caveat that limits all of this
-
-**Every arm is a single training seed.** The paired tests above are over
-*episodes*, which establishes that these particular trained policies differ on
-these worlds. They say nothing about *training-seed* variance, and RL results
-are notoriously seed-sensitive. So "64 beams beats 32" is properly stated as:
-one 64-beam policy beat one 32-beam policy, significantly, across 100 held-out
-worlds per condition.
-
-Re-running the key arms across 3–5 seeds is the single highest-value piece of
-remaining work, and it should be done before any of this goes into a report.
-It is also the honest reason the 64-vs-128 non-monotonicity should not be
-over-interpreted yet.
+- **More seeds.** At 4-vs-4 the smallest reachable two-sided p is 2/70 =
+  0.029, and an effect of +0.04 against a ±0.07 spread needs far more than
+  four runs per arm to resolve. Ten seeds per arm would be a reasonable target.
+- **A larger contrast.** 16 beams versus 64 puts the resolution threshold at
+  1.1 m versus 4.5 m, a far bigger manipulation than 32 versus 64, and should
+  produce an effect that clears the seed noise if the mechanism is real.
+- **A direct measurement instead of an end-to-end one.** Rather than inferring
+  perception limits from success rate, measure how often the beams actually
+  miss a traversable gap. That isolates the mechanism from everything else the
+  policy is doing, and needs no training at all.
 
 ## Quickstart
 
