@@ -28,7 +28,8 @@ decision below follows from wanting that comparison to be trustworthy.
 | Classical baseline (A* + pure pursuit, full map access) | Done |
 | Privileged RL (PPO on pose + ranges) | Done — 1.5M steps, val SPL 0.894 |
 | Robustness suite across shifted environments | Done |
-| Domain randomisation over shifts | Done — did not close the gap, see below |
+| Domain randomisation over shifts | Done — did not close the gap |
+| Compute sweep to 4.0M steps | Done — rejects the compute explanation |
 | Vision-conditioned RL (egocentric observations + CNN) | Next |
 
 Detail and rationale: [`docs/project_plan.md`](docs/project_plan.md).
@@ -39,80 +40,94 @@ Detail and rationale: [`docs/project_plan.md`](docs/project_plan.md).
 identical order**. `nominal` is the in-distribution held-out split; the rest
 are distribution shifts. Success rate / SPL:
 
-| Condition | Classical | PPO (nominal) | PPO (domain-rand.) | Random |
+| Condition | Classical | PPO nominal 1.5M | PPO DR 1.5M | PPO DR 4.0M |
 |---|---|---|---|---|
-| nominal | **1.000** / 0.985 | 0.960 / 0.910 | 0.940 / 0.865 | 0.000 |
-| sparse | **1.000** / 1.000 | 0.980 / 0.963 | 0.990 / 0.951 | 0.010 |
-| large | **1.000** / 0.990 | 0.970 / 0.940 | 0.970 / 0.925 | 0.000 |
-| noisy_lidar | 1.000 / 0.985 * | 0.960 / 0.909 | 0.940 / 0.869 | 0.000 |
-| dense | **0.890** / 0.841 | 0.640 / 0.593 | 0.660 / 0.593 | 0.000 |
-| narrow | **0.850** / 0.795 | 0.600 / 0.556 | 0.630 / 0.563 | 0.000 |
+| nominal | **1.000** / 0.985 | 0.960 / 0.910 | 0.940 / 0.865 | 0.930 / 0.885 |
+| sparse | **1.000** / 1.000 | 0.980 / 0.963 | 0.990 / 0.951 | 0.970 / 0.950 |
+| large | **1.000** / 0.990 | 0.970 / 0.940 | 0.970 / 0.925 | 0.970 / 0.928 |
+| noisy_lidar | 1.000 / 0.985 * | 0.960 / 0.911 | 0.960 / 0.884 | 0.940 / 0.896 |
+| dense | **0.890** / 0.841 | 0.640 / 0.593 | 0.660 / 0.593 | 0.680 / 0.631 |
+| narrow | **0.850** / 0.795 | 0.600 / 0.556 | 0.630 / 0.563 | 0.640 / 0.585 |
 
 \* `noisy_lidar` is a no-op for the classical planner *by construction* — it
 navigates from the map and never reads the lidar. Non-exposure, not
-robustness.
+robustness. Random scores 0.000 everywhere except `sparse` (0.010).
 
 Full table: [`results/benchmark.md`](results/benchmark.md).
 
-### Two findings, both negative, and the second is the interesting one
+### The finding: the policy learns not to crash, not how to get through
 
-**1. A learned policy did not beat a strong classical planner.** The project's
-stated hypothesis was that a reactive policy, not committed to a precomputed
-path, would close the planner's cornering weakness under clutter. That
-weakness was measured precisely: under shift, **A\* never once fails to find a
-route** — 0 planning failures, with 9/11 and 12/15 of failures being the
-controller losing the plan while cornering. The hypothesis is **falsified**.
-Classical wins on every condition, and the gap *widens* exactly where RL was
-predicted to win.
+A strong classical planner beat every learned policy on every condition. The
+interesting part is *why*, and it is not visible in the success rate.
 
-**2. Domain randomisation did not close that gap either — it converted
-collisions into timeouts.** The obvious explanation for finding 1 was
+The project's hypothesis was that a reactive policy, not committed to a
+precomputed path, would close the planner's cornering weakness under clutter.
+That weakness was measured precisely: under shift **A\* never once fails to
+find a route** — 0 planning failures, with failures being the controller
+losing the plan while cornering. When RL lost instead, the obvious suspect was
 out-of-distribution brittleness, so a second policy was trained on worlds
-randomised across arena size, obstacle count, obstacle size and start-goal
-separation, with ranges chosen to *contain* every evaluation shift. Success
-rate barely moved (0.640 → 0.660 on `dense`, 0.600 → 0.630 on `narrow`; SPL
-essentially identical). But the failure *composition* changed completely:
+randomised over arena size, obstacle count, obstacle size and start-goal
+separation — ranges chosen to *contain* every evaluation shift — then given
+2.7x the compute.
 
-| `narrow`, 100 episodes | Collisions | Timeouts | Timeout progress along route |
-|---|---|---|---|
-| PPO (nominal) | 27 | 13 | 4.4 m of 10.6 m |
-| PPO (domain-rand.) | **11** | **26** | **7.5 m of 11.7 m** |
+Success rate barely moved. The failure *composition* moved enormously:
 
-Randomisation taught genuine obstacle avoidance — collisions more than halved,
-and the episodes that fail now get roughly two-thirds of the way instead of
-40%. But the policy pays for that safety in speed: its timeouts average about
-0.16 m/s against a 0.6 m/s cap, and it runs out of budget still ~7 m from the
-goal. It became **cautious rather than capable**.
+**`narrow`, 100 episodes:**
 
-So the `dense`/`narrow` collapse is *not* simply distribution mismatch. Under
-clutter this policy trades collisions for stalling, and widening the training
-distribution moves failures between buckets rather than into successes.
+| Policy | Successes | Collisions | Timeouts | Timeout progress |
+|---|---|---|---|---|
+| nominal, 1.5M | 60 | 27 | 13 | 4.4 m of 10.6 m, 0.09 m/s |
+| DR, 1.5M | 63 | 11 | 26 | 7.5 m of 11.7 m, 0.15 m/s |
+| DR, 4.0M | **64** | **2** | **34** | 7.1 m of 11.8 m, 0.14 m/s |
 
-### Caveats that govern these numbers
+Collisions fall 27 → 11 → **2**: the policy has very nearly learned to stop
+crashing. But of the 25 episodes that left the collision bucket, **21 became
+timeouts and only 4 became successes.** The stalled episodes crawl at
+0.14 m/s against a 0.6 m/s cap and run out of budget two-thirds of the way
+there; the classical planner finishes `dense` in 226 steps.
 
+More training, and a wider training distribution, both buy *safety* and
+neither buys *completion*. The policy converges on caution.
+
+### Caveats, including one that corrects an earlier claim
+
+- **Correction: the DR policy was not compute-limited.** An earlier version of
+  this README said it was "still improving at 1.5M" and discounted the result
+  on that basis. That read was two points of a noisy 50-episode validation
+  curve. Extending to 4.0M shows it plateaus by ~1.75M and then drifts
+  slightly down (best val SPL 0.770, ending at 0.651). The compute explanation
+  is now tested and rejected, which makes the caution finding stronger, not
+  weaker.
 - **The comparison is structurally asymmetric.** Both policies train on a
-  distribution; the classical planner has none. On the shifted conditions this
-  compares an in-distribution planner against an out-of-distribution policy.
-  That is inherent to comparing learned and non-learned systems, and it is
-  most of the explanation for finding 1.
-- **The DR ranges were chosen to contain the evaluation shifts.** So finding 2
-  tests whether widening the training distribution recovers the loss — *not*
-  generalisation to unseen kinds of shift. Evaluation worlds are still
-  held-out seeds, so this is not leakage in the memorisation sense, but the
+  distribution; the classical planner has none, so on shifted conditions this
+  is an in-distribution planner against an out-of-distribution policy. Nor is
+  it equal-compute: DR got 2.7x more. Both asymmetries favour the learned
+  side, and it still lost.
+- **The DR ranges were chosen to contain the evaluation shifts,** so this
+  tests whether widening the training distribution recovers the loss, *not*
+  generalisation to unseen kinds of shift. Evaluation worlds remain held-out
+  seeds, so this is not leakage in the memorisation sense, but the
   distribution is deliberately matched.
-- **The DR policy is compute-limited, the nominal one is not.** The nominal
-  run flatlined from ~900k steps; the DR run was still improving at 1.5M
-  (0.74 → 0.76). Finding 2 should be read as "not at this budget", and the
-  cheapest next experiment is simply training it longer.
-- **n = 100 per condition**, so differences under ~0.05 in success rate are
-  not resolvable.
+- **n = 100 per condition**, so success-rate differences under ~0.05 are not
+  resolvable. The collision/timeout shifts above are far larger than that; the
+  success-rate changes are not.
 
 ### What the learned policies do win
 
-Both small, both stated with their caveats: ~6% fewer steps on successful
-`nominal` episodes (152 vs 161, mildly flattered by survivorship), and
-indifference to 0.10 m lidar range noise — the one axis the classical baseline
-cannot be compared on at all, since it never reads the sensor.
+Both small, both caveated: fewer steps on successful episodes (142 vs 161 in
+`nominal` for the 4.0M DR policy, ~12% faster, mildly flattered by
+survivorship), and indifference to 0.10 m lidar range noise — the one axis the
+classical baseline cannot be compared on at all, since it never reads the
+sensor.
+
+### Where this points
+
+Not at more compute, and not at a wider training distribution — both are now
+tested. The stalling is the thing to attack: the reward's caution terms
+(`proximity_penalty`) against its progress terms (`step_penalty`), the 500-step
+budget, and whether 32 lidar beams at 6 m can even resolve a gap in a `narrow`
+world. That last one separates "cannot perceive the gap" from "perceives it
+but will not commit", which are different problems with different fixes.
 
 ## Quickstart
 
@@ -140,10 +155,20 @@ Train the privileged-RL agent properly:
 python -m vision_nav.training.train
 ```
 
+Train with domain randomisation, or continue an existing run:
+
+```bash
+python -m vision_nav.training.train env=nav_dr train.run_name=ppo_dr
+```
+
+```bash
+python -m vision_nav.training.train env=nav_dr train.run_name=ppo_dr_long train.total_timesteps=2500000 train.resume_from=runs/ppo_dr/final_model.zip
+```
+
 Run the full comparison matrix and write the results table:
 
 ```bash
-python scripts/run_benchmark.py --rl runs/ppo_privileged/best_model.zip
+python scripts/run_benchmark.py --rl nominal=runs/ppo_privileged/best_model.zip dr=runs/ppo_dr/best_model.zip
 ```
 
 Render a demo GIF:

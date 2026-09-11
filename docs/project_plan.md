@@ -12,6 +12,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 2 | Privileged RL (PPO on exact pose + ground-truth ranges) | **Done** — 1.5M steps, val SPL 0.894 |
 | 2b | Robustness suite across held-out and shifted environments | **Done** — hypothesis falsified, see below |
 | 2c | Domain randomisation over shifts (what 2b argues for) | **Done** — gap not closed, failure mode changed |
+| 2d | Compute sweep to 4.0M steps (tests the "needs more training" excuse) | **Done** — rejected |
 | 3 | Vision-conditioned RL (egocentric depth/RGB-D + CNN encoder) | Next |
 | 4 | Technical report, demo video, packaging | Not started |
 | 5 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real via ROS 2 | Not started |
@@ -251,19 +252,70 @@ moved failures between buckets rather than into successes, so the
 - **n = 100 per condition**, so success-rate differences under ~0.05 are not
   resolvable.
 
+## Phase 2d — Compute sweep: the "needs more training" excuse, tested
+
+Phase 2c was discounted on the grounds that the DR policy was still improving
+at 1.5M. **That was wrong, and worth recording as a methodological lesson.**
+The claim rested on two points of a 50-episode validation curve (0.74 -> 0.76)
+whose run-to-run jitter is about +/-0.06 — i.e. it was noise read as a trend.
+
+The run was resumed (see `train.resume_from`; resuming is equivalent here
+because every schedule is constant, which `train.py` now verifies rather than
+assumes) and carried to **4.0M steps, 2.7x the nominal policy's budget**.
+
+Validation plateaus by ~1.75M and then drifts slightly down: best SPL 0.770,
+ending at 0.651. **The compute explanation is rejected.**
+
+### The result, stated properly
+
+`narrow`, 100 held-out episodes:
+
+| Policy | Successes | Collisions | Timeouts | Timeout progress |
+|---|---|---|---|---|
+| nominal, 1.5M | 60 | 27 | 13 | 4.4 m of 10.6 m, 0.09 m/s |
+| DR, 1.5M | 63 | 11 | 26 | 7.5 m of 11.7 m, 0.15 m/s |
+| DR, 4.0M | **64** | **2** | **34** | 7.1 m of 11.8 m, 0.14 m/s |
+
+`dense` shows the same shape: collisions 29 -> 12 -> 8, timeouts 7 -> 22 -> 24,
+successes 64 -> 66 -> 68.
+
+Collisions on `narrow` fall to **2 in 100**. The policy has all but learned not
+to crash. But of the 25 episodes that left the collision bucket, **21 became
+timeouts and only 4 became successes** — a roughly 5:1 conversion into
+stalling rather than completion. The stalled episodes crawl at 0.14 m/s
+against a 0.6 m/s cap.
+
+Neither more compute nor a wider training distribution buys completion. Both
+buy safety. **The policy converges on caution**, and that is the headline
+finding of the whole comparison — more informative than the raw success-rate
+gap, and it is a claim supported by a two-axis sweep rather than a single run.
+
+### Why this is a good result for a report
+
+Every cheap excuse for a losing RL result has now been tested and eliminated:
+not too little data (1000 worlds), not the wrong distribution (DR containing
+the shifts), not too little compute (2.7x, to plateau), not a weak evaluation
+(identical worlds, identical order, n=100, classical given every privilege).
+What remains is a substantive claim about what this reward and this
+observation actually optimise for.
+
 ### Next experiments, in order of expected information per GPU-hour
 
-1. **Train the DR policy longer** (3-5M steps). It had not converged, and this
-   is the cheapest way to find out whether finding 2c is a budget artefact.
-2. **Rebalance caution against progress.** The policy stalls rather than
-   crashes; `reward.step_penalty` up or `reward.proximity_penalty` down
-   directly targets that trade-off, and makes a clean two-point ablation.
-3. **Raise the step budget for the largest arenas.** `max_episode_steps=500`
-   was chosen for 12 m arenas; DR trains on arenas up to 16 m where `l*`
-   reaches 17 m. Some DR timeouts may be budget artefacts rather than stalls.
-4. **More sensing.** 32 beams at 6 m may simply not resolve gaps in `narrow`
-   worlds. Raising `lidar.n_beams` is a one-line config change and separates
-   "cannot perceive the gap" from "can perceive it but will not commit".
+Compute and distribution are exhausted. The remaining hypotheses are about the
+reward and the sensor:
+
+1. **Rebalance caution against progress.** The policy stalls rather than
+   crashes, which is what a large `proximity_penalty` relative to
+   `step_penalty` asks for. A two-point ablation on that ratio directly tests
+   whether the caution is learned from the reward or from the dynamics.
+2. **Raise the step budget.** `max_episode_steps=500` was chosen for 12 m
+   arenas; DR trains up to 16 m where `l*` reaches 17 m. Some timeouts may be
+   budget artefacts. Cheap to rule out, and should be ruled out before the
+   stalling claim is put in a paper.
+3. **More sensing.** 32 beams at 6 m may not resolve a gap in a `narrow`
+   world. Raising `lidar.n_beams` separates "cannot perceive the gap" from
+   "perceives it but will not commit" — different problems, different fixes,
+   and the distinction matters for the Phase 3 vision design.
 
 ## Phase 3 — Vision-conditioned RL (next)
 
