@@ -30,6 +30,7 @@ decision below follows from wanting that comparison to be trustworthy.
 | Robustness suite across shifted environments | Done |
 | Domain randomisation over shifts | Done — did not close the gap |
 | Compute sweep to 4.0M steps | Done — rejects the compute explanation |
+| Caution-vs-progress reward ablation | Done — rejects the reward explanation |
 | Vision-conditioned RL (egocentric observations + CNN) | Next |
 
 Detail and rationale: [`docs/project_plan.md`](docs/project_plan.md).
@@ -120,14 +121,60 @@ survivorship), and indifference to 0.10 m lidar range noise — the one axis the
 classical baseline cannot be compared on at all, since it never reads the
 sensor.
 
+### The stalling is the reward's stated preference, not a training failure
+
+Measuring actual episode returns for the 4.0M policy settles *why* it stalls:
+
+| Outcome | n | Mean return |
+|---|---|---|
+| success | 64 | **+41.20** |
+| timeout | 34 | **−2.06** |
+| collision | 2 | **−24.91** |
+
+A collision costs a flat −20; timing out for all 500 steps costs −5
+(`step_penalty` 0.01 × 500). **Crashing is four times worse than stalling
+forever**, so the policy is not malfunctioning — it found the optimum of the
+reward it was given.
+
+### Retuning the caution does not buy successes — it buys collisions
+
+Three arms, each isolating one caution term, all trained from scratch at 1.5M
+on the DR distribution. `narrow`, 100 held-out episodes:
+
+| Policy | Success | Collisions | Timeouts |
+|---|---|---|---|
+| classical | **0.850** | 0.120 | 0.030 |
+| DR baseline | 0.630 | 0.110 | 0.260 |
+| `abl_noprox` (`proximity_penalty` 0.15→0) | 0.660 | 0.100 | 0.240 |
+| `abl_step` (`step_penalty` 0.01→0.05) | 0.660 | 0.280 | 0.060 |
+| `abl_lowcoll` (`collision_penalty` 20→5) | 0.560 | **0.440** | **0.000** |
+
+As caution falls, timeouts convert into collisions almost one-for-one while
+**success stays pinned in a 0.56–0.66 band**. Paired tests over the identical
+worlds (n=100) confirm it: no arm significantly improves success rate under
+clutter, and `abl_lowcoll` significantly *hurts* `nominal` success
+(−0.070, 95% CI [−0.127, −0.013]).
+
+So the caution terms control **which** failure you get, not **how many**. The
+reward balance is not the bottleneck.
+
+### One real, significant win
+
+`abl_step` improves `nominal` SPL by **+0.066 (95% CI [+0.019, +0.113])** — the
+one significant gain in the whole ablation. Success is unchanged, so this is
+not about caution at all: the baseline was *dawdling even when it succeeded*,
+and charging more per step cleans up the paths. Worth keeping; it does not
+touch the clutter problem.
+
 ### Where this points
 
-Not at more compute, and not at a wider training distribution — both are now
-tested. The stalling is the thing to attack: the reward's caution terms
-(`proximity_penalty`) against its progress terms (`step_penalty`), the 500-step
-budget, and whether 32 lidar beams at 6 m can even resolve a gap in a `narrow`
-world. That last one separates "cannot perceive the gap" from "perceives it
-but will not commit", which are different problems with different fixes.
+Compute, training distribution, and reward balance are now all tested and
+eliminated. What remains is **perception and budget**: whether 32 lidar beams
+at 6 m can resolve a gap in a `narrow` world at all, and whether 500 steps
+(chosen for 12 m arenas) is enough when DR trains up to 16 m. The first
+separates "cannot perceive the gap" from "perceives it but will not commit" —
+different problems, different fixes, and the distinction directly shapes the
+Phase 3 vision design.
 
 ## Quickstart
 

@@ -13,6 +13,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 2b | Robustness suite across held-out and shifted environments | **Done** — hypothesis falsified, see below |
 | 2c | Domain randomisation over shifts (what 2b argues for) | **Done** — gap not closed, failure mode changed |
 | 2d | Compute sweep to 4.0M steps (tests the "needs more training" excuse) | **Done** — rejected |
+| 2e | Caution-vs-progress reward ablation (3 arms) | **Done** — rejected; one real SPL win |
 | 3 | Vision-conditioned RL (egocentric depth/RGB-D + CNN encoder) | Next |
 | 4 | Technical report, demo video, packaging | Not started |
 | 5 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real via ROS 2 | Not started |
@@ -299,23 +300,98 @@ the shifts), not too little compute (2.7x, to plateau), not a weak evaluation
 What remains is a substantive claim about what this reward and this
 observation actually optimise for.
 
-### Next experiments, in order of expected information per GPU-hour
+## Phase 2e — Caution-vs-progress ablation: the reward explanation, tested
 
-Compute and distribution are exhausted. The remaining hypotheses are about the
-reward and the sensor:
+### First, why the policy stalls
 
-1. **Rebalance caution against progress.** The policy stalls rather than
-   crashes, which is what a large `proximity_penalty` relative to
-   `step_penalty` asks for. A two-point ablation on that ratio directly tests
-   whether the caution is learned from the reward or from the dynamics.
-2. **Raise the step budget.** `max_episode_steps=500` was chosen for 12 m
-   arenas; DR trains up to 16 m where `l*` reaches 17 m. Some timeouts may be
-   budget artefacts. Cheap to rule out, and should be ruled out before the
-   stalling claim is put in a paper.
-3. **More sensing.** 32 beams at 6 m may not resolve a gap in a `narrow`
-   world. Raising `lidar.n_beams` separates "cannot perceive the gap" from
-   "perceives it but will not commit" — different problems, different fixes,
-   and the distinction matters for the Phase 3 vision design.
+Rather than assume, episode returns were measured directly for the 4.0M
+policy on `narrow` (n=100):
+
+| Outcome | n | Mean return |
+|---|---|---|
+| success | 64 | +41.20 |
+| timeout | 34 | -2.06 |
+| collision | 2 | -24.91 |
+
+A collision costs a flat -20. Timing out for all 500 steps costs -5
+(`step_penalty` 0.01 x 500). **Crashing is four times worse than stalling
+forever**, and the measured 22.85-point gap confirms it end to end.
+
+This reframes Phases 2c and 2d: they eliminated the wrong suspects. The policy
+is not failing to learn — it learned the optimum of the reward it was given.
+The stalling is the reward's stated preference.
+
+### The ablation
+
+Three arms, each isolating one caution term, each trained from scratch at 1.5M
+on the DR distribution so all are comparable to the DR baseline. Training from
+the DR checkpoint would have confounded the reward change with the inherited
+policy.
+
+| Arm | Change | Rationale |
+|---|---|---|
+| `abl_step` | `step_penalty` 0.01 -> 0.05 | A full timeout now costs 25, *exceeding* the 20 collision penalty — directly inverts the incentive |
+| `abl_noprox` | `proximity_penalty` 0.15 -> 0.0 | Removes the smooth gradient pushing the robot away from obstacles |
+| `abl_lowcoll` | `collision_penalty` 20 -> 5 | Makes crashing roughly comparable to stalling |
+
+`narrow`, 100 held-out episodes:
+
+| Policy | Success | Collisions | Timeouts |
+|---|---|---|---|
+| classical | **0.850** | 0.120 | 0.030 |
+| DR baseline | 0.630 | 0.110 | 0.260 |
+| `abl_noprox` | 0.660 | 0.100 | 0.240 |
+| `abl_step` | 0.660 | 0.280 | 0.060 |
+| `abl_lowcoll` | 0.560 | **0.440** | **0.000** |
+
+`dense` shows the same shape: as caution falls, collisions rise 0.120 -> 0.250
+-> 0.340 -> 0.460 while timeouts fall 0.220 -> 0.140 -> 0.060 -> 0.000.
+
+### The result, tested properly
+
+All actors run identical worlds in identical order, so the comparison is
+**paired** — an unpaired test here discards the world-difficulty pairing and
+badly overstates variance. Paired 95% CIs on per-episode differences vs the DR
+baseline (n=100):
+
+| Arm | Condition | Metric | Delta | 95% CI | Verdict |
+|---|---|---|---|---|---|
+| `abl_step` | nominal | SPL | **+0.066** | [+0.019, +0.113] | **significant** |
+| `abl_step` | nominal | success | +0.010 | [-0.034, +0.054] | not significant |
+| `abl_step` | narrow | success | +0.030 | [-0.046, +0.106] | not significant |
+| `abl_noprox` | narrow | success | +0.030 | [-0.046, +0.106] | not significant |
+| `abl_lowcoll` | nominal | success | **-0.070** | [-0.127, -0.013] | **significant (worse)** |
+
+**No arm significantly improves success rate under clutter.** Success stays
+pinned in a 0.56-0.66 band while failures move between the timeout and
+collision buckets almost one-for-one. The caution terms control *which* failure
+occurs, not *how many*. The reward balance is not the bottleneck.
+
+### The one real win
+
+`abl_step` improves `nominal` SPL by +0.066, the only significant gain in the
+ablation. Success is unchanged, so this is not about caution: the baseline was
+**dawdling even on episodes it won**, and charging more per step tidies the
+paths. Worth adopting as the default; it does nothing for the clutter problem.
+
+### What is left
+
+Four explanations for the losing RL result have now been tested and
+eliminated: insufficient data (1000 worlds), wrong training distribution (DR
+containing the shifts), insufficient compute (2.7x, to plateau), and reward
+balance (three-arm ablation with paired tests). What remains:
+
+1. **Perception.** 32 beams over 360 degrees is one sample every 11.25 degrees;
+   at 3 m that is a 0.59 m gap between adjacent rays, comparable to the
+   robot's 0.44 m diameter. In `narrow` worlds the policy may be physically
+   unable to see the gap it needs. Raising `lidar.n_beams` to 64 or 128 is a
+   one-line config change and is the highest-information next experiment,
+   because it separates "cannot perceive the gap" from "perceives it but will
+   not commit" — different problems with different fixes, and the distinction
+   directly shapes the Phase 3 vision design.
+2. **Step budget.** `max_episode_steps=500` was chosen for 12 m arenas; DR
+   trains up to 16 m where `l*` reaches 17 m. Cheap to rule out, and it should
+   be ruled out before the stalling claim goes into a report.
 
 ## Phase 3 — Vision-conditioned RL (next)
 
