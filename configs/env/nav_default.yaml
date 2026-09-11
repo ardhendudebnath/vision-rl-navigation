@@ -1,0 +1,45 @@
+# The navigation task. Sections map onto the dataclasses in
+# vision_nav.envs: world / robot / lidar / reward.
+
+max_episode_steps: 500
+obs_mode: privileged
+max_goal_distance: 20.0
+world_cache_size: 1024
+
+world:
+  width: 12.0
+  height: 12.0
+  n_circles: [6, 12]
+  circle_radius: [0.3, 0.9]
+  n_boxes: [2, 6]
+  box_size: [0.5, 1.8]
+  robot_radius: 0.22
+  goal_tolerance: 0.35
+  min_start_goal_dist: 5.0
+  spawn_clearance: 0.35
+  grid_resolution: 0.1
+
+robot:
+  max_linear_vel: 0.6
+  min_linear_vel: -0.1
+  max_angular_vel: 1.6
+  max_linear_accel: 2.0
+  max_angular_accel: 6.0
+  dt: 0.1
+
+lidar:
+  n_beams: 32
+  max_range: 6.0
+  # Kept clean for training; the robustness suite raises these at eval time.
+  noise_std: 0.0
+  dropout_prob: 0.0
+
+reward:
+  progress: 3.0
+  goal_bonus: 20.0
+  collision_penalty: 20.0
+  step_penalty: 0.01
+  proximity_penalty: 0.15
+  proximity_threshold: 0.4
+  spin_penalty: 0.005
+  use_geodesic_progress: true

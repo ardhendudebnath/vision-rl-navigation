@@ -11,9 +11,12 @@ dist/
 htmlcov/
 
 # Environments
-.venv/
-venv/
-env/
+# Anchored to the repo root: a bare "env/" also matches configs/env/, which
+# silently excluded the environment configs and left the published repo
+# unable to train.
+/.venv/
+/venv/
+/env/
 .python-version
 
 # Training artefacts: runs are reproducible from configs, so they are not
