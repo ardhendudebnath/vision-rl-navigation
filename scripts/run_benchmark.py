@@ -70,6 +70,28 @@ def parse_args(argv=None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+#: Sensor *geometry* is a property of the policy: a 64-beam policy cannot be
+#: evaluated in a 32-beam env, its observation would not even be the right
+#: shape. Sensor *corruption* (noise, dropout) is a property of the evaluation
+#: condition and must not be inherited from the training config, or the
+#: noisy_lidar row would silently evaluate a clean sensor.
+SENSOR_GEOMETRY_FIELDS = ("n_beams", "fov", "max_range")
+
+
+def actor_sensor_geometry(model_path: str | None) -> dict:
+    """Read sensor geometry from the run directory's saved config."""
+    if not model_path:
+        return {}
+    cfg_path = Path(model_path).parent / "config.yaml"
+    if not cfg_path.exists():
+        return {}
+    from omegaconf import OmegaConf
+
+    saved = OmegaConf.load(cfg_path)
+    lidar = OmegaConf.to_container(saved.env.lidar, resolve=True)
+    return {k: lidar[k] for k in SENSOR_GEOMETRY_FIELDS if k in lidar}
+
+
 def build_actor_specs(rl_args: list[str] | None) -> dict[str, dict]:
     """Map actor label -> build_actor kwargs.
 
@@ -123,12 +145,34 @@ def main(argv=None) -> int:
     for cond in args.conditions:
         split, shift, noise = CONDITIONS[cond]
         overrides = {"lidar": {"noise_std": noise}} if noise else {}
-        env_config = build_env_config(
+        reference = build_env_config(
             overrides, split=split, shift=shift, n_worlds=args.episodes
         )
 
         for actor_name, spec in specs.items():
-            print(f"[{cond:>12}] {actor_name} ...", end=" ", flush=True)
+            geometry = actor_sensor_geometry(spec.get("model_path"))
+            actor_overrides = dict(overrides)
+            if geometry:
+                actor_overrides["lidar"] = {**overrides.get("lidar", {}), **geometry}
+            env_config = build_env_config(
+                actor_overrides, split=split, shift=shift, n_worlds=args.episodes
+            )
+
+            # The sensor may differ per actor; the WORLDS may not. If they did,
+            # rows would no longer be comparable, which is the one property the
+            # whole benchmark depends on.
+            assert env_config.world == reference.world, (
+                f"{actor_name} would be evaluated on different worlds"
+            )
+            assert list(env_config.world_seeds or []) == list(reference.world_seeds or []), (
+                f"{actor_name} would be evaluated on a different seed sequence"
+            )
+            assert env_config.lidar.noise_std == reference.lidar.noise_std, (
+                f"{actor_name} would not see this condition's sensor noise"
+            )
+
+            suffix = f" [{geometry['n_beams']} beams]" if geometry.get("n_beams") else ""
+            print(f"[{cond:>12}] {actor_name}{suffix} ...", end=" ", flush=True)
             actor = build_actor(robot=env_config.robot, **spec)
             metrics, results = evaluate(actor, env_config)
             print(
@@ -143,6 +187,7 @@ def main(argv=None) -> int:
                     "shift": shift or "none",
                     "lidar_noise_std": noise,
                     "actor": actor_name,
+                    "n_beams": geometry.get("n_beams"),
                     **metrics.to_dict(),
                 }
             )
@@ -179,11 +224,22 @@ def render_table(rows: list[dict]) -> str:
             f"{r['spl']:.3f} | {r['collision_rate']:.3f} | "
             f"{r['timeout_rate']:.3f} | {r['mean_steps_to_goal']:.0f} |"
         )
+    beam_counts = {r.get("n_beams") for r in rows if r.get("n_beams")}
     lines += [
         "",
         "## Reading this table",
         "",
         "- `random` is the floor. Any result that does not clearly clear it is noise.",
+    ]
+    if len(beam_counts) > 1:
+        lines += [
+            f"- **Actors here use different lidar beam counts** ({sorted(beam_counts)}).",
+            "  Sensor geometry is read from each run's saved config, because a policy",
+            "  cannot be evaluated at a beam count it was not trained for. The worlds,",
+            "  seed order and injected sensor noise are identical across every row —",
+            "  asserted at evaluation time, not assumed.",
+        ]
+    lines += [
         "- **`noisy_lidar` is a no-op for `classical` by construction.** The classical",
         "  baseline navigates from the map and never reads the lidar, so its row is",
         "  identical to `nominal`. That is not robustness — it is non-exposure, and it",
