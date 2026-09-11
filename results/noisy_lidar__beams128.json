@@ -1,0 +1,11 @@
+{
+  "n_episodes": 100,
+  "success_rate": 0.94,
+  "spl": 0.8834281156822112,
+  "collision_rate": 0.03,
+  "timeout_rate": 0.03,
+  "mean_steps_to_goal": 153.75531914893617,
+  "mean_path_length": 8.145660197310995,
+  "mean_path_efficiency": 0.9398171443427779,
+  "mean_final_goal_distance": 0.5584912235455017
+}

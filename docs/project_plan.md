@@ -14,7 +14,9 @@ Phases are numbered as in the roadmap's Section 3.
 | 2c | Domain randomisation over shifts (what 2b argues for) | **Done** — gap not closed, failure mode changed |
 | 2d | Compute sweep to 4.0M steps (tests the "needs more training" excuse) | **Done** — rejected |
 | 2e | Caution-vs-progress reward ablation (3 arms) | **Done** — rejected; one real SPL win |
-| 3 | Vision-conditioned RL (egocentric depth/RGB-D + CNN encoder) | Next |
+| 2f | Lidar beam-count experiment (32 / 64 / 128) | **Done** — **perception was the bottleneck** |
+| 2g | Multi-seed replication of the key arms | Next — required before any writeup |
+| 3 | Vision-conditioned RL (egocentric depth/RGB-D + CNN encoder) | After 2g |
 | 4 | Technical report, demo video, packaging | Not started |
 | 5 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real via ROS 2 | Not started |
 
@@ -381,17 +383,89 @@ eliminated: insufficient data (1000 worlds), wrong training distribution (DR
 containing the shifts), insufficient compute (2.7x, to plateau), and reward
 balance (three-arm ablation with paired tests). What remains:
 
-1. **Perception.** 32 beams over 360 degrees is one sample every 11.25 degrees;
-   at 3 m that is a 0.59 m gap between adjacent rays, comparable to the
-   robot's 0.44 m diameter. In `narrow` worlds the policy may be physically
-   unable to see the gap it needs. Raising `lidar.n_beams` to 64 or 128 is a
-   one-line config change and is the highest-information next experiment,
-   because it separates "cannot perceive the gap" from "perceives it but will
-   not commit" — different problems with different fixes, and the distinction
-   directly shapes the Phase 3 vision design.
+1. **Perception.** 32 beams over 360 degrees is one sample every 11.25 degrees.
+   Run as Phase 2f below — this is where the bottleneck actually was.
 2. **Step budget.** `max_episode_steps=500` was chosen for 12 m arenas; DR
-   trains up to 16 m where `l*` reaches 17 m. Cheap to rule out, and it should
+   trains up to 16 m where `l*` reaches 17 m. Still unrun; cheap, and it should
    be ruled out before the stalling claim goes into a report.
+
+## Phase 2f — Lidar beam count: the bottleneck, found
+
+### The geometric argument
+
+A planar lidar samples the world at fixed angular spacing, so the *linear* gap
+between adjacent rays grows with range. A gap the robot could physically drive
+through is invisible if it falls between two rays:
+
+| Beams | Angular spacing | Ray gap at 3 m | Resolves a 0.44 m robot-width gap out to |
+|---|---|---|---|
+| 32 | 11.25 deg | 0.59 m | **2.24 m** |
+| 64 | 5.62 deg | 0.29 m | 4.48 m |
+| 128 | 2.81 deg | 0.15 m | 8.96 m |
+
+At 32 beams the robot cannot reliably resolve a gap it would fit through
+beyond 2.24 m — barely more than one body length of lookahead. In `narrow`
+worlds, where the whole task is committing to a specific opening, that is a
+plausible hard limit that no amount of reward tuning could fix.
+
+### Result
+
+Two arms, `n_beams` 64 and 128, everything else identical to the DR baseline,
+trained from scratch at 1.5M (the observation dimension changes, so resuming
+is impossible).
+
+Success / SPL on 100 held-out worlds:
+
+| Condition | classical | 32 beams | 64 beams | 128 beams |
+|---|---|---|---|---|
+| nominal | **1.000** / 0.985 | 0.940 / 0.865 | 0.960 / 0.905 | 0.930 / 0.877 |
+| sparse | **1.000** / 1.000 | 0.990 / 0.951 | 1.000 / 0.970 | 0.980 / 0.945 |
+| large | **1.000** / 0.990 | 0.970 / 0.925 | 0.990 / 0.951 | 0.980 / 0.934 |
+| dense | **0.890** / 0.841 | 0.660 / 0.593 | 0.730 / 0.680 | 0.630 / 0.571 |
+| narrow | **0.850** / 0.795 | 0.630 / 0.563 | 0.700 / 0.629 | 0.650 / 0.576 |
+
+Paired 95% CIs vs the 32-beam baseline (identical worlds, n=100):
+
+| Arm | Condition | Metric | Delta | 95% CI | Verdict |
+|---|---|---|---|---|---|
+| `beams64` | narrow | success | **+0.070** | [+0.006, +0.134] | **significant** |
+| `beams64` | narrow | SPL | **+0.066** | [+0.006, +0.126] | **significant** |
+| `beams64` | dense | SPL | **+0.086** | [+0.002, +0.171] | **significant** |
+| `beams64` | nominal | SPL | **+0.040** | [+0.005, +0.074] | **significant** |
+| `beams128` | narrow | success | +0.020 | [-0.054, +0.094] | not significant |
+| 128 vs 64 | dense | SPL | **-0.108** | [-0.203, -0.014] | **significant (worse)** |
+
+**This is the first statistically significant success-rate improvement under
+clutter in the entire study.** Collisions on `narrow` also fall from 0.110 to
+0.030. After compute, distribution and reward all failed to move success, the
+sensor did — which is the answer the geometric argument predicted.
+
+### More beams is not monotonically better
+
+128 beams is no better than the 32-beam baseline anywhere, and significantly
+worse than 64 on `dense` SPL. The plausible reading is that a 133-dimensional
+observation is harder to learn from at a fixed 1.5M-step budget and fixed
+(256, 256) network. That is a hypothesis, not a result — and testing it means
+either more compute for the 128 arm or a wider network, both of which are
+confounded with the beam count unless controlled.
+
+## The caveat that limits every result above
+
+**Every arm in Phases 2c-2f is a single training seed.** The paired tests are
+over *episodes*: they establish that these particular trained policies differ
+on these worlds, with the world-difficulty pairing controlled. They say
+nothing about *training-seed* variance, and RL results are notoriously
+seed-sensitive — differences of this size routinely appear between seeds of an
+identical configuration.
+
+So the correct statement of the headline result is: *one* 64-beam policy beat
+*one* 32-beam policy, significantly, across 100 held-out worlds per condition,
+with a mechanism that predicts the effect in advance. That is suggestive and
+worth reporting; it is not yet established.
+
+**Phase 2g, re-running the key arms across 3-5 seeds, is the highest-value
+remaining work and should happen before any of this goes into a report.** It
+is also why the 64-vs-128 non-monotonicity should not be over-interpreted.
 
 ## Phase 3 — Vision-conditioned RL (next)
 

@@ -31,7 +31,9 @@ decision below follows from wanting that comparison to be trustworthy.
 | Domain randomisation over shifts | Done — did not close the gap |
 | Compute sweep to 4.0M steps | Done — rejects the compute explanation |
 | Caution-vs-progress reward ablation | Done — rejects the reward explanation |
-| Vision-conditioned RL (egocentric observations + CNN) | Next |
+| Lidar beam-count experiment | Done — **perception was the bottleneck** |
+| Multi-seed replication of the key arms | Next (and needed before any writeup) |
+| Vision-conditioned RL (egocentric observations + CNN) | After that |
 
 Detail and rationale: [`docs/project_plan.md`](docs/project_plan.md).
 
@@ -166,15 +168,53 @@ not about caution at all: the baseline was *dawdling even when it succeeded*,
 and charging more per step cleans up the paths. Worth keeping; it does not
 touch the clutter problem.
 
-### Where this points
+### It was perception — and the geometry says why
 
-Compute, training distribution, and reward balance are now all tested and
-eliminated. What remains is **perception and budget**: whether 32 lidar beams
-at 6 m can resolve a gap in a `narrow` world at all, and whether 500 steps
-(chosen for 12 m arenas) is enough when DR trains up to 16 m. The first
-separates "cannot perceive the gap" from "perceives it but will not commit" —
-different problems, different fixes, and the distinction directly shapes the
-Phase 3 vision design.
+Compute, training distribution and reward balance were all eliminated. The
+remaining suspect was the sensor, and the arithmetic is blunt:
+
+| Beams | Angular spacing | Resolves a robot-width gap out to |
+|---|---|---|
+| 32 | 11.25° | **2.24 m** |
+| 64 | 5.62° | 4.48 m |
+| 128 | 2.81° | 8.96 m |
+
+With 32 beams the robot could not reliably see a gap it would fit through
+beyond **2.24 m** — barely more than a body length of lookahead. Doubling to
+64 beams pushes that to 4.48 m.
+
+Retraining with 64 beams, everything else identical, gives the **first
+statistically significant success-rate improvement under clutter in the whole
+project**:
+
+| `narrow`, paired vs 32-beam baseline (n=100) | Δ | 95% CI | |
+|---|---|---|---|
+| success | **+0.070** | [+0.006, +0.134] | **significant** |
+| SPL | **+0.066** | [+0.006, +0.126] | **significant** |
+
+Collisions on `narrow` fall from 0.110 to **0.030**, and `dense` SPL improves
++0.086 [+0.002, +0.171]. `beams64` is the strongest learned policy in the
+study: 0.700 success on `narrow` against classical's 0.850, up from 0.630.
+
+**More beams is not monotonically better.** 128 beams is no better than the
+32-beam baseline on any condition, and significantly *worse* than 64 on
+`dense` SPL (−0.108 [−0.203, −0.014]). The plausible reading is that a 133-d
+observation is harder to learn from at a fixed 1.5M-step budget and fixed
+network size — but that is a hypothesis, not a result.
+
+### The caveat that limits all of this
+
+**Every arm is a single training seed.** The paired tests above are over
+*episodes*, which establishes that these particular trained policies differ on
+these worlds. They say nothing about *training-seed* variance, and RL results
+are notoriously seed-sensitive. So "64 beams beats 32" is properly stated as:
+one 64-beam policy beat one 32-beam policy, significantly, across 100 held-out
+worlds per condition.
+
+Re-running the key arms across 3–5 seeds is the single highest-value piece of
+remaining work, and it should be done before any of this goes into a report.
+It is also the honest reason the 64-vs-128 non-monotonicity should not be
+over-interpreted yet.
 
 ## Quickstart
 
