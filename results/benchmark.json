@@ -32,6 +32,22 @@
     "mean_final_goal_distance": 0.3364731481164258
   },
   {
+    "condition": "nominal",
+    "split": "test",
+    "shift": "none",
+    "lidar_noise_std": 0.0,
+    "actor": "ppo_privileged",
+    "n_episodes": 100,
+    "success_rate": 0.96,
+    "spl": 0.909938530050819,
+    "collision_rate": 0.04,
+    "timeout_rate": 0.0,
+    "mean_steps_to_goal": 152.0625,
+    "mean_path_length": 8.081524858584626,
+    "mean_path_efficiency": 0.947852635469603,
+    "mean_final_goal_distance": 0.45883604200419414
+  },
+  {
     "condition": "dense",
     "split": "test_ood",
     "shift": "dense",
@@ -62,6 +78,22 @@
     "mean_path_length": 9.349607560141097,
     "mean_path_efficiency": 0.9444853364814879,
     "mean_final_goal_distance": 0.8378542705082539
+  },
+  {
+    "condition": "dense",
+    "split": "test_ood",
+    "shift": "dense",
+    "lidar_noise_std": 0.0,
+    "actor": "ppo_privileged",
+    "n_episodes": 100,
+    "success_rate": 0.64,
+    "spl": 0.5932158581257236,
+    "collision_rate": 0.29,
+    "timeout_rate": 0.07,
+    "mean_steps_to_goal": 175.984375,
+    "mean_path_length": 7.767932364611787,
+    "mean_path_efficiency": 0.9268997783214432,
+    "mean_final_goal_distance": 1.9490796257068488
   },
   {
     "condition": "sparse",
@@ -96,6 +128,22 @@
     "mean_final_goal_distance": 0.3374011314238395
   },
   {
+    "condition": "sparse",
+    "split": "test_ood",
+    "shift": "sparse",
+    "lidar_noise_std": 0.0,
+    "actor": "ppo_privileged",
+    "n_episodes": 100,
+    "success_rate": 0.98,
+    "spl": 0.9634678170995781,
+    "collision_rate": 0.01,
+    "timeout_rate": 0.01,
+    "mean_steps_to_goal": 142.0408163265306,
+    "mean_path_length": 7.959006213072046,
+    "mean_path_efficiency": 0.9831304256118144,
+    "mean_final_goal_distance": 0.3933655891068266
+  },
+  {
     "condition": "large",
     "split": "test_ood",
     "shift": "large",
@@ -126,6 +174,22 @@
     "mean_path_length": 11.288798653056007,
     "mean_path_efficiency": 0.9900287692509038,
     "mean_final_goal_distance": 0.33746964711393923
+  },
+  {
+    "condition": "large",
+    "split": "test_ood",
+    "shift": "large",
+    "lidar_noise_std": 0.0,
+    "actor": "ppo_privileged",
+    "n_episodes": 100,
+    "success_rate": 0.97,
+    "spl": 0.9401888548553694,
+    "collision_rate": 0.01,
+    "timeout_rate": 0.02,
+    "mean_steps_to_goal": 209.61855670103094,
+    "mean_path_length": 11.753805595096617,
+    "mean_path_efficiency": 0.9692668606756386,
+    "mean_final_goal_distance": 0.40636049028536236
   },
   {
     "condition": "narrow",
@@ -160,6 +224,22 @@
     "mean_final_goal_distance": 1.2067774237044866
   },
   {
+    "condition": "narrow",
+    "split": "test_ood",
+    "shift": "narrow",
+    "lidar_noise_std": 0.0,
+    "actor": "ppo_privileged",
+    "n_episodes": 100,
+    "success_rate": 0.6,
+    "spl": 0.556431768640443,
+    "collision_rate": 0.27,
+    "timeout_rate": 0.13,
+    "mean_steps_to_goal": 177.71666666666667,
+    "mean_path_length": 7.41543568075742,
+    "mean_path_efficiency": 0.927386281067405,
+    "mean_final_goal_distance": 2.4886789330425425
+  },
+  {
     "condition": "noisy_lidar",
     "split": "test",
     "shift": "none",
@@ -190,5 +270,21 @@
     "mean_path_length": 7.717567799472565,
     "mean_path_efficiency": 0.9848711806344429,
     "mean_final_goal_distance": 0.3364731481164258
+  },
+  {
+    "condition": "noisy_lidar",
+    "split": "test",
+    "shift": "none",
+    "lidar_noise_std": 0.1,
+    "actor": "ppo_privileged",
+    "n_episodes": 100,
+    "success_rate": 0.97,
+    "spl": 0.9193969610384245,
+    "collision_rate": 0.03,
+    "timeout_rate": 0.0,
+    "mean_steps_to_goal": 152.11340206185568,
+    "mean_path_length": 8.107465718564054,
+    "mean_path_efficiency": 0.9478319185963138,
+    "mean_final_goal_distance": 0.4423536569562036
   }
 ]

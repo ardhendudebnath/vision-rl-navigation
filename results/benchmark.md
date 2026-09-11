@@ -8,16 +8,22 @@ conditions are distribution shifts never seen during training.
 |---|---|---|---|---|---|---|
 | nominal | random | 0.000 | 0.000 | 0.980 | 0.020 | 0 |
 | nominal | classical | 1.000 | 0.985 | 0.000 | 0.000 | 161 |
+| nominal | ppo_privileged | 0.960 | 0.910 | 0.040 | 0.000 | 152 |
 | dense | random | 0.000 | 0.000 | 1.000 | 0.000 | 0 |
 | dense | classical | 0.890 | 0.841 | 0.090 | 0.020 | 226 |
+| dense | ppo_privileged | 0.640 | 0.593 | 0.290 | 0.070 | 176 |
 | sparse | random | 0.010 | 0.009 | 0.900 | 0.090 | 258 |
 | sparse | classical | 1.000 | 1.000 | 0.000 | 0.000 | 143 |
+| sparse | ppo_privileged | 0.980 | 0.963 | 0.010 | 0.010 | 142 |
 | large | random | 0.000 | 0.000 | 0.920 | 0.080 | 0 |
 | large | classical | 1.000 | 0.990 | 0.000 | 0.000 | 215 |
+| large | ppo_privileged | 0.970 | 0.940 | 0.010 | 0.020 | 210 |
 | narrow | random | 0.000 | 0.000 | 1.000 | 0.000 | 0 |
 | narrow | classical | 0.850 | 0.795 | 0.120 | 0.030 | 224 |
+| narrow | ppo_privileged | 0.600 | 0.556 | 0.270 | 0.130 | 178 |
 | noisy_lidar | random | 0.000 | 0.000 | 0.980 | 0.020 | 0 |
 | noisy_lidar | classical | 1.000 | 0.985 | 0.000 | 0.000 | 161 |
+| noisy_lidar | ppo_privileged | 0.970 | 0.919 | 0.030 | 0.000 | 152 |
 
 ## Reading this table
 

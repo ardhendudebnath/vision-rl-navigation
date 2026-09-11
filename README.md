@@ -2,10 +2,13 @@
 
 ### A comparative study against classical planning
 
-![Classical baseline solving three held-out worlds](results/demo_classical.gif)
+| Classical (A* + pure pursuit) | PPO (privileged) |
+|---|---|
+| ![Classical baseline](results/demo_classical.gif) | ![PPO policy](results/demo_rl.gif) |
 
-*A* + pure-pursuit baseline on three unseen test worlds. Grey: the global plan.
-Orange: the executed trajectory.*
+*The same three unseen test worlds, solved by both. Grey: the global plan
+(classical only — the learned policy has no plan to draw). Orange: the
+executed trajectory.*
 
 ---
 
@@ -23,41 +26,72 @@ decision below follows from wanting that comparison to be trustworthy.
 |---|---|
 | Task definition, world generation, metrics, test suite | Done |
 | Classical baseline (A* + pure pursuit, full map access) | Done |
-| Privileged RL (PPO on pose + ranges) | Pipeline done, full run pending |
-| Vision-conditioned RL (egocentric observations + CNN) | Next |
-| Robustness suite across shifted environments | Harness done |
+| Privileged RL (PPO on pose + ranges) | Done — 1.5M steps, val SPL 0.894 |
+| Robustness suite across shifted environments | Done — first results in |
+| Domain randomisation over shifts | Next (see result below) |
+| Vision-conditioned RL (egocentric observations + CNN) | After that |
 
 Detail and rationale: [`docs/project_plan.md`](docs/project_plan.md).
 
 ## Results
 
-Classical baseline, 100 held-out worlds per condition. All actors see
-**identical worlds in identical order**, so rows are directly comparable.
-`nominal` is the in-distribution held-out split; the rest are distribution
-shifts never seen in training.
+100 held-out worlds per condition. All actors see **identical worlds in
+identical order**, so rows are directly comparable. `nominal` is the
+in-distribution held-out split; the rest are distribution shifts never seen in
+training. Success rate / SPL:
 
-| Condition | Success | SPL | Collision | Random baseline (success) |
-|---|---|---|---|---|
-| nominal | 1.000 | 0.985 | 0.000 | 0.000 |
-| sparse | 1.000 | 1.000 | 0.000 | 0.010 |
-| large | 1.000 | 0.990 | 0.000 | 0.000 |
-| dense | 0.890 | 0.841 | 0.090 | 0.000 |
-| narrow | 0.850 | 0.795 | 0.120 | 0.000 |
+| Condition | Classical | PPO (privileged) | Random |
+|---|---|---|---|
+| nominal | **1.000** / 0.985 | 0.960 / 0.910 | 0.000 / 0.000 |
+| sparse | **1.000** / 1.000 | 0.980 / 0.963 | 0.010 / 0.009 |
+| large | **1.000** / 0.990 | 0.970 / 0.940 | 0.000 / 0.000 |
+| noisy_lidar | 1.000 / 0.985 * | 0.970 / 0.919 | 0.000 / 0.000 |
+| dense | **0.890** / 0.841 | 0.640 / 0.593 | 0.000 / 0.000 |
+| narrow | **0.850** / 0.795 | 0.600 / 0.556 | 0.000 / 0.000 |
 
-Full table, including the `noisy_lidar` condition and how to read it:
-[`results/benchmark.md`](results/benchmark.md).
+\* `noisy_lidar` is a no-op for the classical planner *by construction* — it
+navigates from the map and never reads the lidar. That row is non-exposure,
+not robustness.
 
-The shifts bite in a specific, useful place. A planner with a perfect map
-still loses 15% of episodes in `narrow` worlds — and breaking those failures
-down, **A\* never once fails to find a route** (0 planning failures; 12 of 15
-are collisions). The baseline's weakness is *tracking under clutter*, not
-*planning under clutter*: the corridors get tight enough that pure pursuit
-consumes its margin on the corners.
+Full table: [`results/benchmark.md`](results/benchmark.md).
 
-That gives the study a falsifiable hypothesis rather than a generic
-comparison — a reactive policy conditioned on live range readings is not
-committed to a precomputed path, so it should be able to close this gap. If it
-doesn't, that is just as worth reporting.
+### The headline result is a negative one
+
+The project's stated hypothesis was that a reactive learned policy, not
+committed to a precomputed path, should close the classical planner's
+weakness. That weakness was measured precisely: under `dense` and `narrow`,
+**A\* never once fails to find a route** — 0 planning failures, with 9/11 and
+12/15 of failures being the controller losing the plan while cornering.
+
+**The hypothesis is falsified.** The classical planner wins on every
+condition, and the gap *widens* exactly where the learned policy was predicted
+to win — RL falls from 0.960 to 0.640 (`dense`) and 0.600 (`narrow`), while
+classical only falls to 0.890 and 0.850.
+
+The honest reading, and the caveat that governs it: **the policy was trained
+only on the `nominal` distribution, while the classical planner has no
+training distribution at all.** So these rows compare an in-distribution
+planner against an out-of-distribution policy. The shifts are not "shifts" for
+a search-based method. That asymmetry is inherent to comparing a learned
+system with a non-learned one, and it is the finding — learned navigation
+bought nothing here *and* gave up graceful degradation.
+
+Two things the learned policy does win on, both small and stated with their
+caveats:
+
+- **Path efficiency on successful episodes.** 152 vs 161 mean steps in
+  `nominal` (~6% faster). Mildly flattered by survivorship — it succeeds on
+  96% of episodes to classical's 100%.
+- **Sensor noise.** 0.10 m lidar range noise moves it 0.960 → 0.970, i.e. not
+  at all. Within sampling noise on 100 episodes, but it is the one axis where
+  the classical baseline cannot be compared at all.
+
+The obvious next experiment, and the one the result argues for: **domain
+randomisation over the shifts during training.** If the gap under `dense` and
+`narrow` is OOD brittleness rather than a ceiling on reactive control,
+training across the shift distribution should close most of it. Until that is
+run, "RL loses" is a claim about this training regime, not about learned
+navigation.
 
 One caveat stated up front: `noisy_lidar` leaves the classical baseline
 untouched, because it navigates from the map and never reads the lidar. That
