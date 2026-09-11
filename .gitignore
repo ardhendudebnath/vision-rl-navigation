@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environments
+.venv/
+venv/
+env/
+.python-version
+
+# Training artefacts — runs are reproducible from configs, so they are not
+# committed. Curated results in results/ are.
+runs/
+wandb/
+*.zip
+*.pth
+*.pt
+!results/**/*.zip
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Hydra
+outputs/
+multirun/

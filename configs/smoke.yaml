@@ -1,0 +1,43 @@
+﻿# Fast end-to-end check that the whole training pipeline runs.
+# Not expected to produce a good policy -- it exists so a broken pipeline
+# fails in two minutes instead of two hours.
+#
+#   python -m vision_nav.training.train --config-name smoke
+defaults:
+  - env: nav_default
+  - algo: ppo
+  - _self_
+
+env:
+  max_episode_steps: 200
+
+algo:
+  n_steps: 256
+  batch_size: 128
+  n_epochs: 4
+
+train:
+  run_name: smoke
+  output_dir: runs
+  seed: 0
+
+  total_timesteps: 30_000
+  n_envs: 4
+  subprocess: false
+  device: auto
+
+  n_worlds: 40
+
+  eval_freq: 15_000
+  val_episodes: 10
+  checkpoint_freq: 1_000_000
+  metrics_window: 50
+  progress_bar: false
+  log_formats: [stdout, csv]
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  job:
+    chdir: false

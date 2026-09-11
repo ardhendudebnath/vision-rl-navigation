@@ -1,0 +1,42 @@
+﻿# Default training configuration.
+#
+#   python -m vision_nav.training.train
+#   python -m vision_nav.training.train train.total_timesteps=2000000
+#   python -m vision_nav.training.train --config-name smoke
+defaults:
+  - env: nav_default
+  - algo: ppo
+  - _self_
+
+train:
+  run_name: ppo_privileged
+  output_dir: runs
+  seed: 0
+
+  total_timesteps: 1_500_000
+  n_envs: 8
+  # Worker processes cost more than they save here: an env step is ~0.5 ms,
+  # comparable to the IPC round trip. Set true only for heavier observations.
+  subprocess: false
+  # "auto" resolves to CPU for MLP policies; see resolve_device().
+  device: auto
+
+  # Size of the training world pool. More worlds means better generalization
+  # but slower coverage of each one.
+  n_worlds: 1000
+
+  eval_freq: 50_000
+  val_episodes: 50
+  checkpoint_freq: 250_000
+  metrics_window: 100
+  progress_bar: true
+  log_formats: [stdout, csv, tensorboard]
+
+# Hydra writes its own run directory; the training code manages artefacts
+# under train.output_dir itself, so keep Hydra out of the way.
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  job:
+    chdir: false

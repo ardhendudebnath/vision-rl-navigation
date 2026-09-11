@@ -1,0 +1,27 @@
+# PPO hyperparameters, passed straight through to stable_baselines3.PPO.
+#
+# Starting point is the SB3 continuous-control default, adjusted for a
+# long-horizon sparse-ish navigation task:
+#  - gamma raised to 0.995 because episodes run up to 500 steps and the goal
+#    bonus must still propagate back to the first step
+#  - n_steps x n_envs = 16384 transitions per update, large enough that the
+#    advantage estimate is not dominated by a handful of lucky episodes
+
+policy: MlpPolicy
+
+n_steps: 2048
+batch_size: 512
+n_epochs: 10
+
+learning_rate: 3.0e-4
+gamma: 0.995
+gae_lambda: 0.95
+clip_range: 0.2
+ent_coef: 0.005
+vf_coef: 0.5
+max_grad_norm: 0.5
+normalize_advantage: true
+
+policy_kwargs:
+  net_arch: [256, 256]
+  activation_fn: Tanh
