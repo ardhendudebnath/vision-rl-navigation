@@ -16,7 +16,7 @@ venv/
 env/
 .python-version
 
-# Training artefacts â€” runs are reproducible from configs, so they are not
+# Training artefacts: runs are reproducible from configs, so they are not
 # committed. Curated results in results/ are.
 runs/
 wandb/
