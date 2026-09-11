@@ -1,6 +1,7 @@
 """Navigation task, world generation, robot model and sensors."""
 
 from vision_nav.envs.nav_env import NavEnvConfig, ProceduralNavEnv, RewardConfig
+from vision_nav.envs.randomization import DomainRandomization
 from vision_nav.envs.registration import ENV_IDS, register_envs
 from vision_nav.envs.robot import DiffDriveRobot, RobotConfig
 from vision_nav.envs.sensors import Lidar2D, LidarConfig
@@ -11,6 +12,7 @@ __all__ = [
     "NavEnvConfig",
     "ProceduralNavEnv",
     "RewardConfig",
+    "DomainRandomization",
     "RobotConfig",
     "DiffDriveRobot",
     "LidarConfig",

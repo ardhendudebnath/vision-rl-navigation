@@ -7,6 +7,17 @@ comparable.
     python scripts/run_benchmark.py
     python scripts/run_benchmark.py --rl runs/ppo_privileged/best_model.zip
     python scripts/run_benchmark.py --conditions nominal dense --episodes 50
+
+Compare several trained policies in one matrix:
+
+    python scripts/run_benchmark.py \
+        --rl nominal_trained=runs/ppo_privileged/best_model.zip \
+             dr_trained=runs/ppo_dr/best_model.zip
+
+Evaluation always runs with domain randomisation OFF and the named shift ON,
+whatever the policy was trained with. Otherwise the randomiser would overwrite
+the very parameters the shift defines, and the row would not measure the
+condition it claims to.
 """
 
 from __future__ import annotations
@@ -36,7 +47,16 @@ CONDITIONS: dict[str, tuple[str, str | None, float]] = {
 
 def parse_args(argv=None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--rl", default=None, help="Path to a trained SB3 model (.zip)")
+    p.add_argument(
+        "--rl",
+        nargs="+",
+        default=None,
+        metavar="[NAME=]PATH",
+        help=(
+            "Trained SB3 model(s) to evaluate. Repeatable. Prefix with NAME= to "
+            "label the row, e.g. --rl dr=runs/ppo_dr/best_model.zip"
+        ),
+    )
     p.add_argument("--episodes", type=int, default=100, help="Episodes per condition")
     p.add_argument(
         "--conditions",
@@ -50,13 +70,27 @@ def parse_args(argv=None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
-def build_actor_specs(rl_path: str | None) -> dict[str, dict]:
+def build_actor_specs(rl_args: list[str] | None) -> dict[str, dict]:
+    """Map actor label -> build_actor kwargs.
+
+    Each ``--rl`` entry is ``PATH`` or ``NAME=PATH``. Without an explicit
+    name, the run directory name is used, so rows stay traceable to the run
+    that produced them instead of collapsing to a generic "rl".
+    """
     specs: dict[str, dict] = {
         "random": {"kind": "random"},
         "classical": {"kind": "classical"},
     }
-    if rl_path:
-        specs["ppo_privileged"] = {"kind": "rl", "model_path": rl_path}
+    for entry in rl_args or []:
+        name, _, path = entry.rpartition("=")
+        if not name:
+            # runs/<run_name>/best_model.zip -> <run_name>
+            name = Path(path).parent.name or "rl"
+        if name in specs:
+            raise ValueError(f"duplicate actor label {name!r}")
+        if not Path(path).exists():
+            raise FileNotFoundError(f"model not found: {path}")
+        specs[name] = {"kind": "rl", "model_path": path}
     return specs
 
 
@@ -65,7 +99,11 @@ def main(argv=None) -> int:
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    specs = build_actor_specs(args.rl)
+    try:
+        specs = build_actor_specs(args.rl)
+    except (ValueError, FileNotFoundError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     if args.actors:
         missing = set(args.actors) - set(specs)
         if missing:

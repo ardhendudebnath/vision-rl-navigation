@@ -29,6 +29,7 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
+from vision_nav.envs.randomization import DomainRandomization
 from vision_nav.envs.robot import DiffDriveRobot, RobotConfig, wrap_angle
 from vision_nav.envs.sensors import Lidar2D, LidarConfig
 from vision_nav.envs.world import World, WorldConfig, generate_world
@@ -72,6 +73,9 @@ class NavEnvConfig:
     robot: RobotConfig = field(default_factory=RobotConfig)
     lidar: LidarConfig = field(default_factory=LidarConfig)
     reward: RewardConfig = field(default_factory=RewardConfig)
+    #: Per-episode world-config sampling. Deterministic in the world seed, so
+    #: evaluation replay and the world cache both stay valid.
+    domain_randomization: DomainRandomization = field(default_factory=DomainRandomization)
 
     max_episode_steps: int = 500
 
@@ -225,7 +229,8 @@ class ProceduralNavEnv(gym.Env):
         if cached is not None:
             return cached
 
-        world = generate_world(seed, self.config.world)
+        world_config = self.config.domain_randomization.sample(self.config.world, seed)
+        world = generate_world(seed, world_config)
         l_star = shortest_path_length(world, world.start[:2], world.goal)
         if l_star is None:  # generate_world guarantees reachability
             raise RuntimeError(f"world seed={seed} is unreachable after generation")

@@ -15,6 +15,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnv
 
 from vision_nav.envs.nav_env import NavEnvConfig, ProceduralNavEnv, RewardConfig
+from vision_nav.envs.randomization import DomainRandomization
 from vision_nav.envs.robot import RobotConfig
 from vision_nav.envs.sensors import LidarConfig
 from vision_nav.envs.splits import shifted_config, split_seeds
@@ -28,6 +29,8 @@ _TUPLE_FIELDS = {
     "n_boxes",
     "box_size",
     "seed_range",
+    "arena",
+    "start_goal_fraction",
 }
 
 
@@ -79,7 +82,20 @@ def build_env_config(
         "robot": _section(RobotConfig, cfg.pop("robot", None)),
         "lidar": _section(LidarConfig, cfg.pop("lidar", None)),
         "reward": _section(RewardConfig, cfg.pop("reward", None)),
+        "domain_randomization": _section(
+            DomainRandomization, cfg.pop("domain_randomization", None)
+        ),
     }
+
+    if shift and env_kwargs["domain_randomization"].enabled:
+        # A named shift defines an evaluation condition; randomisation would
+        # overwrite the very fields the shift sets, silently evaluating
+        # something other than the named condition.
+        raise ValueError(
+            f"cannot combine shift={shift!r} with domain randomisation: the "
+            "randomiser would overwrite the shift's world parameters. Evaluate "
+            "with domain_randomization.enabled=false."
+        )
 
     for key in ("seed_range", "world_seeds"):
         if key in cfg and isinstance(cfg[key], (list, tuple)):
