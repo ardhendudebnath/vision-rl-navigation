@@ -27,75 +27,92 @@ decision below follows from wanting that comparison to be trustworthy.
 | Task definition, world generation, metrics, test suite | Done |
 | Classical baseline (A* + pure pursuit, full map access) | Done |
 | Privileged RL (PPO on pose + ranges) | Done — 1.5M steps, val SPL 0.894 |
-| Robustness suite across shifted environments | Done — first results in |
-| Domain randomisation over shifts | Next (see result below) |
-| Vision-conditioned RL (egocentric observations + CNN) | After that |
+| Robustness suite across shifted environments | Done |
+| Domain randomisation over shifts | Done — did not close the gap, see below |
+| Vision-conditioned RL (egocentric observations + CNN) | Next |
 
 Detail and rationale: [`docs/project_plan.md`](docs/project_plan.md).
 
 ## Results
 
 100 held-out worlds per condition. All actors see **identical worlds in
-identical order**, so rows are directly comparable. `nominal` is the
-in-distribution held-out split; the rest are distribution shifts never seen in
-training. Success rate / SPL:
+identical order**. `nominal` is the in-distribution held-out split; the rest
+are distribution shifts. Success rate / SPL:
 
-| Condition | Classical | PPO (privileged) | Random |
-|---|---|---|---|
-| nominal | **1.000** / 0.985 | 0.960 / 0.910 | 0.000 / 0.000 |
-| sparse | **1.000** / 1.000 | 0.980 / 0.963 | 0.010 / 0.009 |
-| large | **1.000** / 0.990 | 0.970 / 0.940 | 0.000 / 0.000 |
-| noisy_lidar | 1.000 / 0.985 * | 0.970 / 0.919 | 0.000 / 0.000 |
-| dense | **0.890** / 0.841 | 0.640 / 0.593 | 0.000 / 0.000 |
-| narrow | **0.850** / 0.795 | 0.600 / 0.556 | 0.000 / 0.000 |
+| Condition | Classical | PPO (nominal) | PPO (domain-rand.) | Random |
+|---|---|---|---|---|
+| nominal | **1.000** / 0.985 | 0.960 / 0.910 | 0.940 / 0.865 | 0.000 |
+| sparse | **1.000** / 1.000 | 0.980 / 0.963 | 0.990 / 0.951 | 0.010 |
+| large | **1.000** / 0.990 | 0.970 / 0.940 | 0.970 / 0.925 | 0.000 |
+| noisy_lidar | 1.000 / 0.985 * | 0.960 / 0.909 | 0.940 / 0.869 | 0.000 |
+| dense | **0.890** / 0.841 | 0.640 / 0.593 | 0.660 / 0.593 | 0.000 |
+| narrow | **0.850** / 0.795 | 0.600 / 0.556 | 0.630 / 0.563 | 0.000 |
 
 \* `noisy_lidar` is a no-op for the classical planner *by construction* — it
-navigates from the map and never reads the lidar. That row is non-exposure,
-not robustness.
+navigates from the map and never reads the lidar. Non-exposure, not
+robustness.
 
 Full table: [`results/benchmark.md`](results/benchmark.md).
 
-### The headline result is a negative one
+### Two findings, both negative, and the second is the interesting one
 
-The project's stated hypothesis was that a reactive learned policy, not
-committed to a precomputed path, should close the classical planner's
-weakness. That weakness was measured precisely: under `dense` and `narrow`,
-**A\* never once fails to find a route** — 0 planning failures, with 9/11 and
-12/15 of failures being the controller losing the plan while cornering.
+**1. A learned policy did not beat a strong classical planner.** The project's
+stated hypothesis was that a reactive policy, not committed to a precomputed
+path, would close the planner's cornering weakness under clutter. That
+weakness was measured precisely: under shift, **A\* never once fails to find a
+route** — 0 planning failures, with 9/11 and 12/15 of failures being the
+controller losing the plan while cornering. The hypothesis is **falsified**.
+Classical wins on every condition, and the gap *widens* exactly where RL was
+predicted to win.
 
-**The hypothesis is falsified.** The classical planner wins on every
-condition, and the gap *widens* exactly where the learned policy was predicted
-to win — RL falls from 0.960 to 0.640 (`dense`) and 0.600 (`narrow`), while
-classical only falls to 0.890 and 0.850.
+**2. Domain randomisation did not close that gap either — it converted
+collisions into timeouts.** The obvious explanation for finding 1 was
+out-of-distribution brittleness, so a second policy was trained on worlds
+randomised across arena size, obstacle count, obstacle size and start-goal
+separation, with ranges chosen to *contain* every evaluation shift. Success
+rate barely moved (0.640 → 0.660 on `dense`, 0.600 → 0.630 on `narrow`; SPL
+essentially identical). But the failure *composition* changed completely:
 
-The honest reading, and the caveat that governs it: **the policy was trained
-only on the `nominal` distribution, while the classical planner has no
-training distribution at all.** So these rows compare an in-distribution
-planner against an out-of-distribution policy. The shifts are not "shifts" for
-a search-based method. That asymmetry is inherent to comparing a learned
-system with a non-learned one, and it is the finding — learned navigation
-bought nothing here *and* gave up graceful degradation.
+| `narrow`, 100 episodes | Collisions | Timeouts | Timeout progress along route |
+|---|---|---|---|
+| PPO (nominal) | 27 | 13 | 4.4 m of 10.6 m |
+| PPO (domain-rand.) | **11** | **26** | **7.5 m of 11.7 m** |
 
-Two things the learned policy does win on, both small and stated with their
-caveats:
+Randomisation taught genuine obstacle avoidance — collisions more than halved,
+and the episodes that fail now get roughly two-thirds of the way instead of
+40%. But the policy pays for that safety in speed: its timeouts average about
+0.16 m/s against a 0.6 m/s cap, and it runs out of budget still ~7 m from the
+goal. It became **cautious rather than capable**.
 
-- **Path efficiency on successful episodes.** 152 vs 161 mean steps in
-  `nominal` (~6% faster). Mildly flattered by survivorship — it succeeds on
-  96% of episodes to classical's 100%.
-- **Sensor noise.** 0.10 m lidar range noise moves it 0.960 → 0.970, i.e. not
-  at all. Within sampling noise on 100 episodes, but it is the one axis where
-  the classical baseline cannot be compared at all.
+So the `dense`/`narrow` collapse is *not* simply distribution mismatch. Under
+clutter this policy trades collisions for stalling, and widening the training
+distribution moves failures between buckets rather than into successes.
 
-The obvious next experiment, and the one the result argues for: **domain
-randomisation over the shifts during training.** If the gap under `dense` and
-`narrow` is OOD brittleness rather than a ceiling on reactive control,
-training across the shift distribution should close most of it. Until that is
-run, "RL loses" is a claim about this training regime, not about learned
-navigation.
+### Caveats that govern these numbers
 
-One caveat stated up front: `noisy_lidar` leaves the classical baseline
-untouched, because it navigates from the map and never reads the lidar. That
-row is non-exposure, not robustness.
+- **The comparison is structurally asymmetric.** Both policies train on a
+  distribution; the classical planner has none. On the shifted conditions this
+  compares an in-distribution planner against an out-of-distribution policy.
+  That is inherent to comparing learned and non-learned systems, and it is
+  most of the explanation for finding 1.
+- **The DR ranges were chosen to contain the evaluation shifts.** So finding 2
+  tests whether widening the training distribution recovers the loss — *not*
+  generalisation to unseen kinds of shift. Evaluation worlds are still
+  held-out seeds, so this is not leakage in the memorisation sense, but the
+  distribution is deliberately matched.
+- **The DR policy is compute-limited, the nominal one is not.** The nominal
+  run flatlined from ~900k steps; the DR run was still improving at 1.5M
+  (0.74 → 0.76). Finding 2 should be read as "not at this budget", and the
+  cheapest next experiment is simply training it longer.
+- **n = 100 per condition**, so differences under ~0.05 in success rate are
+  not resolvable.
+
+### What the learned policies do win
+
+Both small, both stated with their caveats: ~6% fewer steps on successful
+`nominal` episodes (152 vs 161, mildly flattered by survivorship), and
+indifference to 0.10 m lidar range noise — the one axis the classical baseline
+cannot be compared on at all, since it never reads the sensor.
 
 ## Quickstart
 

@@ -11,8 +11,8 @@ Phases are numbered as in the roadmap's Section 3.
 | 1 | Classical baseline (A* + pure pursuit) with full map access | **Done** |
 | 2 | Privileged RL (PPO on exact pose + ground-truth ranges) | **Done** — 1.5M steps, val SPL 0.894 |
 | 2b | Robustness suite across held-out and shifted environments | **Done** — hypothesis falsified, see below |
-| 2c | Domain randomisation over shifts (what 2b argues for) | Next |
-| 3 | Vision-conditioned RL (egocentric depth/RGB-D + CNN encoder) | After 2c |
+| 2c | Domain randomisation over shifts (what 2b argues for) | **Done** — gap not closed, failure mode changed |
+| 3 | Vision-conditioned RL (egocentric depth/RGB-D + CNN encoder) | Next |
 | 4 | Technical report, demo video, packaging | Not started |
 | 5 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real via ROS 2 | Not started |
 
@@ -183,18 +183,87 @@ What the learned policy genuinely wins on, both small:
   at all. Within sampling noise at n=100, but it is the one axis the classical
   baseline cannot be compared on, since it never reads the lidar.
 
-### Next experiments (what the result argues for)
+### Next experiment (what the result argued for)
 
-1. **Domain randomisation over the shifts during training.** If the `dense`
-   and `narrow` collapse is OOD brittleness rather than a ceiling on reactive
-   control, sampling world configs across the shift distribution during
-   training should close most of it. Until that runs, "RL loses" is a claim
-   about this training regime, not about learned navigation — and the
-   distinction is exactly what a committee will probe.
-2. **Collision penalty ablation.** RL's collision rate under shift (0.29 /
-   0.27) is far above classical's (0.09 / 0.12). Raising
-   `reward.collision_penalty` or the proximity term is the obvious lever and
-   makes a clean ablation.
+**Domain randomisation over the shifts during training.** If the `dense` and
+`narrow` collapse is OOD brittleness rather than a ceiling on reactive
+control, sampling world configs across the shift distribution should close
+most of it. Until that runs, "RL loses" is a claim about this training regime,
+not about learned navigation — and the distinction is exactly what a committee
+will probe. Run in Phase 2c below.
+
+## Phase 2c — Domain randomisation: the gap did not close
+
+A second policy, identical in every respect except its training worlds, which
+were randomised per seed over arena size (10-16 m), obstacle count (1-22
+circles, 0-10 boxes), obstacle size and start-goal separation — ranges chosen
+to **contain** every evaluation shift. Same 1.5M-step budget.
+
+Success rate / SPL, same 100 held-out worlds:
+
+| Condition | Classical | PPO (nominal) | PPO (domain-rand.) |
+|---|---|---|---|
+| nominal | **1.000** / 0.985 | 0.960 / 0.910 | 0.940 / 0.865 |
+| sparse | **1.000** / 1.000 | 0.980 / 0.963 | 0.990 / 0.951 |
+| large | **1.000** / 0.990 | 0.970 / 0.940 | 0.970 / 0.925 |
+| noisy_lidar | 1.000 / 0.985 | 0.960 / 0.909 | 0.940 / 0.869 |
+| dense | **0.890** / 0.841 | 0.640 / 0.593 | 0.660 / 0.593 |
+| narrow | **0.850** / 0.795 | 0.600 / 0.556 | 0.630 / 0.563 |
+
+Success rate barely moves: +0.02 on `dense`, +0.03 on `narrow`, both inside
+the noise at n=100. SPL is flat to three decimals on `dense`. Randomisation
+also costs a little in-distribution performance — the usual robustness tax —
+dropping `nominal` SPL from 0.910 to 0.865.
+
+### The finding is in the failure composition, not the success rate
+
+| Condition | Policy | Collisions | Timeouts | Timeout progress along route |
+|---|---|---|---|---|
+| dense | nominal | 29 | 7 | 5.4 m of 11.6 m |
+| dense | domain-rand. | **12** | **22** | **7.9 m of 11.6 m** |
+| narrow | nominal | 27 | 13 | 4.4 m of 10.6 m |
+| narrow | domain-rand. | **11** | **26** | **7.5 m of 11.7 m** |
+
+Randomisation taught real obstacle avoidance: collisions more than halved, and
+failing episodes now reach roughly two-thirds of the route instead of ~40%.
+But the policy pays for that safety in speed — its timeouts average about
+0.16 m/s against a 0.6 m/s cap, and it exhausts the 500-step budget still
+around 7 m from the goal. For comparison the classical planner finishes
+`dense` in 226 steps.
+
+**It became cautious rather than capable.** Widening the training distribution
+moved failures between buckets rather than into successes, so the
+`dense`/`narrow` collapse is *not* simply distribution mismatch.
+
+### Caveats governing this
+
+- **The DR ranges were chosen to contain the evaluation shifts.** This tests
+  whether widening the training distribution recovers the loss, not
+  generalisation to unseen *kinds* of shift. Evaluation worlds are still
+  held-out seeds, so it is not leakage in the memorisation sense, but the
+  distribution is deliberately matched and the report must say so.
+- **The DR policy is compute-limited; the nominal one is not.** The nominal
+  run flatlined from ~900k steps. The DR run was still improving at 1.5M
+  (0.74 -> 0.76 validation success), so this is a "not at this budget" result.
+  Its validation numbers are also not comparable to the nominal run's, since
+  each validates on its own training distribution — the benchmark above is the
+  comparable measurement.
+- **n = 100 per condition**, so success-rate differences under ~0.05 are not
+  resolvable.
+
+### Next experiments, in order of expected information per GPU-hour
+
+1. **Train the DR policy longer** (3-5M steps). It had not converged, and this
+   is the cheapest way to find out whether finding 2c is a budget artefact.
+2. **Rebalance caution against progress.** The policy stalls rather than
+   crashes; `reward.step_penalty` up or `reward.proximity_penalty` down
+   directly targets that trade-off, and makes a clean two-point ablation.
+3. **Raise the step budget for the largest arenas.** `max_episode_steps=500`
+   was chosen for 12 m arenas; DR trains on arenas up to 16 m where `l*`
+   reaches 17 m. Some DR timeouts may be budget artefacts rather than stalls.
+4. **More sensing.** 32 beams at 6 m may simply not resolve gaps in `narrow`
+   worlds. Raising `lidar.n_beams` is a one-line config change and separates
+   "cannot perceive the gap" from "can perceive it but will not commit".
 
 ## Phase 3 — Vision-conditioned RL (next)
 

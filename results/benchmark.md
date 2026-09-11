@@ -8,22 +8,28 @@ conditions are distribution shifts never seen during training.
 |---|---|---|---|---|---|---|
 | nominal | random | 0.000 | 0.000 | 0.980 | 0.020 | 0 |
 | nominal | classical | 1.000 | 0.985 | 0.000 | 0.000 | 161 |
-| nominal | ppo_privileged | 0.960 | 0.910 | 0.040 | 0.000 | 152 |
+| nominal | nominal_trained | 0.960 | 0.910 | 0.040 | 0.000 | 152 |
+| nominal | dr_trained | 0.940 | 0.865 | 0.030 | 0.030 | 150 |
 | dense | random | 0.000 | 0.000 | 1.000 | 0.000 | 0 |
 | dense | classical | 0.890 | 0.841 | 0.090 | 0.020 | 226 |
-| dense | ppo_privileged | 0.640 | 0.593 | 0.290 | 0.070 | 176 |
+| dense | nominal_trained | 0.640 | 0.593 | 0.290 | 0.070 | 176 |
+| dense | dr_trained | 0.660 | 0.593 | 0.120 | 0.220 | 175 |
 | sparse | random | 0.010 | 0.009 | 0.900 | 0.090 | 258 |
 | sparse | classical | 1.000 | 1.000 | 0.000 | 0.000 | 143 |
-| sparse | ppo_privileged | 0.980 | 0.963 | 0.010 | 0.010 | 142 |
+| sparse | nominal_trained | 0.980 | 0.963 | 0.010 | 0.010 | 142 |
+| sparse | dr_trained | 0.990 | 0.951 | 0.010 | 0.000 | 139 |
 | large | random | 0.000 | 0.000 | 0.920 | 0.080 | 0 |
 | large | classical | 1.000 | 0.990 | 0.000 | 0.000 | 215 |
-| large | ppo_privileged | 0.970 | 0.940 | 0.010 | 0.020 | 210 |
+| large | nominal_trained | 0.970 | 0.940 | 0.010 | 0.020 | 210 |
+| large | dr_trained | 0.970 | 0.925 | 0.000 | 0.030 | 205 |
 | narrow | random | 0.000 | 0.000 | 1.000 | 0.000 | 0 |
 | narrow | classical | 0.850 | 0.795 | 0.120 | 0.030 | 224 |
-| narrow | ppo_privileged | 0.600 | 0.556 | 0.270 | 0.130 | 178 |
+| narrow | nominal_trained | 0.600 | 0.556 | 0.270 | 0.130 | 178 |
+| narrow | dr_trained | 0.630 | 0.563 | 0.110 | 0.260 | 178 |
 | noisy_lidar | random | 0.000 | 0.000 | 0.980 | 0.020 | 0 |
 | noisy_lidar | classical | 1.000 | 0.985 | 0.000 | 0.000 | 161 |
-| noisy_lidar | ppo_privileged | 0.970 | 0.919 | 0.030 | 0.000 | 152 |
+| noisy_lidar | nominal_trained | 0.960 | 0.909 | 0.040 | 0.000 | 152 |
+| noisy_lidar | dr_trained | 0.940 | 0.869 | 0.030 | 0.030 | 149 |
 
 ## Reading this table
 
