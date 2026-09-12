@@ -1,0 +1,141 @@
+{
+  "episodes": 100,
+  "arms": {
+    "b64": [
+      {
+        "run": "runs\\beams64",
+        "seed": 0,
+        "sensor": "lidar 64 beams @ 360deg"
+      },
+      {
+        "run": "runs\\b64_s1",
+        "seed": 1,
+        "sensor": "lidar 64 beams @ 360deg"
+      },
+      {
+        "run": "runs\\b64_s2",
+        "seed": 2,
+        "sensor": "lidar 64 beams @ 360deg"
+      },
+      {
+        "run": "runs\\b64_s3",
+        "seed": 3,
+        "sensor": "lidar 64 beams @ 360deg"
+      },
+      {
+        "run": "runs\\b64_s4",
+        "seed": 4,
+        "sensor": "lidar 64 beams @ 360deg"
+      },
+      {
+        "run": "runs\\b64_s5",
+        "seed": 5,
+        "sensor": "lidar 64 beams @ 360deg"
+      }
+    ],
+    "b128": [
+      {
+        "run": "runs\\beams128",
+        "seed": 0,
+        "sensor": "lidar 128 beams @ 360deg"
+      },
+      {
+        "run": "runs\\b128_s1",
+        "seed": 1,
+        "sensor": "lidar 128 beams @ 360deg"
+      },
+      {
+        "run": "runs\\b128_s2",
+        "seed": 2,
+        "sensor": "lidar 128 beams @ 360deg"
+      },
+      {
+        "run": "runs\\b128_s3",
+        "seed": 3,
+        "sensor": "lidar 128 beams @ 360deg"
+      },
+      {
+        "run": "runs\\b128_s4",
+        "seed": 4,
+        "sensor": "lidar 128 beams @ 360deg"
+      },
+      {
+        "run": "runs\\b128_s5",
+        "seed": 5,
+        "sensor": "lidar 128 beams @ 360deg"
+      }
+    ]
+  },
+  "conditions": {
+    "narrow": {
+      "per_arm": {
+        "b64": {
+          "success": [
+            0.7,
+            0.58,
+            0.64,
+            0.74,
+            0.71,
+            0.72
+          ],
+          "spl": [
+            0.6288878482429089,
+            0.526893763458434,
+            0.5605356844125581,
+            0.6258130168786712,
+            0.6085140810204327,
+            0.6364037576108493
+          ],
+          "collision": [
+            0.03,
+            0.11,
+            0.05,
+            0.13,
+            0.13,
+            0.18
+          ]
+        },
+        "b128": {
+          "success": [
+            0.65,
+            0.66,
+            0.67,
+            0.67,
+            0.69,
+            0.73
+          ],
+          "spl": [
+            0.5759535471624404,
+            0.5702672444536007,
+            0.5885986977374229,
+            0.5754875398264636,
+            0.5699436071918922,
+            0.6072123505003084
+          ],
+          "collision": [
+            0.22,
+            0.2,
+            0.15,
+            0.2,
+            0.17,
+            0.19
+          ]
+        }
+      },
+      "comparisons": {
+        "success": {
+          "delta": -0.0033333333333332993,
+          "p": 0.9545454545454546
+        },
+        "spl": {
+          "delta": -0.016597527458620975,
+          "p": 0.3939393939393939
+        },
+        "collision": {
+          "delta": 0.08333333333333336,
+          "p": 0.006493506493506494
+        }
+      }
+    }
+  }
+}

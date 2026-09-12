@@ -29,7 +29,13 @@ lidar on every condition (−0.097 success on the primary endpoint, p = 0.019).
 Sweeping field of view at a fixed sample count turns that into a monotone
 curve (Spearman ρ = +0.508, p = 0.013 over 24 seeds), with the audit's
 out-of-sample predictions for the two interior levels landing within 0.021 and
-0.001 of the measured means.
+0.001 of the measured means. Decoupling the two factors then shows the
+relationship is not a trade-off at all: **doubling the sample count at fixed
+field of view changes nothing** (+0.002 and −0.003, at 90° and 360°
+respectively, both inside a pre-registered ±0.01 bound), while **quadrupling
+coverage at identical angular resolution produces the entire effect** (+0.095,
+p = 0.024). Angular resolution is second-order over this range; coverage is
+causal.
 
 The most transferable contribution is methodological. A correctly computed
 significance test over episodes produced a confident, reproducible, and wrong
@@ -460,7 +466,76 @@ in §6.2. It was flagged as unreliable when noted and proved so again. When a
 selection statistic and a held-out measurement disagree, the held-out
 measurement wins.
 
-## 10. Discussion
+## 10. Result 9: coverage is causal, sample count is not
+
+Section 9 held **samples** fixed, so coverage and resolution necessarily moved
+together and the curve could not attribute the effect to either. Since
+resolution = FOV / samples, both cannot be pinned; decoupling means choosing
+which, and pinning **resolution** isolates coverage.
+
+The audit ran first. At a constant 2.81°/sample, detection is almost
+indistinguishable from the fixed-64-sample sweep:
+
+| FOV | Fixed 64 samples | Constant 2.81° |
+|---|---|---|
+| 90° | 0.401 (1.41°) | 0.395 (32 samples) |
+| 180° | 0.564 | 0.564 (64) |
+| 270° | 0.718 (4.22°) | 0.729 (96) |
+| 360° | 0.949 (5.62°) | 0.974 (128) |
+
+Detection is set by FOV alone. Doubling samples buys 0.006 at 90° and 0.025 at
+360°.
+
+### 10.1 Pre-registration
+
+Three comparisons, six seeds each, `narrow` success as the primary endpoint in
+every case. Crucially, the two predicted nulls were given **explicit magnitude
+bounds** rather than the unfalsifiable "not significant":
+
+| Comparison | Holds fixed | Predicted |
+|---|---|---|
+| 32@90° vs 64@90° | FOV | null, \|Δ\| < 0.01 |
+| 64@360° vs 128@360° | FOV | null, \|Δ\| < 0.01 |
+| 32@90° vs 128@360° | 2.81°/sample | **+0.10, significant** |
+
+### 10.2 Result
+
+| Comparison | Δ success | p | Predicted | Held? |
+|---|---|---|---|---|
+| 64@90° vs 32@90° | **+0.002** | 1.000 | null <0.01 | **yes** |
+| 128@360° vs 64@360° | **−0.003** | 0.955 | null <0.01 | **yes** |
+| **128@360° vs 32@90°** | **+0.095** | **0.024** | +0.10 | **yes** |
+
+`dense` agrees: +0.088, p = 0.028 for the coverage comparison.
+
+**Doubling the sample count changes nothing — twice, at both ends of the FOV
+range. Quadrupling coverage at identical angular resolution produces the whole
+effect.** Coverage is the causal factor; angular resolution, over this range,
+is second-order.
+
+This also resolves §7's loose end. A single-seed run had suggested 128 beams
+was *worse* than 64; across six seeds the difference is −0.003. That
+regression was seed noise, exactly as the 32-vs-64 case turned out to be.
+
+### 10.3 A secondary that does not survive correction
+
+At 360°, the 128-beam arm collides significantly more than the 64-beam arm
+(0.188 vs 0.105, p = 0.006) with success unchanged — a failure-composition
+shift rather than a performance change. With roughly nine secondary tests
+across the three comparisons, the Bonferroni threshold is 0.0056, so **p =
+0.006 does not survive correction.** It is recorded as suggestive and nothing
+more.
+
+### 10.4 Why this reframes the earlier results
+
+Sections 8 and 9 were reported as "field of view beats angular resolution".
+Section 10 sharpens that: it is not that FOV beats resolution in a trade-off,
+but that **resolution barely matters at all** in this range while coverage
+carries the entire effect. The earlier framing implied a frontier where one
+could buy performance with either knob. There is no such frontier here — one
+knob is inert.
+
+## 11. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
 the reasons are now specific rather than vague.** Four standard explanations
@@ -484,7 +559,7 @@ it — seed as unit of analysis, exact permutation tests, pre-registered
 endpoints, and training-free mechanism measurement — is cheap and should be
 default practice.
 
-## 11. Limitations
+## 12. Limitations
 
 - **Simulation is 2D and analytic.** No dynamics, no sensor artefacts beyond
   additive noise and dropout, no appearance. Conclusions about *geometry* should
@@ -505,7 +580,7 @@ default practice.
   significant reward-ablation result (`step_penalty` improving nominal SPL by
   +0.066).
 
-## 12. Future work
+## 13. Future work
 
 In order of expected information per GPU-hour:
 
@@ -521,7 +596,7 @@ In order of expected information per GPU-hour:
 5. **Sim-to-real** on a TurtleBot-class base. The action space is already
    `Twist`, so the policy transfers without modification.
 
-## 13. Reproducing
+## 14. Reproducing
 
 ```bash
 pip install -e ".[dev,viz]"

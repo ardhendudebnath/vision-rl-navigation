@@ -47,8 +47,9 @@ decision below follows from wanting that comparison to be trustworthy.
 | 16 vs 64 beams, 6 seeds/arm, pre-registered | Done — **significant; perception confirmed** |
 | Depth camera vs lidar, 6 seeds/arm, pre-registered | Done — **field of view beats resolution** |
 | FOV sweep (90/180/270/360°), 24 seeds, pre-registered | Done — **monotone trend, forecast held** |
+| Decoupling FOV from sample count | Done — **coverage causal, samples inert** |
 | Technical report + demo video | Done |
-| Decoupling FOV from sample count | Next |
+| RGB observations + CNN encoder | Next |
 
 **Technical report: [`docs/report.md`](docs/report.md)** — the full study written
 up as a short paper, including the false positive this project caught in its
@@ -299,10 +300,37 @@ saturated at 180–270°. It doesn't — held-out success keeps rising to 360°.
 Validation SPL is a max-over-checkpoints statistic on the training
 distribution, the same one that misled in the replication above.
 
-**What this still does not say:** all four levels use 64 samples, so coverage
-and resolution move together by construction. Decoupling them — 128 columns at
-90° against 64 at 180° — would separate "more view" from "more samples", and
-is the experiment this curve now argues for.
+### Decoupled: coverage is causal, sample count is inert
+
+All four levels above use 64 samples, so coverage and resolution move together
+by construction. Since resolution = FOV/samples they cannot both be pinned —
+so the follow-up pins **resolution** at 2.81°/sample and varies coverage.
+Three comparisons, six seeds each, all pre-registered, with the two predicted
+nulls given **explicit magnitude bounds** rather than the unfalsifiable "not
+significant":
+
+| Comparison | Holds fixed | Predicted | **Observed** | p |
+|---|---|---|---|---|
+| 64@90° vs 32@90° | FOV | null, <0.01 | **+0.002** | 1.000 |
+| 128@360° vs 64@360° | FOV | null, <0.01 | **−0.003** | 0.955 |
+| **128@360° vs 32@90°** | **2.81°/sample** | **+0.10** | **+0.095** | **0.024** |
+
+**Doubling the sample count changes nothing — twice, at both ends of the FOV
+range. Quadrupling coverage at identical angular resolution produces the whole
+effect.** (`dense` agrees: +0.088, p = 0.028.)
+
+This sharpens the earlier framing rather than confirming it. "Field of view
+beats angular resolution" implied a frontier where either knob buys
+performance. There is no such frontier here: **one knob is inert.**
+
+It also closes a loose end — a single-seed run had suggested 128 beams was
+*worse* than 64. Across six seeds the difference is −0.003. Seed noise, like
+the 32-vs-64 case before it.
+
+*One secondary, recorded but not claimed:* at 360°, the 128-beam arm collides
+more than the 64-beam arm (0.188 vs 0.105, p = 0.006) with success unchanged.
+Across ~9 secondary tests the Bonferroni threshold is 0.0056, so this **does
+not survive correction.**
 
 ### The false start, and why it fooled a correct significance test
 
