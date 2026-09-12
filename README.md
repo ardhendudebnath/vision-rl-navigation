@@ -48,8 +48,8 @@ decision below follows from wanting that comparison to be trustworthy.
 | Depth camera vs lidar, 6 seeds/arm, pre-registered | Done — **field of view beats resolution** |
 | FOV sweep (90/180/270/360°), 24 seeds, pre-registered | Done — **monotone trend, forecast held** |
 | Decoupling FOV from sample count | Done — **coverage causal, samples inert** |
+| RGB + CNN encoder, 6 seeds/arm, pre-registered | Done — **the pixels are the problem** |
 | Technical report + demo video | Done |
-| RGB observations + CNN encoder | Next |
 
 **Technical report: [`docs/report.md`](docs/report.md)** — the full study written
 up as a short paper, including the false positive this project caught in its
@@ -331,6 +331,38 @@ the 32-vs-64 case before it.
 more than the 64-beam arm (0.188 vs 0.105, p = 0.006) with success unchanged.
 Across ~9 secondary tests the Bonferroni threshold is 0.0056, so this **does
 not survive correction.**
+
+### The pixels are the problem, not the geometry
+
+Every result above uses range data. The final experiment uses images, built so
+that **only the representation changes**: the RGB camera renders the same
+geometry the depth camera measures, at the same 90° FOV and the same 64
+columns, with the goal vector bit-identical between modes. It isolates what it
+costs to make a CNN recover from pixels what an MLP reads directly.
+
+| Condition | Depth (MLP) | RGB (CNN) | Δ | p |
+|---|---|---|---|---|
+| **narrow** (primary) | 0.585 ± 0.037 | 0.367 ± 0.090 | **−0.218** | **0.002** |
+| dense | 0.565 ± 0.053 | 0.327 ± 0.097 | **−0.238** | **0.002** |
+| nominal | 0.862 ± 0.039 | 0.700 ± 0.059 | **−0.162** | **0.002** |
+
+All three at the permutation floor: **every depth seed beats every RGB seed on
+every condition.** The encoder also costs *reliability* — seed spread roughly
+doubles for success and quadruples for collisions (individual RGB seeds range
+from 0.02 to 0.45 collision rate).
+
+**My prediction was wrong.** I forecast −0.05 to −0.10; the effect is two to
+three times that. Worth contrasting with the two forecasts that held (above):
+those were derived from a quantity that had actually been *measured*. This one
+was an intuition in the same confident register, and it was badly calibrated.
+
+**The weakest claim in the project, flagged as such:** the CNN has far more
+parameters at the same 1.5M-step budget, and unlike the domain-randomisation
+result I did **not** run a compute sweep to rule that out. The validation
+curves are flat and noisy from ~200k with no clear upward trend, which is weak
+evidence against compute limitation — but weak evidence is not the direct test
+performed elsewhere. The render is also clean: no texture, lighting, or sensor
+noise, so this is a *lower bound* on the encoder's cost.
 
 ### The false start, and why it fooled a correct significance test
 

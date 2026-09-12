@@ -37,6 +37,12 @@ coverage at identical angular resolution produces the entire effect** (+0.095,
 p = 0.024). Angular resolution is second-order over this range; coverage is
 causal.
 
+Finally, holding the information constant and changing only the
+representation — the same geometry rendered as pixels for a CNN rather than
+read as a vector by an MLP — costs 0.16–0.24 success across every condition,
+with every depth seed beating every RGB seed. On this task the pixels, not the
+geometry, are the hard part.
+
 The most transferable contribution is methodological. A correctly computed
 significance test over episodes produced a confident, reproducible, and wrong
 conclusion, because it measured the wrong source of variance. We document that
@@ -535,7 +541,77 @@ carries the entire effect. The earlier framing implied a frontier where one
 could buy performance with either knob. There is no such frontier here — one
 knob is inert.
 
-## 11. Discussion
+## 11. Result 10: what the encoder costs
+
+Every result so far used range data. This one uses images, and is constructed
+so that the *only* thing that changes is the representation: the RGB camera
+renders the same geometry the depth camera measures, at the same 90° FOV and
+the same 64 columns, with the goal vector bit-identical between modes. The
+comparison therefore isolates **what it costs to make a CNN recover from
+pixels what an MLP reads directly from a vector.**
+
+Six seeds per arm, `narrow` success pre-registered as primary. The prediction,
+recorded before the runs: RGB loses by **0.05–0.10**.
+
+### 11.1 Result
+
+| Condition | Depth (MLP) | RGB (CNN) | Δ | p (exact) |
+|---|---|---|---|---|
+| **narrow** (primary) | 0.585 ± 0.037 | 0.367 ± 0.090 | **−0.218** | **0.002** |
+| dense | 0.565 ± 0.053 | 0.327 ± 0.097 | **−0.238** | **0.002** |
+| nominal | 0.862 ± 0.039 | 0.700 ± 0.059 | **−0.162** | **0.002** |
+
+All three sit at the 2/924 permutation floor: every depth seed beats every RGB
+seed on every condition.
+
+**The prediction was wrong.** The direction held, but the magnitude is two to
+three times what was forecast. Unlike the two audit-based forecasts in §7.1
+and §9.3, this one had no measurement behind it — it was an intuition, and it
+was badly calibrated. The contrast is worth drawing: the forecasts that held
+were derived from a quantity that had actually been measured; the one that
+failed was a guess dressed in the same confident register.
+
+### 11.2 The encoder also costs reliability
+
+| Arm | `narrow` success sd | `narrow` collision rate |
+|---|---|---|
+| depth | ±0.037 | 0.117 ± 0.037 |
+| RGB | **±0.090** | 0.222 ± **0.160** |
+
+Seed-to-seed spread roughly doubles for success and quadruples for collisions,
+with individual RGB seeds ranging from 0.02 to 0.45 collision rate. The CNN
+arm is not merely worse on average; it is far less *predictable*, which for a
+deployed system is arguably the more serious defect.
+
+### 11.3 Confounds, one of them untested
+
+- **Not a pure encoder ablation.** The RGB arm also changes policy
+  architecture (`MultiInputPolicy` + NatureCNN) and batch size (256 vs 512,
+  forced by image memory). It measures the cost of moving to pixels *with a
+  standard CNN setup*, not the encoder in isolation.
+- **Compute is untested here, and that matters.** The CNN has far more
+  parameters at the same 1.5M-step budget. For the domain-randomisation
+  result (§5.2) the equivalent excuse was tested and rejected with a compute
+  sweep; **no such sweep was run for RGB.** The validation curves are flat and
+  noisy from ~200k with no clear upward trend, which is weak evidence against
+  compute limitation, but weak evidence is not the same as the direct test
+  performed elsewhere. This is the least-defended claim in the report.
+- **The render is synthetic and clean.** No texture, lighting, motion blur or
+  sensor noise. A real camera is harder, so this is a *lower bound* on the
+  encoder's cost.
+
+### 11.4 What it means
+
+The information was held constant and the representation was not, and the
+representation cost 0.16–0.24 success. That is a large price for a change that
+adds nothing to what the agent can in principle know — and it is paid before
+any of the difficulties a real camera introduces.
+
+For a project titled *vision-conditioned navigation*, this is the least
+comfortable and most useful result in it: **on this task, the pixels are the
+problem, not the geometry.**
+
+## 12. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
 the reasons are now specific rather than vague.** Four standard explanations
@@ -559,7 +635,7 @@ it — seed as unit of analysis, exact permutation tests, pre-registered
 endpoints, and training-free mechanism measurement — is cheap and should be
 default practice.
 
-## 12. Limitations
+## 13. Limitations
 
 - **Simulation is 2D and analytic.** No dynamics, no sensor artefacts beyond
   additive noise and dropout, no appearance. Conclusions about *geometry* should
@@ -580,7 +656,7 @@ default practice.
   significant reward-ablation result (`step_penalty` improving nominal SPL by
   +0.066).
 
-## 13. Future work
+## 14. Future work
 
 In order of expected information per GPU-hour:
 
@@ -596,7 +672,7 @@ In order of expected information per GPU-hour:
 5. **Sim-to-real** on a TurtleBot-class base. The action space is already
    `Twist`, so the policy transfers without modification.
 
-## 14. Reproducing
+## 15. Reproducing
 
 ```bash
 pip install -e ".[dev,viz]"
