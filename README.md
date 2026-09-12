@@ -2,13 +2,23 @@
 
 ### A comparative study against classical planning
 
-| Classical (A* + pure pursuit) | PPO (privileged) |
-|---|---|
-| ![Classical baseline](results/demo_classical.gif) | ![PPO policy](results/demo_rl.gif) |
+![Classical planner vs learned policy, side by side](results/demo_comparison.gif)
 
-*The same three unseen test worlds, solved by both. Grey: the global plan
-(classical only — the learned policy has no plan to draw). Orange: the
-executed trajectory.*
+*Left: A\* + pure pursuit with the full map. Right: PPO from a 64-beam lidar.
+Same world, same clock. Six held-out episodes across open, cluttered and
+tight-corridor worlds. Grey: the global plan (classical only — the learned
+policy has no plan to draw). Orange: the executed trajectory.
+[Full-quality MP4](results/demo_comparison.mp4).*
+
+**The episodes are stratified to match the measured outcome rates, not
+hand-picked wins.** Taking the first six seeds in order gave six successes for
+both actors, which misrepresents a policy measured at 0.70 success on
+`narrow`. In this clip the learned policy succeeds in 4 of 6 (0.67, against
+0.70–0.73 measured) and the classical planner in 5 of 6 (0.83, against
+0.85–0.89) — including one world where **the classical planner is the one that
+crashes**. Every seed is listed in
+[`scripts/make_comparison_video.py`](scripts/make_comparison_video.py) so the
+selection is reproducible.
 
 ---
 
@@ -445,7 +455,13 @@ Run the full comparison matrix and write the results table:
 python scripts/run_benchmark.py --rl nominal=runs/ppo_privileged/best_model.zip dr=runs/ppo_dr/best_model.zip
 ```
 
-Render a demo GIF:
+Render the side-by-side comparison video (MP4 + GIF):
+
+```bash
+python scripts/make_comparison_video.py --rl runs/beams64/best_model.zip --out results/demo_comparison
+```
+
+Render a single-actor GIF:
 
 ```bash
 python scripts/make_demo.py --world 20000 --worlds 3 --out results/demo.gif
