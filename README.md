@@ -33,6 +33,7 @@ decision below follows from wanting that comparison to be trustworthy.
 | Caution-vs-progress reward ablation | Done — rejects the reward explanation |
 | Lidar beam-count experiment | Done — looked decisive on one seed |
 | Multi-seed replication (4 seeds × 2 arms) | Done — **the beam result does not replicate** |
+| Direct perception audit (no training, no seeds) | Done — deficit is real but small; explains the null |
 | Vision-conditioned RL (egocentric observations + CNN) | Next |
 
 Detail and rationale: [`docs/project_plan.md`](docs/project_plan.md).
@@ -245,21 +246,48 @@ what a single-seed comparison looked like when it was wrong.
 analysis in hand, that non-monotonicity is best read as seed noise too, not as
 evidence about observation dimensionality.
 
-### What would actually settle it
+### Measuring the mechanism directly — which reconciles both results
 
-The geometry predicts a real effect, so the experiment is worth doing
-properly rather than abandoning:
+Rather than keep inferring perception limits from success rate, the limit is
+now measured head-on: across 480 on-route poses in 60 `narrow` worlds, how
+often does an N-beam scan fail to reveal an opening the robot could actually
+drive through? No policy, no training, no seeds
+([`scripts/perception_audit.py`](scripts/perception_audit.py)).
 
-- **More seeds.** At 4-vs-4 the smallest reachable two-sided p is 2/70 =
-  0.029, and an effect of +0.04 against a ±0.07 spread needs far more than
-  four runs per arm to resolve. Ten seeds per arm would be a reasonable target.
-- **A larger contrast.** 16 beams versus 64 puts the resolution threshold at
-  1.1 m versus 4.5 m, a far bigger manipulation than 32 versus 64, and should
-  produce an effect that clears the seed noise if the mechanism is real.
-- **A direct measurement instead of an end-to-end one.** Rather than inferring
-  perception limits from success rate, measure how often the beams actually
-  miss a traversable gap. That isolates the mechanism from everything else the
-  policy is doing, and needs no training at all.
+| Beams | Spacing | Traversable gaps detected |
+|---|---|---|
+| 16 | 22.50° | 0.778 |
+| 32 | 11.25° | 0.885 |
+| 64 | 5.62° | 0.949 |
+| 128 | 2.81° | 0.974 |
+
+Detection rate by how wide the gap appears:
+
+| Gap width | n | 16 | 32 | 64 | 128 |
+|---|---|---|---|---|---|
+| 0–5° | 132 | 0.129 | **0.258** | 0.553 | 0.773 |
+| 5–10° | 122 | 0.451 | 0.738 | 1.000 | 1.000 |
+| 10–20° | 203 | 0.635 | 0.980 | 1.000 | 1.000 |
+| 20–45° | 372 | 0.995 | 1.000 | 1.000 | 1.000 |
+| >45° | 335 | 1.000 | 1.000 | 1.000 | 1.000 |
+
+**The perception deficit is real, and it is exactly where the geometry said it
+would be**: a 32-beam scan misses 11.5% of traversable gaps overall, and
+**74% of the gaps narrower than 5°**. Every gap wider than 20° is seen by
+every sensor.
+
+**And this is why the end-to-end experiment came out null.** Going 32 → 64
+beams recovers only **6.4 percentage points** of gap detection (0.885 →
+0.949). An effect that small has no chance of clearing a ±0.07 seed spread in
+success rate at four seeds per arm. Phase 2f was not wrong to look here — it
+was underpowered, and the audit quantifies by how much rather than leaving it
+a guess.
+
+It also says what a better experiment looks like: **16 vs 64 beams spans
+0.778 → 0.949, a 17-point gap in detection — nearly three times the 32 → 64
+contrast.** That is the manipulation most likely to produce a success-rate
+effect that survives seed noise, and the audit identified it without training
+a single policy.
 
 ## Quickstart
 

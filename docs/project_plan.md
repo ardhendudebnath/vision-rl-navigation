@@ -16,6 +16,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 2e | Caution-vs-progress reward ablation (3 arms) | **Done** — rejected; one real SPL win |
 | 2f | Lidar beam-count experiment (32 / 64 / 128) | **Done** — decisive on one seed |
 | 2g | Multi-seed replication (4 seeds x 2 arms) | **Done** — **2f does not replicate** |
+| 2h | Direct perception audit (no training, no seeds) | **Done** — reconciles 2f and 2g |
 | 3 | Vision-conditioned RL (egocentric depth/RGB-D + CNN encoder) | Next |
 | 4 | Technical report, demo video, packaging | Not started |
 | 5 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real via ROS 2 | Not started |
@@ -519,19 +520,85 @@ held-out measurement disagree, the held-out measurement wins.
 ### What would settle the perception question
 
 The geometry still predicts an effect, so the experiment deserves a better
-design rather than abandonment:
+design rather than abandonment. Option 3 was run first and is Phase 2h below;
+it changes what options 1 and 2 are worth.
 
 1. **More seeds.** At 4-vs-4 the smallest reachable two-sided p is 2/70 =
    0.029; resolving +0.04 against a +/-0.07 spread needs roughly ten seeds per
    arm.
-2. **A larger contrast.** 16 versus 64 beams moves the resolution threshold
-   from 1.1 m to 4.5 m — a much bigger manipulation than 32 versus 64, and one
-   that should clear the seed noise if the mechanism is real.
-3. **Measure the mechanism directly.** Instead of inferring perception limits
-   from success rate, measure how often the beams miss a traversable gap.
-   That isolates the mechanism from everything else the policy does, needs no
-   training, and has no seed variance at all. This is the cheapest and most
-   informative of the three, and should come first.
+2. **A larger contrast.** 16 versus 64 beams is a much bigger manipulation
+   than 32 versus 64.
+3. **Measure the mechanism directly.** Cheapest and most informative: no
+   training, no seed variance.
+
+## Phase 2h — Direct perception audit: the mechanism, measured
+
+Instead of inferring a perception limit from success rate, measure it. Across
+**480 on-route poses in 60 `narrow` worlds**, for each pose: sweep 2048
+ground-truth rays to find every *traversable direction* (a heading the robot's
+disc can translate 3 m along without collision, checked against world geometry
+rather than any sensor), group them into maximal gaps, and ask whether an
+N-beam scan puts at least one sufficiently-long beam inside each gap. A gap
+with no beam in it is invisible to any policy, however good.
+
+Poses are sampled along the A* route rather than uniformly over free space,
+because open floor the robot never crosses is not where perception matters.
+
+### Result
+
+| Beams | Spacing | Gaps | Detected | Rate |
+|---|---|---|---|---|
+| 16 | 22.50 deg | 1164 | 906 | 0.778 |
+| 32 | 11.25 deg | 1164 | 1030 | **0.885** |
+| 64 | 5.62 deg | 1164 | 1105 | **0.949** |
+| 128 | 2.81 deg | 1164 | 1134 | 0.974 |
+
+By gap angular width:
+
+| Width | n | 16 | 32 | 64 | 128 |
+|---|---|---|---|---|---|
+| 0-5 deg | 132 | 0.129 | **0.258** | 0.553 | 0.773 |
+| 5-10 deg | 122 | 0.451 | 0.738 | 1.000 | 1.000 |
+| 10-20 deg | 203 | 0.635 | 0.980 | 1.000 | 1.000 |
+| 20-45 deg | 372 | 0.995 | 1.000 | 1.000 | 1.000 |
+| >45 deg | 335 | 1.000 | 1.000 | 1.000 | 1.000 |
+
+**The deficit is real and sits exactly where the geometry predicted.** A
+32-beam scan misses 11.5% of traversable gaps and **74% of gaps narrower than
+5 degrees**. Everything wider than 20 degrees is seen by every sensor tested.
+
+### This reconciles Phases 2f and 2g
+
+Going 32 -> 64 beams recovers only **6.4 percentage points** of gap detection
+(0.885 -> 0.949). An effect that small cannot clear a +/-0.07 seed spread in
+success rate at four seeds per arm. So Phase 2f was not looking in the wrong
+place — it was **underpowered**, and Phase 2h says by roughly how much rather
+than leaving it a matter of opinion.
+
+This is the most useful thing the audit does: it converts "the replication
+failed, so who knows" into "the mechanism exists, is quantified, and is too
+small for the experiment that was run".
+
+### It also designs the next experiment
+
+**16 vs 64 beams spans 0.778 -> 0.949 in detection — a 17-point contrast,
+nearly three times the 6.4 points of 32 vs 64.** That is the manipulation most
+likely to produce a success-rate difference that survives seed noise, and the
+audit identified it without training a single policy. Combined with more seeds
+per arm, that is the experiment worth running; 32 vs 64 with more seeds is
+fighting its own noise for a 6-point mechanism.
+
+### Method notes worth keeping
+
+- The ground-truth sweep must out-resolve the sensor under test, or the
+  "truth" inherits the sensor's own blind spots and detection is overstated.
+  `audit_pose` refuses a reference coarser than 8x the sensor.
+- Detection is monotone in beam count on real worlds; this is asserted in the
+  tests, because a bug in the beam-to-gap indexing would silently break it and
+  the numbers would still look plausible.
+- Probe distance matters. At 1 m almost every direction is traversable, the
+  audit degenerates to one all-encompassing gap, and the measurement says
+  nothing. 3 m is long enough that obstacles actually partition the sweep.
 
 ## Phase 3 — Vision-conditioned RL (next)
 
