@@ -49,6 +49,7 @@ decision below follows from wanting that comparison to be trustworthy.
 | FOV sweep (90/180/270/360°), 24 seeds, pre-registered | Done — **monotone trend, forecast held** |
 | Decoupling FOV from sample count | Done — **coverage causal, samples inert** |
 | RGB + CNN encoder, 6 seeds/arm, pre-registered | Done — **the pixels are the problem** |
+| RGB compute sweep to 4.0M | Done — gap survives 2.7x compute |
 | Technical report + demo video | Done |
 
 **Technical report: [`docs/report.md`](docs/report.md)** — the full study written
@@ -356,13 +357,22 @@ three times that. Worth contrasting with the two forecasts that held (above):
 those were derived from a quantity that had actually been *measured*. This one
 was an intuition in the same confident register, and it was badly calibrated.
 
-**The weakest claim in the project, flagged as such:** the CNN has far more
-parameters at the same 1.5M-step budget, and unlike the domain-randomisation
-result I did **not** run a compute sweep to rule that out. The validation
-curves are flat and noisy from ~200k with no clear upward trend, which is weak
-evidence against compute limitation — but weak evidence is not the direct test
-performed elsewhere. The render is also clean: no texture, lighting, or sensor
-noise, so this is a *lower bound* on the encoder's cost.
+**The compute excuse, tested and rejected.** The CNN has far more parameters
+at the same budget, so the RGB policies were resumed to **4.0M steps — 2.7×
+the depth arm's**:
+
+| Comparison | Δ | p |
+|---|---|---|
+| rgb@4.0M vs rgb@1.5M | +0.057 | 0.524 (n.s.) |
+| **rgb@4.0M vs depth@1.5M** | **−0.162** | **0.030** |
+
+Extra compute doesn't significantly help, and **the gap survives handing RGB
+2.7× the compute of the arm it loses to.** Compute accounts for about a
+quarter of the original 0.218; the rest stays. Seed variance actually *rose*
+with more training (±0.153 vs ±0.090) — the opposite of convergence.
+
+The render is still clean — no texture, lighting, or sensor noise — so this
+remains a *lower bound* on the encoder's cost.
 
 ### The false start, and why it fooled a correct significance test
 

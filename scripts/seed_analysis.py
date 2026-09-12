@@ -94,6 +94,13 @@ def run_sensor(run: Path) -> dict:
         spec["camera"] = {
             k: camera[k] for k in ("fov", "width", "max_range") if k in camera
         }
+    elif obs_mode == "rgb":
+        cam = OmegaConf.to_container(env.rgb_camera, resolve=True)
+        spec["rgb_camera"] = {
+            k: cam[k]
+            for k in ("fov", "width", "height", "max_range")
+            if k in cam
+        }
     else:
         lidar = OmegaConf.to_container(env.lidar, resolve=True)
         spec["lidar"] = {
@@ -103,11 +110,24 @@ def run_sensor(run: Path) -> dict:
 
 
 def describe_sensor(run: Path) -> str:
-    """Short human-readable sensor description for the report."""
+    """Short human-readable sensor description for the report.
+
+    Must branch on every implemented mode. An unhandled mode falling through
+    to the lidar branch mislabels the arm in the printed output -- harmless to
+    the numbers, since obs_mode is what drives evaluation, but exactly the
+    kind of wrong label that gets copied into a results table unchecked.
+    """
     spec = run_sensor(run)
-    if spec["obs_mode"] == "depth":
+    mode = spec["obs_mode"]
+    if mode == "depth":
         cam = spec["camera"]
         return f"depth {cam.get('width')}px @ {np.degrees(cam.get('fov', 0)):.0f}deg"
+    if mode == "rgb":
+        cam = spec["rgb_camera"]
+        return (
+            f"rgb {cam.get('width')}x{cam.get('height')}px @ "
+            f"{np.degrees(cam.get('fov', 0)):.0f}deg"
+        )
     return f"lidar {spec['lidar'].get('n_beams')} beams @ 360deg"
 
 

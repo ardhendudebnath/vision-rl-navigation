@@ -129,6 +129,25 @@ def test_run_without_obs_mode_defaults_to_privileged(tmp_path):
     assert run_sensor(run)["obs_mode"] == "privileged"
 
 
+def test_rgb_run_yields_rgb_mode_and_camera(tmp_path):
+    """An unhandled mode falls through to the lidar branch and mislabels."""
+    run = _write_run(
+        tmp_path,
+        "r",
+        {
+            "obs_mode": "rgb",
+            "lidar": {"n_beams": 32, "max_range": 6.0},
+            "rgb_camera": {"fov": 1.5708, "width": 64, "height": 48, "max_range": 6.0},
+        },
+    )
+    spec = run_sensor(run)
+    assert spec["obs_mode"] == "rgb"
+    assert spec["rgb_camera"]["width"] == 64
+    assert "lidar" not in spec
+    assert "rgb" in describe_sensor(run) and "64x48" in describe_sensor(run)
+    assert "lidar" not in describe_sensor(run)
+
+
 def test_sensor_description_distinguishes_the_arms(tmp_path):
     depth = _write_run(
         tmp_path, "d2",

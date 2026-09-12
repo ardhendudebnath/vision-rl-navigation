@@ -1,0 +1,141 @@
+{
+  "episodes": 100,
+  "arms": {
+    "depth15": [
+      {
+        "run": "runs\\depth_s0",
+        "seed": 0,
+        "sensor": "depth 64px @ 90deg"
+      },
+      {
+        "run": "runs\\depth_s1",
+        "seed": 1,
+        "sensor": "depth 64px @ 90deg"
+      },
+      {
+        "run": "runs\\depth_s2",
+        "seed": 2,
+        "sensor": "depth 64px @ 90deg"
+      },
+      {
+        "run": "runs\\depth_s3",
+        "seed": 3,
+        "sensor": "depth 64px @ 90deg"
+      },
+      {
+        "run": "runs\\depth_s4",
+        "seed": 4,
+        "sensor": "depth 64px @ 90deg"
+      },
+      {
+        "run": "runs\\depth_s5",
+        "seed": 5,
+        "sensor": "depth 64px @ 90deg"
+      }
+    ],
+    "rgb40": [
+      {
+        "run": "runs\\rgb_long_s0",
+        "seed": 0,
+        "sensor": "lidar 32 beams @ 360deg"
+      },
+      {
+        "run": "runs\\rgb_long_s1",
+        "seed": 1,
+        "sensor": "lidar 32 beams @ 360deg"
+      },
+      {
+        "run": "runs\\rgb_long_s2",
+        "seed": 2,
+        "sensor": "lidar 32 beams @ 360deg"
+      },
+      {
+        "run": "runs\\rgb_long_s3",
+        "seed": 3,
+        "sensor": "lidar 32 beams @ 360deg"
+      },
+      {
+        "run": "runs\\rgb_long_s4",
+        "seed": 4,
+        "sensor": "lidar 32 beams @ 360deg"
+      },
+      {
+        "run": "runs\\rgb_long_s5",
+        "seed": 5,
+        "sensor": "lidar 32 beams @ 360deg"
+      }
+    ]
+  },
+  "conditions": {
+    "narrow": {
+      "per_arm": {
+        "depth15": {
+          "success": [
+            0.6,
+            0.65,
+            0.55,
+            0.55,
+            0.58,
+            0.58
+          ],
+          "spl": [
+            0.5613680352505058,
+            0.6112594520486065,
+            0.49881098418006486,
+            0.518329203286412,
+            0.5513121140342414,
+            0.543868365339311
+          ],
+          "collision": [
+            0.1,
+            0.12,
+            0.1,
+            0.18,
+            0.13,
+            0.07
+          ]
+        },
+        "rgb40": {
+          "success": [
+            0.45,
+            0.25,
+            0.48,
+            0.46,
+            0.25,
+            0.65
+          ],
+          "spl": [
+            0.4167304354596467,
+            0.24308961565288276,
+            0.4485513588186627,
+            0.41726971087160175,
+            0.23151437948605916,
+            0.5675601663742907
+          ],
+          "collision": [
+            0.16,
+            0.1,
+            0.16,
+            0.23,
+            0.13,
+            0.12
+          ]
+        }
+      },
+      "comparisons": {
+        "success": {
+          "delta": -0.16166666666666674,
+          "p": 0.030303030303030304
+        },
+        "spl": {
+          "delta": -0.1600387479126663,
+          "p": 0.012987012987012988
+        },
+        "collision": {
+          "delta": 0.03333333333333334,
+          "p": 0.22943722943722944
+        }
+      }
+    }
+  }
+}

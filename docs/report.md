@@ -589,13 +589,9 @@ deployed system is arguably the more serious defect.
   architecture (`MultiInputPolicy` + NatureCNN) and batch size (256 vs 512,
   forced by image memory). It measures the cost of moving to pixels *with a
   standard CNN setup*, not the encoder in isolation.
-- **Compute is untested here, and that matters.** The CNN has far more
-  parameters at the same 1.5M-step budget. For the domain-randomisation
-  result (§5.2) the equivalent excuse was tested and rejected with a compute
-  sweep; **no such sweep was run for RGB.** The validation curves are flat and
-  noisy from ~200k with no clear upward trend, which is weak evidence against
-  compute limitation, but weak evidence is not the same as the direct test
-  performed elsewhere. This is the least-defended claim in the report.
+- **Compute has since been tested and rejected** — see §11.5. This was
+  flagged here as the least-defended claim in the report, and the sweep was
+  run to close it.
 - **The render is synthetic and clean.** No texture, lighting, motion blur or
   sensor noise. A real camera is harder, so this is a *lower bound* on the
   encoder's cost.
@@ -610,6 +606,41 @@ any of the difficulties a real camera introduces.
 For a project titled *vision-conditioned navigation*, this is the least
 comfortable and most useful result in it: **on this task, the pixels are the
 problem, not the geometry.**
+
+### 11.5 The compute excuse, tested and rejected
+
+§11.3 flagged the compute confound as the report's weakest claim. It has now
+been tested the same way §5.2 tested it for domain randomisation: the RGB
+policies were resumed to **4.0M steps, 2.7× the depth arm's budget**.
+
+| Comparison | Δ `narrow` success | p | Predicted |
+|---|---|---|---|
+| rgb@4.0M vs rgb@1.5M | +0.057 | 0.524 | +0.00 to +0.05 ✓ |
+| **rgb@4.0M vs depth@1.5M** | **−0.162** | **0.030** | still < −0.15 ✓ |
+
+Extra compute does not significantly improve RGB, and **the encoder gap
+survives even when RGB is handed 2.7× the compute of the arm it loses to.**
+Compute accounts for roughly a quarter of the original 0.218 gap; the
+remaining 0.162 does not go away.
+
+One genuinely unexpected secondary: seed variance **increased** with more
+training (±0.153 vs ±0.090 on `narrow` success). More compute made the RGB
+arm less consistent, not more — the opposite of what convergence looks like.
+
+### 11.6 A methodological lesson that recurs
+
+Mid-sweep, validation SPL rose from 0.584 to 0.659 and this was briefly
+recorded as the prediction having failed. It had not: held-out success moved
+only +0.057, not significantly.
+
+That is the **third** time in this project that validation SPL has been more
+optimistic than the held-out benchmark — in the seed replication (§6.2), in
+the FOV saturation guess (§9.4), and here. It is a maximum over ~30
+checkpoints measured on the training distribution, so it is both biased upward
+and lower-variance than the quantity that matters. Three independent
+occurrences is enough to state the rule plainly: **when a selection statistic
+and a held-out measurement disagree, the held-out measurement wins, and the
+selection statistic should not be read as a preview of it.**
 
 ## 12. Discussion
 
