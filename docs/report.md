@@ -26,11 +26,16 @@ did confirm it (+0.085 success, p = 0.035, pre-registered). Finally we show
 that for this task **field of view dominates angular resolution**: a depth
 camera with 4× finer angular sampling but a 90° field of view loses to a 360°
 lidar on every condition (−0.097 success on the primary endpoint, p = 0.019).
+Sweeping field of view at a fixed sample count turns that into a monotone
+curve (Spearman ρ = +0.508, p = 0.013 over 24 seeds), with the audit's
+out-of-sample predictions for the two interior levels landing within 0.021 and
+0.001 of the measured means.
 
 The most transferable contribution is methodological. A correctly computed
 significance test over episodes produced a confident, reproducible, and wrong
 conclusion, because it measured the wrong source of variance. We document that
-failure in full.
+failure in full, alongside the training-free measurement that diagnosed it and
+then twice forecast the results of experiments not yet run.
 
 ---
 
@@ -373,7 +378,89 @@ forecasting content. We rate this weaker than §7 nonetheless: a confirmed
 *directional* prediction cannot rule out reasoning fitted to an expected
 answer, whereas §7 predicted a *quantitative* effect size.
 
-## 9. Discussion
+## 9. Result 8: the FOV curve, and a second forecast that held
+
+Section 8 established a direction from two points. Sweeping field of view at a
+**fixed 64 samples** turns it into a curve, and separates coverage from
+resolution — at 64 samples, widening the view necessarily coarsens it, and
+360°/64 columns *is* the 64-beam lidar.
+
+The audit was run first, before any of the new policies existed:
+
+| FOV | Spacing | Gap detection |
+|---|---|---|
+| 90° | 1.41° | 0.401 |
+| 180° | 2.81° | 0.564 |
+| 270° | 4.22° | 0.718 |
+| 360° | 5.62° | 0.949 |
+
+Coverage dominates completely: quadrupling angular precision while cutting the
+view to a quarter more than halves what the sensor can see.
+
+### 9.1 Choosing the test before seeing the data
+
+The audit's numbers, anchored on the two already-trained levels, predicted
+adjacent FOV levels would differ by only ~0.03 — **below the ±0.06 seed
+spread**. Pairwise tests would therefore have been underpowered by
+construction, and running all six of them would have invited reporting
+whichever cleared 0.05.
+
+The pre-registered primary was therefore a **monotone trend** across all four
+levels — Spearman ρ between FOV and per-seed `narrow` success over 24 seeds,
+permutation-tested — chosen from the predicted effect sizes rather than from
+the results.
+
+### 9.2 Result
+
+| FOV | Per-seed `narrow` success | Mean ± sd |
+|---|---|---|
+| 90° | 0.60, 0.65, 0.55, 0.55, 0.58, 0.58 | 0.585 ± 0.037 |
+| 180° | 0.79, 0.68, 0.58, 0.55, 0.61, 0.60 | 0.635 ± 0.087 |
+| 270° | 0.63, 0.55, 0.66, 0.73, 0.59, 0.69 | 0.642 ± 0.066 |
+| 360° | 0.70, 0.58, 0.64, 0.74, 0.71, 0.72 | 0.682 ± 0.060 |
+
+**Spearman ρ = +0.508, Monte Carlo p = 0.0126** (100,000 permutations),
+linear slope +0.089 success across 90° → 360°.
+
+Note that no adjacent pair is individually significant — as predicted. The
+evidence lives in the ordering across all four levels, which is exactly why
+the test was chosen in advance.
+
+### 9.3 Scoring the forecast honestly
+
+| FOV | Predicted | Observed | Error |
+|---|---|---|---|
+| 90° | 0.585 | 0.585 | — *(anchor)* |
+| 180° | **0.614** | **0.635** | **+0.021** |
+| 270° | **0.641** | **0.642** | **+0.001** |
+| 360° | 0.682 | 0.682 | — *(anchor)* |
+
+The script reports a mean absolute error of 0.006 across all four levels.
+**That number flatters the forecast and should not be quoted.** Two of the
+four points were the anchors used to fit the slope, so their error is zero by
+construction. Only 180° and 270° were genuine out-of-sample predictions, and
+their mean absolute error is **0.011** — still small against a ±0.06 seed
+spread, and the 270° prediction landed within 0.001, but the honest figure is
+roughly twice the one the tooling prints.
+
+This is the second time in the project a training-free measurement forecast
+the outcome of a training experiment (cf. §7.1). Two successful quantitative
+forecasts from the same audit is the strongest evidence here that the
+mechanism is real rather than a story fitted after the fact.
+
+### 9.4 A guess that was wrong
+
+Mid-sweep, validation SPL suggested the curve **saturated** at 180–270°
+(0.758, 0.787, 0.792, 0.787) rather than continuing to rise. It does not: the
+held-out benchmark increases from 0.642 to 0.682 between 270° and 360°.
+
+Validation SPL is a maximum over ~30 checkpoints measured on the training
+distribution — the same statistic that produced a misleading clean separation
+in §6.2. It was flagged as unreliable when noted and proved so again. When a
+selection statistic and a held-out measurement disagree, the held-out
+measurement wins.
+
+## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
 the reasons are now specific rather than vague.** Four standard explanations
@@ -397,7 +484,7 @@ it — seed as unit of analysis, exact permutation tests, pre-registered
 endpoints, and training-free mechanism measurement — is cheap and should be
 default practice.
 
-## 10. Limitations
+## 11. Limitations
 
 - **Simulation is 2D and analytic.** No dynamics, no sensor artefacts beyond
   additive noise and dropout, no appearance. Conclusions about *geometry* should
@@ -418,7 +505,7 @@ default practice.
   significant reward-ablation result (`step_penalty` improving nominal SPL by
   +0.066).
 
-## 11. Future work
+## 12. Future work
 
 In order of expected information per GPU-hour:
 
@@ -434,7 +521,7 @@ In order of expected information per GPU-hour:
 5. **Sim-to-real** on a TurtleBot-class base. The action space is already
    `Twist`, so the policy transfers without modification.
 
-## 12. Reproducing
+## 13. Reproducing
 
 ```bash
 pip install -e ".[dev,viz]"

@@ -46,7 +46,9 @@ decision below follows from wanting that comparison to be trustworthy.
 | Direct perception audit (no training, no seeds) | Done — deficit is real but small; explains the null |
 | 16 vs 64 beams, 6 seeds/arm, pre-registered | Done — **significant; perception confirmed** |
 | Depth camera vs lidar, 6 seeds/arm, pre-registered | Done — **field of view beats resolution** |
-| RGB observations + CNN encoder | Next |
+| FOV sweep (90/180/270/360°), 24 seeds, pre-registered | Done — **monotone trend, forecast held** |
+| Technical report + demo video | Done |
+| Decoupling FOV from sample count | Next |
 
 **Technical report: [`docs/report.md`](docs/report.md)** — the full study written
 up as a short paper, including the false positive this project caught in its
@@ -264,11 +266,43 @@ started. A confirmed prediction is weaker evidence than a surprising one —
 it cannot rule out that the reasoning was fitted to an expected answer — but
 it does mean the Phase 2h saturation argument had real forecasting content.
 
-**What this does not say:** it compares one camera configuration. A 180° or
-270° camera, or one with memory to accumulate views over time, might close the
-gap entirely; the FOV-vs-resolution trade has two knobs and this samples one
-point. What it does establish is the *direction* — for a forward-driving robot
-in clutter, breadth of view is worth more than precision within it.
+### The FOV curve, and a second forecast that held
+
+Sweeping field of view at a **fixed 64 samples** turns that direction into a
+curve. Widening the view necessarily coarsens it, and 360°/64 columns *is* the
+64-beam lidar — so the sweep interpolates continuously between the two arms
+above. The audit ran first, before any of the new policies existed:
+
+| FOV | Spacing | Gap detection | Predicted success | **Observed** |
+|---|---|---|---|---|
+| 90° | 1.41° | 0.401 | 0.585 *(anchor)* | 0.585 ± 0.037 |
+| 180° | 2.81° | 0.564 | **0.614** | **0.635 ± 0.087** |
+| 270° | 4.22° | 0.718 | **0.641** | **0.642 ± 0.066** |
+| 360° | 5.62° | 0.949 | 0.682 *(anchor)* | 0.682 ± 0.060 |
+
+**Spearman ρ = +0.508, p = 0.013** over 24 seeds. No adjacent pair is
+individually significant — exactly as the audit predicted, which is why a
+monotone trend was pre-registered as the test instead of pairwise comparisons.
+
+The two interior levels were genuine out-of-sample predictions and came in
+within **+0.021** and **+0.001**. (The tooling prints a mean absolute error of
+0.006 across all four levels; that figure flatters the forecast, since two
+points were the anchors used to fit the slope. The honest out-of-sample figure
+is 0.011.)
+
+This is the second training-free forecast of a training result in this project.
+Two independent quantitative predictions from the same audit is the strongest
+evidence here that the mechanism is real rather than a story fitted afterwards.
+
+**One guess that was wrong:** mid-sweep, validation SPL suggested the curve
+saturated at 180–270°. It doesn't — held-out success keeps rising to 360°.
+Validation SPL is a max-over-checkpoints statistic on the training
+distribution, the same one that misled in the replication above.
+
+**What this still does not say:** all four levels use 64 samples, so coverage
+and resolution move together by construction. Decoupling them — 128 columns at
+90° against 64 at 180° — would separate "more view" from "more samples", and
+is the experiment this curve now argues for.
 
 ### The false start, and why it fooled a correct significance test
 

@@ -20,7 +20,9 @@ Phases are numbered as in the roadmap's Section 3.
 | 2i | 16 vs 64 beams, 6 seeds/arm, pre-registered | **Done** — **significant; perception confirmed** |
 | 3a | Depth camera observation mode | **Done** |
 | 3b | Depth camera vs lidar, 6 seeds/arm, pre-registered | **Done** — **FOV beats resolution** |
-| 3c | RGB observations + CNN encoder | Next |
+| 3c | FOV sweep (90/180/270/360 deg), 24 seeds, pre-registered | **Done** — **monotone trend, forecast held** |
+| 3d | Decoupling FOV from sample count | Next |
+| 3e | RGB observations + CNN encoder | After 3d |
 | 4 | Technical report ([`report.md`](report.md)) + demo video | **Done** |
 | 5 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real via ROS 2 | Not started |
 
