@@ -115,19 +115,32 @@ def audit_pose(
     probe_distance: float = 1.0,
     ground_truth_rays: int = 2048,
     max_range: float = 6.0,
+    fov: float = 2.0 * np.pi,
 ) -> GapStats:
-    """Measure gap detection for one sensor resolution at one pose.
+    """Measure gap detection for one sensor configuration at one pose.
 
     Parameters
     ----------
     n_beams:
-        Beam count of the sensor under test.
+        Beam or column count of the sensor under test.
     probe_distance:
         How far the robot must be able to travel for a heading to count as
         traversable.
     ground_truth_rays:
         Angular resolution of the ground-truth sweep. Must be much finer than
         ``n_beams`` or the "truth" inherits the sensor's own blind spots.
+    fov:
+        Angular coverage. Below ``2*pi`` the samples are packed into a forward
+        arc centred on the robot's heading, exactly as a camera does.
+
+    Notes
+    -----
+    Gaps are always enumerated over the **full 360 degrees**, whatever the
+    sensor's coverage. A gap behind a narrow-FOV sensor is genuinely
+    undetectable at that instant, and scoring only the gaps inside the FOV
+    would define that blindness away — turning a coverage limitation into a
+    free pass. The resulting number is therefore a combined coverage x
+    resolution score, which is the quantity a policy actually has to act on.
     """
     if ground_truth_rays < 8 * n_beams:
         raise ValueError(
@@ -135,13 +148,21 @@ def audit_pose(
             f"n_beams={n_beams}; the reference would share the sensor's blind "
             "spots and detection would be overstated"
         )
+    if not 0.0 < fov <= 2.0 * np.pi:
+        raise ValueError(f"fov must be in (0, 2pi], got {fov}")
 
     position = np.asarray(pose[:2], dtype=np.float64)
     dense_angles = np.linspace(-np.pi, np.pi, ground_truth_rays, endpoint=False)
     mask = traversable_mask(world, position, dense_angles, probe_distance)
 
-    lidar = Lidar2D(LidarConfig(n_beams=n_beams, max_range=max_range))
-    beam_angles = lidar.config.beam_angles() + float(pose[2])
+    full_circle = fov >= 2.0 * np.pi - 1e-9
+    lidar = Lidar2D(LidarConfig(n_beams=n_beams, fov=fov, max_range=max_range))
+    if not full_circle:
+        # Camera convention: samples at column centres, inset half a step from
+        # each edge, rather than Lidar2D's endpoint-inclusive spacing.
+        step = fov / n_beams
+        lidar._angles = -fov / 2.0 + (np.arange(n_beams) + 0.5) * step
+    beam_angles = lidar._angles + float(pose[2])
     ranges = lidar.scan(world, pose)
 
     # A beam "shows free space" if it reaches past what the robot needs to

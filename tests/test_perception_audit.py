@@ -174,6 +174,58 @@ def test_detection_is_monotone_in_beam_count_on_real_worlds():
         assert rates == sorted(rates), f"non-monotone detection on seed {seed}: {rates}"
 
 
+def test_narrow_fov_cannot_detect_gaps_behind_the_robot():
+    """Coverage is not defined away.
+
+    Gaps are enumerated over the full circle whatever the sensor sees, so a
+    90-degree sensor is scored against everything a 360-degree one is. Scoring
+    only the gaps inside the FOV would turn a coverage limitation into a free
+    pass, which is precisely the property the FOV sweep exists to measure.
+    """
+    world = empty_world()
+    pose = np.array([10.0, 10.0, 0.0])
+    narrow = audit_pose(world, pose, n_beams=64, probe_distance=1.0, fov=np.pi / 2)
+    full = audit_pose(world, pose, n_beams=64, probe_distance=1.0, fov=2 * np.pi)
+    # Same gaps enumerated for both; only detection can differ.
+    assert narrow.n_gaps == full.n_gaps
+
+
+def test_detection_is_monotone_in_fov_at_fixed_beam_count():
+    """Widening the view can only reveal more of the world, never less.
+
+    At a fixed sample count a wider FOV also means coarser sampling, so this
+    is a genuine trade rather than a tautology -- but over these worlds the
+    coverage term dominates and the ordering must hold.
+    """
+    for seed in range(4):
+        world = generate_world(seed)
+        detected = [
+            audit_pose(
+                world, world.start, n_beams=64, probe_distance=3.0,
+                fov=np.radians(deg),
+            ).n_detected
+            for deg in (90, 180, 270, 360)
+        ]
+        assert detected == sorted(detected), f"non-monotone in FOV on seed {seed}: {detected}"
+
+
+def test_invalid_fov_is_refused():
+    world = empty_world()
+    pose = np.array([10.0, 10.0, 0.0])
+    with pytest.raises(ValueError, match="fov"):
+        audit_pose(world, pose, n_beams=32, fov=0.0)
+    with pytest.raises(ValueError, match="fov"):
+        audit_pose(world, pose, n_beams=32, fov=7.0)
+
+
+def test_full_circle_fov_matches_the_lidar_default():
+    """360 degrees must reproduce the plain lidar audit."""
+    world = generate_world(2)
+    a = audit_pose(world, world.start, n_beams=64, probe_distance=3.0)
+    b = audit_pose(world, world.start, n_beams=64, probe_distance=3.0, fov=2 * np.pi)
+    assert a.n_detected == b.n_detected and a.n_gaps == b.n_gaps
+
+
 def test_stats_are_self_consistent():
     world = generate_world(1)
     stats = audit_pose(world, world.start, n_beams=32, probe_distance=1.0)
