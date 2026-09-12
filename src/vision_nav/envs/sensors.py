@@ -101,6 +101,35 @@ class Lidar2D:
         """:meth:`scan` mapped to ``[0, 1]`` for direct use as an observation."""
         return self.scan(world, pose, rng) / self.config.max_range
 
+    def scan_with_hits(self, world, pose: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Ranges plus which kind of surface each ray struck.
+
+        Surface kind: ``0`` wall, ``1`` circle, ``2`` box. Needed to shade an
+        egocentric render; exposed here rather than reimplemented elsewhere so
+        there is exactly one copy of the intersection maths. A second
+        implementation could drift from this one, and a renderer that disagreed
+        with the range sensor about the world would quietly invalidate any
+        comparison between them.
+        """
+        cfg = self.config
+        origin = np.asarray(pose[:2], dtype=np.float64)
+        bearings = self._angles + float(pose[2])
+        dirs = np.stack([np.cos(bearings), np.sin(bearings)], axis=-1)
+
+        candidates = [self._walls(world, origin, dirs)]
+        kinds = [0]
+        if len(world.circles):
+            candidates.append(self._circles(world.circles, origin, dirs))
+            kinds.append(1)
+        if len(world.boxes):
+            candidates.append(self._boxes(world.boxes, origin, dirs))
+            kinds.append(2)
+
+        stacked = np.stack(candidates, axis=0)  # (n_kinds, n_beams)
+        which = np.argmin(stacked, axis=0)
+        ranges = np.clip(stacked[which, np.arange(stacked.shape[1])], 0.0, cfg.max_range)
+        return ranges, np.asarray(kinds, dtype=np.int8)[which]
+
     # ------------------------------------------------------------------
     # Primitive intersections
     # ------------------------------------------------------------------

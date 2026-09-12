@@ -1,0 +1,34 @@
+# PPO for Dict observations with an image key (obs_mode: rgb).
+#
+# MultiInputPolicy routes the image through a CNN and concatenates the goal
+# vector afterwards, so the vector reaches the policy without being pushed
+# through a convolutional stack that has no reason to preserve it.
+#
+# Hyperparameters are held at the MLP config's values wherever they can be, so
+# a comparison against nav_depth isolates the encoder rather than a retune.
+# batch_size is the exception: image rollouts are far larger in memory.
+
+policy: MultiInputPolicy
+
+n_steps: 2048
+batch_size: 256
+n_epochs: 10
+
+learning_rate: 3.0e-4
+gamma: 0.995
+gae_lambda: 0.95
+clip_range: 0.2
+ent_coef: 0.005
+vf_coef: 0.5
+max_grad_norm: 0.5
+normalize_advantage: true
+
+policy_kwargs:
+  # Feature dim of the CNN trunk. SB3's NatureCNN is the default extractor for
+  # image spaces; 128 is ample for a 64x48 render of simple geometry and keeps
+  # the head comparable in size to the MLP arms' (256, 256).
+  features_extractor_kwargs:
+    cnn_output_dim: 128
+  net_arch: [256, 256]
+  activation_fn: Tanh
+  normalize_images: true

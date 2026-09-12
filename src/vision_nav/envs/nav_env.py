@@ -30,6 +30,7 @@ import numpy as np
 from gymnasium import spaces
 
 from vision_nav.envs.randomization import DomainRandomization
+from vision_nav.envs.rgb_camera import RGBCamera, RGBCameraConfig
 from vision_nav.envs.robot import DiffDriveRobot, RobotConfig, wrap_angle
 from vision_nav.envs.sensors import CameraConfig, DepthCamera, Lidar2D, LidarConfig
 from vision_nav.envs.world import World, WorldConfig, generate_world
@@ -83,8 +84,11 @@ class NavEnvConfig:
     #: ``"depth"`` — forward-facing depth camera instead of the lidar. The
     #: substantive change is losing the rear view, which is the constraint a
     #: real camera-based robot has.
+    #: ``"rgb"`` renders the same geometry as ``"depth"`` at the same FOV and
+    #: column count, so the difference isolates the cost of the CNN encoder.
     obs_mode: str = "privileged"
     camera: CameraConfig = field(default_factory=CameraConfig)
+    rgb_camera: RGBCameraConfig = field(default_factory=RGBCameraConfig)
 
     #: Explicit pool of world seeds to draw episodes from.  Passing an
     #: explicit list is how train / val / test splits are kept disjoint; see
@@ -114,17 +118,18 @@ class ProceduralNavEnv(gym.Env):
     ) -> None:
         super().__init__()
         self.config = config or NavEnvConfig()
-        if self.config.obs_mode not in ("privileged", "depth"):
+        if self.config.obs_mode not in ("privileged", "depth", "rgb"):
             raise NotImplementedError(
                 f"obs_mode={self.config.obs_mode!r} is not implemented. "
-                "Available: 'privileged' (360-degree lidar) and 'depth' "
-                "(forward-facing depth camera). 'rgbd' is still to come."
+                "Available: 'privileged' (360-degree lidar), 'depth' "
+                "(forward-facing depth camera), 'rgb' (egocentric colour)."
             )
         self.render_mode = render_mode
 
         self.robot = DiffDriveRobot(self.config.robot)
         self.lidar = Lidar2D(self.config.lidar)
         self.camera = DepthCamera(self.config.camera)
+        self.rgb = RGBCamera(self.config.rgb_camera)
 
         #: Number of range/depth values in the observation, whichever sensor
         #: this mode uses.
@@ -133,12 +138,28 @@ class ProceduralNavEnv(gym.Env):
         )
 
         self.action_space = spaces.Box(-1.0, 1.0, shape=(2,), dtype=np.float32)
-        self.observation_space = spaces.Box(
-            low=-1.0,
-            high=1.0,
-            shape=(self._n_range + 5,),
-            dtype=np.float32,
-        )
+        if self.config.obs_mode == "rgb":
+            # Dict rather than a flattened image: the goal vector must reach
+            # the policy without being pushed through a convolutional stack
+            # that has no reason to preserve it.
+            self.observation_space = spaces.Dict(
+                {
+                    "image": spaces.Box(
+                        low=0,
+                        high=255,
+                        shape=(3, *self.rgb.shape[:2]),  # (C, H, W)
+                        dtype=np.uint8,
+                    ),
+                    "vector": spaces.Box(-1.0, 1.0, shape=(5,), dtype=np.float32),
+                }
+            )
+        else:
+            self.observation_space = spaces.Box(
+                low=-1.0,
+                high=1.0,
+                shape=(self._n_range + 5,),
+                dtype=np.float32,
+            )
 
         self._world: World | None = None
         self._world_cache: dict[int, tuple[World, np.ndarray | None, float]] = {}
@@ -266,28 +287,45 @@ class ProceduralNavEnv(gym.Env):
         cfg = self.config
         pose = self.robot.pose
 
+        to_goal_vec = self._goal_vector(pose)
+        if cfg.obs_mode == "rgb":
+            return {
+                "image": self.rgb.render_chw(self._world, pose),
+                "vector": to_goal_vec.astype(np.float32),
+            }
+
         if cfg.obs_mode == "privileged":
             scan = self.lidar.normalized_scan(self._world, pose, self.np_random)
         else:
             scan = self.camera.normalized_depth(self._world, pose, self.np_random)
 
+        obs = np.concatenate([scan, to_goal_vec])
+        return np.clip(obs, -1.0, 1.0).astype(np.float32)
+
+    def _goal_vector(self, pose: np.ndarray) -> np.ndarray:
+        """Goal distance, bearing as (cos, sin), and current velocities.
+
+        Identical across every observation mode, so the sensor is the only
+        thing that differs between them.
+        """
+        assert self._world is not None
+        cfg = self.config
         to_goal = self._world.goal - pose[:2]
         goal_dist = float(np.linalg.norm(to_goal))
         bearing = wrap_angle(np.arctan2(to_goal[1], to_goal[0]) - pose[2])
-
-        obs = np.concatenate(
-            [
-                scan,
+        return np.clip(
+            np.array(
                 [
                     min(goal_dist / cfg.max_goal_distance, 1.0),
                     np.cos(bearing),
                     np.sin(bearing),
                     self.robot.velocity[0] / cfg.robot.max_linear_vel,
                     self.robot.velocity[1] / cfg.robot.max_angular_vel,
-                ],
-            ]
+                ]
+            ),
+            -1.0,
+            1.0,
         )
-        return np.clip(obs, -1.0, 1.0).astype(np.float32)
 
     def _progress_distance(self, position: np.ndarray) -> float:
         """Distance-to-goal used for progress shaping (geodesic or Euclidean)."""

@@ -1,0 +1,75 @@
+# Egocentric RGB observations, otherwise identical to nav_depth.
+#
+# The camera renders the SAME geometry the depth mode measures, at the same
+# 90 deg FOV and the same 64 columns. It adds no information the depth vector
+# lacks except surface type (wall / circle / box shading). So a comparison
+# against nav_depth isolates one thing: what the CNN encoder costs, relative
+# to an MLP reading the equivalent vector directly.
+#
+# That is the question that transfers. Real robots do not receive a clean
+# depth vector; they receive images, and the encoder is the part that must be
+# paid for.
+#
+#   python -m vision_nav.training.train env=nav_rgb algo=ppo_cnn train.run_name=rgb_s0
+
+max_episode_steps: 500
+obs_mode: rgb
+max_goal_distance: 20.0
+world_cache_size: 1024
+
+world:
+  width: 12.0
+  height: 12.0
+  n_circles: [6, 12]
+  circle_radius: [0.3, 0.9]
+  n_boxes: [2, 6]
+  box_size: [0.5, 1.8]
+  robot_radius: 0.22
+  goal_tolerance: 0.35
+  min_start_goal_dist: 5.0
+  spawn_clearance: 0.35
+  grid_resolution: 0.1
+
+domain_randomization:
+  enabled: true
+  arena: [10.0, 16.0]
+  start_goal_fraction: [0.40, 0.58]
+  n_circles: [1, 22]
+  circle_radius: [0.25, 1.4]
+  n_boxes: [0, 10]
+  box_size: [0.4, 2.0]
+
+rgb_camera:
+  fov: 1.5707963267948966  # 90 degrees, matching nav_depth
+  width: 64                # same column count as nav_depth
+  height: 48
+  max_range: 6.0
+  wall_scale: 1.2
+  distance_falloff: 0.45
+
+# Unused in rgb mode; kept so the config shape is uniform across modes.
+camera:
+  fov: 1.5707963267948966
+  width: 64
+  max_range: 6.0
+lidar:
+  n_beams: 32
+  max_range: 6.0
+
+robot:
+  max_linear_vel: 0.6
+  min_linear_vel: -0.1
+  max_angular_vel: 1.6
+  max_linear_accel: 2.0
+  max_angular_accel: 6.0
+  dt: 0.1
+
+reward:
+  progress: 3.0
+  goal_bonus: 20.0
+  collision_penalty: 20.0
+  step_penalty: 0.01
+  proximity_penalty: 0.15
+  spin_penalty: 0.005
+  proximity_threshold: 0.4
+  use_geodesic_progress: true

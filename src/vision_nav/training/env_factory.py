@@ -16,6 +16,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnv
 
 from vision_nav.envs.nav_env import NavEnvConfig, ProceduralNavEnv, RewardConfig
 from vision_nav.envs.randomization import DomainRandomization
+from vision_nav.envs.rgb_camera import RGBCameraConfig
 from vision_nav.envs.robot import RobotConfig
 from vision_nav.envs.sensors import CameraConfig, LidarConfig
 from vision_nav.envs.splits import shifted_config, split_seeds
@@ -31,6 +32,11 @@ _TUPLE_FIELDS = {
     "seed_range",
     "arena",
     "start_goal_fraction",
+    "wall_rgb",
+    "circle_rgb",
+    "box_rgb",
+    "ceiling_rgb",
+    "floor_rgb",
 }
 
 
@@ -82,6 +88,7 @@ def build_env_config(
         "robot": _section(RobotConfig, cfg.pop("robot", None)),
         "lidar": _section(LidarConfig, cfg.pop("lidar", None)),
         "camera": _section(CameraConfig, cfg.pop("camera", None)),
+        "rgb_camera": _section(RGBCameraConfig, cfg.pop("rgb_camera", None)),
         "reward": _section(RewardConfig, cfg.pop("reward", None)),
         "domain_randomization": _section(
             DomainRandomization, cfg.pop("domain_randomization", None)
