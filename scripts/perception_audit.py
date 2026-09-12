@@ -43,6 +43,17 @@ def parse_args(argv=None):
             "sweeping beam count. Requires exactly one --beams value."
         ),
     )
+    p.add_argument(
+        "--config",
+        nargs="+",
+        default=None,
+        metavar="BEAMS:FOVDEG",
+        help=(
+            "Explicit (samples, FOV) pairs, e.g. 32:90 64:180 128:360. Lets "
+            "angular resolution be held constant while coverage varies, which "
+            "neither of the other two sweeps can do."
+        ),
+    )
     p.add_argument("--probe", type=float, default=3.0,
                    help="Distance the robot must be able to travel, metres")
     p.add_argument("--poses-per-world", type=int, default=8)
@@ -83,7 +94,16 @@ def main(argv=None) -> int:
     seeds = split_seeds(args.split, args.worlds)
 
     # Each configuration under test: (label, n_beams, fov_radians).
-    if args.fov_deg:
+    if args.config:
+        configs = []
+        for spec in args.config:
+            beams_s, _, fov_s = spec.partition(":")
+            if not fov_s:
+                print(f"error: malformed --config {spec!r}; expected BEAMS:FOVDEG")
+                return 2
+            n, deg = int(beams_s), float(fov_s)
+            configs.append((f"{n}@{int(deg)}deg", n, np.radians(deg)))
+    elif args.fov_deg:
         if len(args.beams) != 1:
             print("error: --fov-deg requires exactly one --beams value", flush=True)
             return 2
