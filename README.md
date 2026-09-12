@@ -35,7 +35,8 @@ decision below follows from wanting that comparison to be trustworthy.
 | Multi-seed replication (4 seeds × 2 arms) | Done — **the beam result does not replicate** |
 | Direct perception audit (no training, no seeds) | Done — deficit is real but small; explains the null |
 | 16 vs 64 beams, 6 seeds/arm, pre-registered | Done — **significant; perception confirmed** |
-| Vision-conditioned RL (egocentric observations + CNN) | Next |
+| Depth camera vs lidar, 6 seeds/arm, pre-registered | Done — **field of view beats resolution** |
+| RGB observations + CNN encoder | Next |
 
 Detail and rationale: [`docs/project_plan.md`](docs/project_plan.md).
 
@@ -204,6 +205,57 @@ is stronger evidence for the mechanism than the effect size alone.
 
 Everything below documents how the two false starts happened, because that is
 the more useful part.
+
+### Field of view beats angular resolution
+
+With the sensor established as a real constraint, the natural question is
+*which* property of it matters. A forward-facing depth camera and a 360°
+lidar trade off in opposite directions:
+
+| Sensor | Angular resolution | Resolves a 0.44 m gap to | World visible |
+|---|---|---|---|
+| 64 beams / 360° | 5.62° | 4.5 m | 100% |
+| 64 columns / 90° | **1.41°** | **17.9 m** | **25%** |
+
+The camera is **4× finer per degree while seeing a quarter of the world**.
+Both give a 69-dimensional observation to an identical network, so capacity is
+matched and the sensor is the only difference. Six seeds per arm, `narrow`
+success pre-registered as the primary endpoint.
+
+**The camera loses, on every condition:**
+
+| Condition | Lidar 360° | Depth 90° | Δ | p (exact) |
+|---|---|---|---|---|
+| **narrow** (primary) | 0.682 ± 0.060 | 0.585 ± 0.037 | **−0.097** | **0.019** |
+| dense | 0.695 ± 0.040 | 0.565 ± 0.053 | **−0.130** | **0.004** |
+| nominal | 0.937 ± 0.021 | 0.862 ± 0.039 | **−0.075** | **0.004** |
+
+So **field of view dominates angular resolution** at this operating point.
+Quadrupling angular precision does not come close to paying for losing three
+quarters of the view — consistent with Phase 2h, which found 64-beam gap
+detection already at 0.949 and therefore with little left for extra resolution
+to buy.
+
+The penalty also **grows with clutter** — −0.075 on `nominal`, −0.097 on
+`narrow`, −0.130 on `dense` — which is what peripheral awareness being the
+scarce resource looks like: the more obstacles there are, the more it costs
+not to see beside and behind you.
+
+Collision rates are statistically unchanged on `narrow` and `dense`
+(+0.012, +0.008, both n.s.). The camera policy does not crash more there; it
+**times out** more (0.298 vs 0.213 on `narrow`), which is the same
+cautious-rather-than-capable failure the lidar policies showed under clutter.
+
+This outcome was **predicted in advance** and recorded before the runs
+started. A confirmed prediction is weaker evidence than a surprising one —
+it cannot rule out that the reasoning was fitted to an expected answer — but
+it does mean the Phase 2h saturation argument had real forecasting content.
+
+**What this does not say:** it compares one camera configuration. A 180° or
+270° camera, or one with memory to accumulate views over time, might close the
+gap entirely; the FOV-vs-resolution trade has two knobs and this samples one
+point. What it does establish is the *direction* — for a forward-driving robot
+in clutter, breadth of view is worth more than precision within it.
 
 ### The false start, and why it fooled a correct significance test
 

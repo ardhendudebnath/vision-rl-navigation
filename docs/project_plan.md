@@ -18,7 +18,9 @@ Phases are numbered as in the roadmap's Section 3.
 | 2g | Multi-seed replication (4 seeds x 2 arms) | **Done** — **2f does not replicate** |
 | 2h | Direct perception audit (no training, no seeds) | **Done** — reconciles 2f and 2g |
 | 2i | 16 vs 64 beams, 6 seeds/arm, pre-registered | **Done** — **significant; perception confirmed** |
-| 3 | Vision-conditioned RL (egocentric depth/RGB-D + CNN encoder) | Next |
+| 3a | Depth camera observation mode | **Done** |
+| 3b | Depth camera vs lidar, 6 seeds/arm, pre-registered | **Done** — **FOV beats resolution** |
+| 3c | RGB observations + CNN encoder | Next |
 | 4 | Technical report, demo video, packaging | Not started |
 | 5 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real via ROS 2 | Not started |
 
@@ -670,7 +672,82 @@ Not established:
   audit degenerates to one all-encompassing gap, and the measurement says
   nothing. 3 m is long enough that obstacles actually partition the sweep.
 
-## Phase 3 — Vision-conditioned RL (next)
+## Phase 3b — Depth camera vs lidar: field of view beats resolution
+
+Phases 2f-2i established that sensor angular resolution is a real constraint.
+The natural follow-up is *which* property of the sensor matters, and a
+forward-facing depth camera against a 360-degree lidar isolates it, because
+the two trade off in opposite directions:
+
+| Sensor | Angular resolution | Resolves a 0.44 m gap to | World visible |
+|---|---|---|---|
+| 64 beams / 360 deg | 5.62 deg | 4.5 m | 100% |
+| 64 columns / 90 deg | 1.41 deg | 17.9 m | 25% |
+
+The camera is 4x finer per degree while seeing a quarter of the world. Both
+produce a 69-dimensional observation for an identical (256, 256) network, so
+capacity is matched and the sensor is the only difference. `nav_depth.yaml`
+matches `nav_dr.yaml` in every other respect.
+
+Six seeds per arm. Primary endpoint `narrow` success, pre-registered, with a
+directional prediction recorded before the runs: **the camera loses**, on the
+grounds that Phase 2h measured 64-beam gap detection already at 0.949, leaving
+little for extra resolution to buy, against a large new constraint.
+
+### Result
+
+| Condition | Lidar 360 | Depth 90 | Delta | p (exact) |
+|---|---|---|---|---|
+| **narrow** (primary) | 0.682 +/- 0.060 | 0.585 +/- 0.037 | **-0.097** | **0.019** |
+| dense | 0.695 +/- 0.040 | 0.565 +/- 0.053 | **-0.130** | **0.004** |
+| nominal | 0.937 +/- 0.021 | 0.862 +/- 0.039 | **-0.075** | **0.004** |
+
+Per-seed `narrow` success:
+
+- lidar 360: 0.70, 0.58, 0.64, 0.74, 0.71, 0.72
+- depth 90: 0.60, 0.65, 0.55, 0.55, 0.58, 0.58
+
+**Field of view dominates angular resolution.** Quadrupling angular precision
+does not come close to paying for losing three quarters of the view.
+
+Two secondary observations that both point the same way:
+
+- **The penalty grows with clutter**: -0.075 (nominal), -0.097 (narrow),
+  -0.130 (dense). That is the signature of peripheral awareness being the
+  scarce resource — the more obstacles, the more it costs not to see beside
+  and behind.
+- **Collisions are statistically unchanged** on narrow and dense (+0.012,
+  +0.008, both n.s.); the camera policy times out more instead (0.298 vs
+  0.213 on narrow). Same cautious-rather-than-capable failure mode as the
+  lidar policies under clutter, simply reached more often.
+
+### On the prediction having been right
+
+The direction was recorded before the runs. That is worth something — the
+Phase 2h saturation argument had genuine forecasting content — but a confirmed
+prediction is weaker evidence than a surprising one, because it cannot rule
+out reasoning fitted to an expected answer. The stronger claim from this
+project remains Phase 2h -> 2i, where a training-free measurement predicted a
+*quantitative* effect size that then held.
+
+### Limits
+
+This compares **one** camera configuration. A 180 or 270 degree camera, or one
+with memory to accumulate views across time, might close the gap entirely; the
+FOV-versus-resolution trade has two knobs and this samples a single point on
+it. What is established is the direction, not a frontier.
+
+The obvious follow-ups, in order of value:
+
+1. **FOV sweep at fixed column count** (90 / 180 / 270 / 360 degrees). This
+   turns a single point into a curve and directly answers how much view is
+   enough. It also isolates FOV from resolution, which the current comparison
+   deliberately confounds.
+2. **Frame stacking or recurrence.** If the deficit is *missing* information,
+   more view fixes it; if it is *forgetting* what was just seen, memory fixes
+   it. These predict different outcomes and the experiment distinguishes them.
+
+## Phase 3c — RGB observations (next)
 
 Replace the privileged observation with rendered egocentric observations
 behind a small CNN encoder. `NavEnvConfig.obs_mode` is the seam; it currently
