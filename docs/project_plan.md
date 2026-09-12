@@ -21,7 +21,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 3a | Depth camera observation mode | **Done** |
 | 3b | Depth camera vs lidar, 6 seeds/arm, pre-registered | **Done** — **FOV beats resolution** |
 | 3c | RGB observations + CNN encoder | Next |
-| 4 | Technical report, demo video, packaging | Not started |
+| 4 | Technical report ([`report.md`](report.md)) | **Done** — demo video still outstanding |
 | 5 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real via ROS 2 | Not started |
 
 ## Phase 0 — Foundations (done)

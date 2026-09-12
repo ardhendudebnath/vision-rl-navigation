@@ -38,7 +38,10 @@ decision below follows from wanting that comparison to be trustworthy.
 | Depth camera vs lidar, 6 seeds/arm, pre-registered | Done — **field of view beats resolution** |
 | RGB observations + CNN encoder | Next |
 
-Detail and rationale: [`docs/project_plan.md`](docs/project_plan.md).
+**Technical report: [`docs/report.md`](docs/report.md)** — the full study written
+up as a short paper, including the false positive this project caught in its
+own results and how. Phase-by-phase detail and rationale:
+[`docs/project_plan.md`](docs/project_plan.md).
 
 ## Results
 
