@@ -77,10 +77,38 @@ def load_arms(specs: list[str]) -> dict[str, list[Path]]:
 
 
 def run_sensor(run: Path) -> dict:
-    """Sensor geometry for this run; a policy cannot be evaluated without it."""
+    """Env overrides needed to evaluate this run's policy.
+
+    Must carry the observation *mode*, not just the sensor geometry. A
+    depth-camera policy evaluated in a lidar env sees a different sensor at a
+    different dimensionality — which fails loudly if the shapes disagree and,
+    worse, would quietly measure the wrong thing if they happened to match.
+    """
     cfg = OmegaConf.load(run / "config.yaml")
-    lidar = OmegaConf.to_container(cfg.env.lidar, resolve=True)
-    return {k: lidar[k] for k in ("n_beams", "fov", "max_range") if k in lidar}
+    env = cfg.env
+    obs_mode = OmegaConf.select(env, "obs_mode") or "privileged"
+    spec: dict = {"obs_mode": obs_mode}
+
+    if obs_mode == "depth":
+        camera = OmegaConf.to_container(env.camera, resolve=True)
+        spec["camera"] = {
+            k: camera[k] for k in ("fov", "width", "max_range") if k in camera
+        }
+    else:
+        lidar = OmegaConf.to_container(env.lidar, resolve=True)
+        spec["lidar"] = {
+            k: lidar[k] for k in ("n_beams", "fov", "max_range") if k in lidar
+        }
+    return spec
+
+
+def describe_sensor(run: Path) -> str:
+    """Short human-readable sensor description for the report."""
+    spec = run_sensor(run)
+    if spec["obs_mode"] == "depth":
+        cam = spec["camera"]
+        return f"depth {cam.get('width')}px @ {np.degrees(cam.get('fov', 0)):.0f}deg"
+    return f"lidar {spec['lidar'].get('n_beams')} beams @ 360deg"
 
 
 def run_seed(run: Path) -> int:
@@ -115,8 +143,10 @@ def main(argv=None) -> int:
     report: dict = {"episodes": args.episodes, "arms": {}, "conditions": {}}
     for name, runs in arms.items():
         report["arms"][name] = [
-            {"run": str(r), "seed": run_seed(r), **run_sensor(r)} for r in runs
+            {"run": str(r), "seed": run_seed(r), "sensor": describe_sensor(r)}
+            for r in runs
         ]
+        print(f"arm {name}: {describe_sensor(runs[0])}, seeds {[run_seed(r) for r in runs]}")
 
     for cond in args.conditions:
         split, shift = CONDITIONS[cond]
@@ -127,7 +157,7 @@ def main(argv=None) -> int:
             succ, spl, coll = [], [], []
             for run in runs:
                 cfg = build_env_config(
-                    {"lidar": run_sensor(run)}, split=split, shift=shift,
+                    run_sensor(run), split=split, shift=shift,
                     n_worlds=args.episodes,
                 )
                 actor = build_actor(
