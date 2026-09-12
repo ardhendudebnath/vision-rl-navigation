@@ -251,9 +251,26 @@ def main(argv=None) -> int:
                     "lidar_noise_std": noise,
                     "actor": actor_name,
                     "obs_mode": env_config.obs_mode,
-                    "n_beams": geometry.get("n_beams"),
+                    # Only the sensor the policy actually reads. A depth run's
+                    # config still carries an idle lidar block; reporting its
+                    # beam count would describe a sensor that never fires.
+                    "n_beams": (
+                        geometry.get("n_beams")
+                        if env_config.obs_mode == "privileged"
+                        else None
+                    ),
                     "camera_width": (
                         env_config.camera.width if env_config.obs_mode == "depth" else None
+                    ),
+                    "sensor": (
+                        f"depth {env_config.camera.width}px @ "
+                        f"{np.degrees(env_config.camera.fov):.0f}deg"
+                        if env_config.obs_mode == "depth"
+                        else (
+                            f"lidar {geometry['n_beams']} beams @ 360deg"
+                            if geometry.get("n_beams")
+                            else None
+                        )
                     ),
                     **metrics.to_dict(),
                 }
@@ -291,20 +308,24 @@ def render_table(rows: list[dict]) -> str:
             f"{r['spl']:.3f} | {r['collision_rate']:.3f} | "
             f"{r['timeout_rate']:.3f} | {r['mean_steps_to_goal']:.0f} |"
         )
-    beam_counts = {r.get("n_beams") for r in rows if r.get("n_beams")}
+    sensors = {r["actor"]: r.get("sensor") for r in rows if r.get("sensor")}
     lines += [
         "",
         "## Reading this table",
         "",
         "- `random` is the floor. Any result that does not clearly clear it is noise.",
     ]
-    if len(beam_counts) > 1:
+    if len(set(sensors.values())) > 1:
+        lines += ["- **Actors here use different sensors:**"]
+        lines += [f"  - `{a}` — {s}" for a, s in sorted(sensors.items())]
         lines += [
-            f"- **Actors here use different lidar beam counts** ({sorted(beam_counts)}).",
-            "  Sensor geometry is read from each run's saved config, because a policy",
-            "  cannot be evaluated at a beam count it was not trained for. The worlds,",
-            "  seed order and injected sensor noise are identical across every row —",
-            "  asserted at evaluation time, not assumed.",
+            "  Each policy is evaluated with the sensor it was trained on, read from",
+            "  its saved config, because a policy cannot be run on a sensor it has",
+            "  never seen. The worlds, seed order and injected sensor noise are",
+            "  identical across every row — asserted at evaluation time, not assumed.",
+            "  Sensor noise is applied to whichever sensor the policy actually reads,",
+            "  so the `noisy_lidar` row is a genuine perturbation for the depth",
+            "  policies too, not the non-exposure it is for `classical`.",
         ]
     lines += [
         "- **`noisy_lidar` is a no-op for `classical` by construction.** The classical",
