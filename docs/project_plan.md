@@ -17,6 +17,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 2f | Lidar beam-count experiment (32 / 64 / 128) | **Done** — decisive on one seed |
 | 2g | Multi-seed replication (4 seeds x 2 arms) | **Done** — **2f does not replicate** |
 | 2h | Direct perception audit (no training, no seeds) | **Done** — reconciles 2f and 2g |
+| 2i | 16 vs 64 beams, 6 seeds/arm, pre-registered | **Done** — **significant; perception confirmed** |
 | 3 | Vision-conditioned RL (egocentric depth/RGB-D + CNN encoder) | Next |
 | 4 | Technical report, demo video, packaging | Not started |
 | 5 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real via ROS 2 | Not started |
@@ -586,7 +587,76 @@ nearly three times the 6.4 points of 32 vs 64.** That is the manipulation most
 likely to produce a success-rate difference that survives seed noise, and the
 audit identified it without training a single policy. Combined with more seeds
 per arm, that is the experiment worth running; 32 vs 64 with more seeds is
-fighting its own noise for a 6-point mechanism.
+fighting its own noise for a 6-point mechanism. Run as Phase 2i.
+
+## Phase 2i — 16 vs 64 beams, powered and pre-registered
+
+Twelve runs, six seeds per arm. The analysis plan was fixed **before the runs
+finished**: primary endpoint `narrow` success rate, seed as the unit, exact
+permutation test; everything else secondary. At six per arm the permutation
+floor is 2/C(12,6) = 0.0022, against 0.029 at four per arm.
+
+### Result
+
+Success rate, one value per training seed, 100 held-out worlds each:
+
+| Condition | 16 beams | 64 beams | Delta | p (exact) |
+|---|---|---|---|---|
+| **narrow** (primary) | 0.597 +/- 0.054 | 0.682 +/- 0.060 | **+0.085** | **0.035** |
+| dense | 0.580 +/- 0.035 | 0.695 +/- 0.040 | **+0.115** | **0.002** |
+| nominal | 0.898 +/- 0.041 | 0.937 +/- 0.021 | +0.038 | 0.056 |
+
+Per-seed `narrow` success:
+
+- 16 beams: 0.67, 0.51, 0.60, 0.59, 0.58, 0.63
+- 64 beams: 0.70, 0.58, 0.64, 0.74, 0.71, 0.72
+
+On `dense` the arms separate completely — every 64-beam seed above every
+16-beam seed — hence p at the floor. `dense` SPL is +0.083 (p = 0.004) and
+`dense` collisions -0.087 (p = 0.039). `nominal` misses significance.
+
+### The audit predicted this before the policies existed
+
+Phase 2h measured a 17-point gap-detection contrast for 16 vs 64 and, by
+scaling the +0.042 observed at 6.4 points, implied roughly +0.11 in success.
+Observed: +0.085 on `narrow`, +0.115 on `dense`. A 2.7x manipulation produced
+a 2.0x effect — close to linear in detection rate.
+
+**A training-free measurement forecast the outcome of a twelve-run training
+experiment.** That is considerably stronger evidence for the mechanism than
+the effect size on its own, because it is a prediction rather than a fit.
+
+### Multiplicity, stated rather than buried
+
+`narrow` success was pre-registered as the single primary endpoint, so p =
+0.035 stands uncorrected — that is precisely what pre-registration buys. The
+eight secondary tests do require correction: at Bonferroni (0.05/8 = 0.006),
+`dense` success and `dense` SPL survive; nothing else does.
+
+This matters because p = 0.035 would **not** survive correction if `narrow`
+were treated as one of nine exploratory tests. The only thing distinguishing
+those two readings is having fixed the endpoint in advance — which is exactly
+the discipline Phase 2f lacked.
+
+### What this establishes, and what it does not
+
+Established: **sensor angular resolution is a real constraint on this task**,
+with a measured mechanism, a pre-registered confirmation, and a quantitative
+prediction that held.
+
+Not established:
+
+- **64 beams is not sufficient.** The best 64-beam policy still reaches 0.682
+  on `narrow` against the classical planner's 0.850. Perception was *a*
+  bottleneck, not *the* bottleneck.
+- **The shape of the relationship.** Three points (16, 32, 64) roughly
+  consistent with linearity in detection rate is not a characterised curve,
+  and 128 beams was worse than 64 on a single seed, which remains unexplained
+  and unreplicated.
+- **Transfer to the vision setting.** Whether an image encoder inherits the
+  same angular-resolution constraint is the question Phase 3 should be
+  designed around, and this result is the reason to design for it explicitly
+  rather than discover it later.
 
 ### Method notes worth keeping
 

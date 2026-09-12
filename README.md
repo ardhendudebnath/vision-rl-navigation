@@ -34,6 +34,7 @@ decision below follows from wanting that comparison to be trustworthy.
 | Lidar beam-count experiment | Done — looked decisive on one seed |
 | Multi-seed replication (4 seeds × 2 arms) | Done — **the beam result does not replicate** |
 | Direct perception audit (no training, no seeds) | Done — deficit is real but small; explains the null |
+| 16 vs 64 beams, 6 seeds/arm, pre-registered | Done — **significant; perception confirmed** |
 | Vision-conditioned RL (egocentric observations + CNN) | Next |
 
 Detail and rationale: [`docs/project_plan.md`](docs/project_plan.md).
@@ -169,11 +170,42 @@ not about caution at all: the baseline was *dawdling even when it succeeded*,
 and charging more per step cleans up the paths. Worth keeping; it does not
 touch the clutter problem.
 
-### Perception looked like the answer — then did not replicate
+### Perception is the bottleneck — established, after two false starts
 
-**Read this section before the one below it.** The 64-beam result reported
-next was produced from a single training seed per arm. Re-running both arms
-across **four seeds each** dissolves it.
+This took four phases and one retracted claim, so the short version first:
+
+1. **32 vs 64 beams, one seed each** — looked significant. It wasn't; see below.
+2. **32 vs 64 beams, four seeds each** — null (+0.042, p = 0.457). Seed spread
+   swamped the effect.
+3. **A training-free audit of the sensor itself** — the perception deficit is
+   real and quantified, but 32 → 64 recovers only 6.4 points of gap detection,
+   far too little to see through that noise. It predicted that **16 vs 64**
+   (a 17-point contrast) would work.
+4. **16 vs 64 beams, six seeds each** — **significant, and the audit's
+   predicted effect size held.**
+
+The final result, on the pre-registered primary endpoint (`narrow` success
+rate, seed as the unit of analysis, exact permutation test):
+
+| Arm | Per-seed success | Mean ± sd |
+|---|---|---|
+| 16 beams | 0.67, 0.51, 0.60, 0.59, 0.58, 0.63 | 0.597 ± 0.054 |
+| 64 beams | 0.70, 0.58, 0.64, 0.74, 0.71, 0.72 | **0.682 ± 0.060** |
+
+**+0.085, p = 0.035.** On `dense` the separation is complete — every 64-beam
+seed above every 16-beam seed — giving **+0.115, p = 0.002**, the floor for
+6-vs-6, along with SPL +0.083 (p = 0.004) and collisions −0.087 (p = 0.039).
+`nominal` does not reach significance (+0.038, p = 0.056).
+
+The audit predicted roughly +0.11 from the detection contrast before any of
+these policies were trained. Observed: +0.085 to +0.115. **A training-free
+measurement forecast the outcome of a twelve-run training experiment**, which
+is stronger evidence for the mechanism than the effect size alone.
+
+Everything below documents how the two false starts happened, because that is
+the more useful part.
+
+### The false start, and why it fooled a correct significance test
 
 `narrow`, success rate, one value per training seed (100 held-out worlds each):
 
@@ -288,6 +320,33 @@ It also says what a better experiment looks like: **16 vs 64 beams spans
 contrast.** That is the manipulation most likely to produce a success-rate
 effect that survives seed noise, and the audit identified it without training
 a single policy.
+
+### The powered experiment, and how well the prediction held
+
+Twelve runs, six seeds per arm, primary endpoint declared before looking at
+the data. Success rate:
+
+| Condition | 16 beams | 64 beams | Δ | p (exact) |
+|---|---|---|---|---|
+| **narrow** (primary) | 0.597 ± 0.054 | 0.682 ± 0.060 | **+0.085** | **0.035** |
+| dense | 0.580 ± 0.035 | 0.695 ± 0.040 | **+0.115** | **0.002** |
+| nominal | 0.898 ± 0.041 | 0.937 ± 0.021 | +0.038 | 0.056 |
+
+On `dense` the arms separate completely — every 64-beam seed above every
+16-beam seed — which is why p sits at the 2/924 floor. SPL there is +0.083
+(p = 0.004) and collisions −0.087 (p = 0.039).
+
+**On multiplicity:** `narrow` success was pre-registered as the single primary
+endpoint, so its p = 0.035 needs no correction — that is what pre-registration
+buys. The eight secondary tests do need it: at Bonferroni (0.05/8 = 0.006),
+`dense` success and `dense` SPL survive and the rest do not. Stated plainly
+because p = 0.035 would *not* survive correction if `narrow` were treated as
+one of nine exploratory tests, and the only thing separating those two
+readings is having fixed the endpoint in advance.
+
+The effect also scales with detection roughly as the audit implies: a 6.4-point
+detection contrast gave +0.042 (not significant), a 17-point contrast gives
++0.085 — a 2.7× manipulation producing a 2.0× effect.
 
 ## Quickstart
 
