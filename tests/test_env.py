@@ -134,8 +134,18 @@ def test_splits_are_disjoint():
 
 
 def test_unimplemented_obs_mode_fails_loudly():
-    with pytest.raises(NotImplementedError, match="Phase 4"):
+    """An unknown mode must name the ones that do exist, not just refuse."""
+    with pytest.raises(NotImplementedError) as excinfo:
         ProceduralNavEnv(NavEnvConfig(obs_mode="rgbd"))
+    message = str(excinfo.value)
+    assert "privileged" in message and "depth" in message
+
+
+def test_implemented_obs_modes_construct():
+    for mode in ("privileged", "depth"):
+        env = ProceduralNavEnv(NavEnvConfig(obs_mode=mode, world_seeds=[0]))
+        obs, _ = env.reset(seed=0)
+        assert env.observation_space.contains(obs)
 
 
 # ----------------------------------------------------------------------

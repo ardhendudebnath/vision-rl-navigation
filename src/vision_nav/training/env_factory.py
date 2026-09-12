@@ -17,7 +17,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnv
 from vision_nav.envs.nav_env import NavEnvConfig, ProceduralNavEnv, RewardConfig
 from vision_nav.envs.randomization import DomainRandomization
 from vision_nav.envs.robot import RobotConfig
-from vision_nav.envs.sensors import LidarConfig
+from vision_nav.envs.sensors import CameraConfig, LidarConfig
 from vision_nav.envs.splits import shifted_config, split_seeds
 from vision_nav.envs.world import WorldConfig
 
@@ -81,6 +81,7 @@ def build_env_config(
         "world": world,
         "robot": _section(RobotConfig, cfg.pop("robot", None)),
         "lidar": _section(LidarConfig, cfg.pop("lidar", None)),
+        "camera": _section(CameraConfig, cfg.pop("camera", None)),
         "reward": _section(RewardConfig, cfg.pop("reward", None)),
         "domain_randomization": _section(
             DomainRandomization, cfg.pop("domain_randomization", None)

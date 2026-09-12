@@ -9,10 +9,13 @@ from __future__ import annotations
 
 from gymnasium.envs.registration import register, registry
 
+from vision_nav.envs.nav_env import NavEnvConfig
+
 __all__ = ["register_envs", "ENV_IDS"]
 
 ENV_IDS = {
     "privileged": "VisionNav-Privileged-v0",
+    "depth": "VisionNav-Depth-v0",
 }
 
 _ENTRY_POINT = "vision_nav.envs.nav_env:ProceduralNavEnv"
@@ -29,5 +32,5 @@ def register_envs() -> None:
             # The env enforces its own step limit and reports the terminal
             # info dict the metrics depend on, so no TimeLimit wrapper here.
             max_episode_steps=None,
-            kwargs={},
+            kwargs={"config": NavEnvConfig(obs_mode=obs_mode)},
         )

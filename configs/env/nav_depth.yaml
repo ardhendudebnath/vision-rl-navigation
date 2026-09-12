@@ -1,0 +1,74 @@
+# Vision-conditioned task: forward-facing depth camera instead of 360-degree
+# lidar. Identical to nav_dr in every other respect, so a comparison against
+# the DR-trained lidar policies isolates the sensor change.
+#
+# The substantive difference is NOT resolution -- it is the loss of the rear
+# view. A planar lidar tells the policy what is behind it; a camera does not,
+# and neither does any real vision-based robot.
+#
+#   python -m vision_nav.training.train env=nav_depth train.run_name=depth_s0
+#
+# Angular resolution, for comparison with the Phase 2f-2i beam experiments:
+#   64 columns over 90 deg = 1.41 deg/column -> resolves a 0.44 m gap to 17.9 m
+#   64 beams  over 360 deg = 5.62 deg/beam   -> resolves a 0.44 m gap to  4.5 m
+# So the camera is far finer per degree while seeing a quarter of the world.
+# Which of those dominates is the question this phase exists to answer.
+
+max_episode_steps: 500
+obs_mode: depth
+max_goal_distance: 20.0
+world_cache_size: 1024
+
+world:
+  width: 12.0
+  height: 12.0
+  n_circles: [6, 12]
+  circle_radius: [0.3, 0.9]
+  n_boxes: [2, 6]
+  box_size: [0.5, 1.8]
+  robot_radius: 0.22
+  goal_tolerance: 0.35
+  min_start_goal_dist: 5.0
+  spawn_clearance: 0.35
+  grid_resolution: 0.1
+
+domain_randomization:
+  enabled: true
+  arena: [10.0, 16.0]
+  start_goal_fraction: [0.40, 0.58]
+  n_circles: [1, 22]
+  circle_radius: [0.25, 1.4]
+  n_boxes: [0, 10]
+  box_size: [0.4, 2.0]
+
+camera:
+  fov: 1.5707963267948966  # 90 degrees
+  width: 64
+  max_range: 6.0
+  noise_std: 0.0
+  dropout_prob: 0.0
+
+# Unused in depth mode, kept so the same config shape works for both.
+lidar:
+  n_beams: 32
+  max_range: 6.0
+  noise_std: 0.0
+  dropout_prob: 0.0
+
+robot:
+  max_linear_vel: 0.6
+  min_linear_vel: -0.1
+  max_angular_vel: 1.6
+  max_linear_accel: 2.0
+  max_angular_accel: 6.0
+  dt: 0.1
+
+reward:
+  progress: 3.0
+  goal_bonus: 20.0
+  collision_penalty: 20.0
+  step_penalty: 0.01
+  proximity_penalty: 0.15
+  proximity_threshold: 0.4
+  spin_penalty: 0.005
+  use_geodesic_progress: true

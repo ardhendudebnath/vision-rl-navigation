@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-__all__ = ["LidarConfig", "Lidar2D"]
+__all__ = ["LidarConfig", "Lidar2D", "CameraConfig", "DepthCamera"]
 
 _EPS = 1e-12
 
@@ -104,6 +104,7 @@ class Lidar2D:
     # ------------------------------------------------------------------
     # Primitive intersections
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
     @staticmethod
     def _safe_inv(d: np.ndarray) -> np.ndarray:
         """Reciprocal that keeps the sign of near-zero components."""
@@ -148,3 +149,88 @@ class Lidar2D:
         t = np.where(t_enter > 0.0, t_enter, t_exit)
         t = np.where(hit & (t > 0.0), t, np.inf)
         return t.min(axis=1)
+
+
+@dataclass
+class CameraConfig:
+    """Forward-facing depth camera.
+
+    The step from lidar to camera is not "fewer beams" — it is **losing the
+    360-degree view**. A planar lidar tells the policy what is behind it; a
+    camera does not. That is the constraint every real vision-based robot
+    actually has, and it is the substantive difference this observation mode
+    introduces.
+
+    ``width`` is the number of image columns. Together with ``fov`` it fixes
+    the angular resolution, which Phase 2i established is a real constraint on
+    this task for lidar — so it is exposed here as a first-class knob rather
+    than buried, to let the same question be asked of the camera.
+    """
+
+    #: Horizontal field of view in radians (90 degrees by default, typical of
+    #: a RealSense-class depth camera).
+    fov: float = np.pi / 2
+    #: Image columns.
+    width: int = 64
+    max_range: float = 6.0
+    noise_std: float = 0.0
+    dropout_prob: float = 0.0
+
+    def __post_init__(self) -> None:
+        if not 0.0 < self.fov < 2.0 * np.pi:
+            raise ValueError(f"camera fov must be in (0, 2pi), got {self.fov}")
+        if self.width < 1:
+            raise ValueError(f"camera width must be >= 1, got {self.width}")
+
+    @property
+    def angular_resolution(self) -> float:
+        """Radians between adjacent columns."""
+        return self.fov / self.width
+
+    def resolves_gap_to(self, gap_width: float) -> float:
+        """Range at which a ``gap_width`` opening spans one column.
+
+        Beyond this range the camera can step over an opening the robot would
+        fit through — the mechanism measured in Phase 2h.
+        """
+        return gap_width / (2.0 * np.sin(self.angular_resolution / 2.0))
+
+
+class DepthCamera:
+    """Egocentric depth strip, rendered by the same analytic ray-caster.
+
+    Deliberately built on :class:`Lidar2D` rather than duplicating the
+    intersection code: the two sensors must agree exactly about the world, or
+    a comparison between them measures the ray-caster as much as the sensor.
+    """
+
+    def __init__(self, config: CameraConfig | None = None) -> None:
+        self.config = config or CameraConfig()
+        cfg = self.config
+        # A camera samples its FOV at column centres, so both edges are inset
+        # by half a column. Reusing Lidar2D's endpoint-inclusive spacing would
+        # misplace every column by up to half a pixel.
+        half = cfg.fov / 2.0
+        offsets = -half + (np.arange(cfg.width) + 0.5) * cfg.angular_resolution
+        self._lidar = Lidar2D(
+            LidarConfig(
+                n_beams=cfg.width,
+                fov=cfg.fov,
+                max_range=cfg.max_range,
+                noise_std=cfg.noise_std,
+                dropout_prob=cfg.dropout_prob,
+            )
+        )
+        self._lidar._angles = offsets
+
+    @property
+    def width(self) -> int:
+        return self.config.width
+
+    def depth(self, world, pose: np.ndarray, rng=None) -> np.ndarray:
+        """Depth per column, in metres, clipped to ``max_range``."""
+        return self._lidar.scan(world, pose, rng)
+
+    def normalized_depth(self, world, pose: np.ndarray, rng=None) -> np.ndarray:
+        """:meth:`depth` mapped to ``[0, 1]`` for direct use as an observation."""
+        return self.depth(world, pose, rng) / self.config.max_range

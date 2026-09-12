@@ -31,7 +31,7 @@ from gymnasium import spaces
 
 from vision_nav.envs.randomization import DomainRandomization
 from vision_nav.envs.robot import DiffDriveRobot, RobotConfig, wrap_angle
-from vision_nav.envs.sensors import Lidar2D, LidarConfig
+from vision_nav.envs.sensors import CameraConfig, DepthCamera, Lidar2D, LidarConfig
 from vision_nav.envs.world import World, WorldConfig, generate_world
 from vision_nav.planning.grid_astar import geodesic_distance_field, shortest_path_length
 
@@ -79,8 +79,12 @@ class NavEnvConfig:
 
     max_episode_steps: int = 500
 
-    #: ``"privileged"`` is the Phase-3 observation. Phase 4 adds ``"depth"``.
+    #: ``"privileged"`` — 360-degree lidar, exact goal vector, velocities.
+    #: ``"depth"`` — forward-facing depth camera instead of the lidar. The
+    #: substantive change is losing the rear view, which is the constraint a
+    #: real camera-based robot has.
     obs_mode: str = "privileged"
+    camera: CameraConfig = field(default_factory=CameraConfig)
 
     #: Explicit pool of world seeds to draw episodes from.  Passing an
     #: explicit list is how train / val / test splits are kept disjoint; see
@@ -110,22 +114,29 @@ class ProceduralNavEnv(gym.Env):
     ) -> None:
         super().__init__()
         self.config = config or NavEnvConfig()
-        if self.config.obs_mode != "privileged":
+        if self.config.obs_mode not in ("privileged", "depth"):
             raise NotImplementedError(
-                f"obs_mode={self.config.obs_mode!r} is not implemented yet. "
-                "Phase 4 of the project adds the 'depth' / 'rgbd' modes; "
-                "only 'privileged' exists today."
+                f"obs_mode={self.config.obs_mode!r} is not implemented. "
+                "Available: 'privileged' (360-degree lidar) and 'depth' "
+                "(forward-facing depth camera). 'rgbd' is still to come."
             )
         self.render_mode = render_mode
 
         self.robot = DiffDriveRobot(self.config.robot)
         self.lidar = Lidar2D(self.config.lidar)
+        self.camera = DepthCamera(self.config.camera)
+
+        #: Number of range/depth values in the observation, whichever sensor
+        #: this mode uses.
+        self._n_range = (
+            self.lidar.n_beams if self.config.obs_mode == "privileged" else self.camera.width
+        )
 
         self.action_space = spaces.Box(-1.0, 1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(
             low=-1.0,
             high=1.0,
-            shape=(self.lidar.n_beams + 5,),
+            shape=(self._n_range + 5,),
             dtype=np.float32,
         )
 
@@ -255,7 +266,10 @@ class ProceduralNavEnv(gym.Env):
         cfg = self.config
         pose = self.robot.pose
 
-        scan = self.lidar.normalized_scan(self._world, pose, self.np_random)
+        if cfg.obs_mode == "privileged":
+            scan = self.lidar.normalized_scan(self._world, pose, self.np_random)
+        else:
+            scan = self.camera.normalized_depth(self._world, pose, self.np_random)
 
         to_goal = self._world.goal - pose[:2]
         goal_dist = float(np.linalg.norm(to_goal))
