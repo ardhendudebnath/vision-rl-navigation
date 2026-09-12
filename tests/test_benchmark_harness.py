@@ -20,7 +20,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from run_benchmark import (  # noqa: E402
     SENSOR_GEOMETRY_FIELDS,
+    actor_env_spec,
     actor_sensor_geometry,
+    apply_sensor_noise,
     build_actor_specs,
 )
 
@@ -95,3 +97,63 @@ def test_reserved_actor_labels_are_refused(tmp_path):
 def test_missing_model_file_is_refused():
     with pytest.raises(FileNotFoundError, match="model not found"):
         build_actor_specs(["ghost=no/such/model.zip"])
+
+
+# ----------------------------------------------------------------------
+# Observation mode and per-sensor noise
+# ----------------------------------------------------------------------
+def _write_depth_run(tmp_path: Path, width: int = 64) -> Path:
+    run = tmp_path / "depthrun"
+    run.mkdir()
+    cfg = {
+        "env": {
+            "obs_mode": "depth",
+            "lidar": {"n_beams": 32, "max_range": 6.0, "noise_std": 0.0},
+            "camera": {"fov": 1.5708, "width": width, "max_range": 6.0, "noise_std": 0.0},
+        }
+    }
+    OmegaConf.save(OmegaConf.create(cfg), run / "config.yaml")
+    (run / "best_model.zip").write_bytes(b"x")
+    return run / "best_model.zip"
+
+
+def test_obs_mode_travels_with_the_policy(tmp_path):
+    """A depth policy cannot be evaluated in a lidar env at all."""
+    spec = actor_env_spec(str(_write_depth_run(tmp_path)))
+    assert spec["obs_mode"] == "depth"
+    assert spec["camera"]["width"] == 64
+
+
+def test_lidar_runs_default_to_privileged_mode(tmp_path):
+    spec = actor_env_spec(str(_write_run(tmp_path, n_beams=64)))
+    assert spec["obs_mode"] == "privileged"
+    assert spec["lidar"]["n_beams"] == 64
+
+
+def test_noise_is_applied_to_the_camera_for_depth_policies(tmp_path):
+    """The trap: a depth policy never reads lidar.noise_std.
+
+    Applying the condition's noise to the lidar would leave the camera clean
+    and report the result as robustness -- plausible-looking and wrong.
+    """
+    spec = apply_sensor_noise(actor_env_spec(str(_write_depth_run(tmp_path))), 0.10)
+    assert spec["camera"]["noise_std"] == 0.10
+    assert spec["lidar"].get("noise_std", 0.0) == 0.0
+
+
+def test_noise_is_applied_to_the_lidar_for_privileged_policies(tmp_path):
+    spec = apply_sensor_noise(actor_env_spec(str(_write_run(tmp_path, n_beams=64))), 0.10)
+    assert spec["lidar"]["noise_std"] == 0.10
+    assert spec.get("camera", {}).get("noise_std") is None
+
+
+def test_zero_noise_leaves_the_spec_untouched(tmp_path):
+    spec = actor_env_spec(str(_write_depth_run(tmp_path)))
+    assert apply_sensor_noise(spec, 0.0) == spec
+
+
+def test_apply_sensor_noise_does_not_mutate_its_input(tmp_path):
+    """Specs are reused across conditions; in-place edits would leak noise."""
+    spec = actor_env_spec(str(_write_depth_run(tmp_path)))
+    apply_sensor_noise(spec, 0.10)
+    assert spec["camera"].get("noise_std", 0.0) == 0.0

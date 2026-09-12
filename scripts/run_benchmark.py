@@ -27,6 +27,8 @@ import json
 import sys
 from pathlib import Path
 
+import numpy as np
+
 from vision_nav.envs.splits import SHIFTS
 from vision_nav.metrics.navigation import NavigationMetrics
 from vision_nav.training.actors import build_actor
@@ -76,10 +78,11 @@ def parse_args(argv=None) -> argparse.Namespace:
 #: condition and must not be inherited from the training config, or the
 #: noisy_lidar row would silently evaluate a clean sensor.
 SENSOR_GEOMETRY_FIELDS = ("n_beams", "fov", "max_range")
+CAMERA_GEOMETRY_FIELDS = ("fov", "width", "max_range")
 
 
 def actor_sensor_geometry(model_path: str | None) -> dict:
-    """Read sensor geometry from the run directory's saved config."""
+    """Read lidar geometry from the run directory's saved config."""
     if not model_path:
         return {}
     cfg_path = Path(model_path).parent / "config.yaml"
@@ -90,6 +93,50 @@ def actor_sensor_geometry(model_path: str | None) -> dict:
     saved = OmegaConf.load(cfg_path)
     lidar = OmegaConf.to_container(saved.env.lidar, resolve=True)
     return {k: lidar[k] for k in SENSOR_GEOMETRY_FIELDS if k in lidar}
+
+
+def actor_env_spec(model_path: str | None) -> dict:
+    """Observation mode and sensor geometry for a trained policy.
+
+    A depth-camera policy cannot be evaluated in a lidar env at all — the
+    observation is a different shape and a different sensor — so the mode
+    travels with the policy, read from the run that produced it.
+    """
+    if not model_path:
+        return {}
+    cfg_path = Path(model_path).parent / "config.yaml"
+    if not cfg_path.exists():
+        return {}
+    from omegaconf import OmegaConf
+
+    saved = OmegaConf.load(cfg_path)
+    env = saved.env
+    spec: dict = {"obs_mode": OmegaConf.select(env, "obs_mode") or "privileged"}
+
+    lidar = OmegaConf.to_container(env.lidar, resolve=True) if "lidar" in env else {}
+    spec["lidar"] = {k: lidar[k] for k in SENSOR_GEOMETRY_FIELDS if k in lidar}
+
+    camera = OmegaConf.to_container(env.camera, resolve=True) if "camera" in env else {}
+    spec["camera"] = {k: camera[k] for k in CAMERA_GEOMETRY_FIELDS if k in camera}
+    return spec
+
+
+def apply_sensor_noise(spec: dict, noise: float) -> dict:
+    """Inject the condition's noise into whichever sensor the policy uses.
+
+    This is the trap: the ``noisy_lidar`` condition sets ``lidar.noise_std``,
+    which a depth-camera policy never reads. Left unhandled, that row would
+    silently evaluate a *clean* camera and report the result as robustness —
+    the same non-exposure that makes the row meaningless for the classical
+    planner, but far easier to miss because the actor is a learned policy and
+    the number looks plausible.
+    """
+    if not noise:
+        return spec
+    out = {k: dict(v) if isinstance(v, dict) else v for k, v in spec.items()}
+    target = "camera" if out.get("obs_mode") == "depth" else "lidar"
+    out.setdefault(target, {})["noise_std"] = noise
+    return out
 
 
 def build_actor_specs(rl_args: list[str] | None) -> dict[str, dict]:
@@ -150,13 +197,16 @@ def main(argv=None) -> int:
         )
 
         for actor_name, spec in specs.items():
-            geometry = actor_sensor_geometry(spec.get("model_path"))
+            env_spec = apply_sensor_noise(actor_env_spec(spec.get("model_path")), noise)
             actor_overrides = dict(overrides)
-            if geometry:
-                actor_overrides["lidar"] = {**overrides.get("lidar", {}), **geometry}
+            if env_spec:
+                actor_overrides = {
+                    k: v for k, v in env_spec.items() if v not in ({}, None)
+                }
             env_config = build_env_config(
                 actor_overrides, split=split, shift=shift, n_worlds=args.episodes
             )
+            geometry = env_spec.get("lidar", {}) if env_spec else {}
 
             # The sensor may differ per actor; the WORLDS may not. If they did,
             # rows would no longer be comparable, which is the one property the
@@ -167,11 +217,24 @@ def main(argv=None) -> int:
             assert list(env_config.world_seeds or []) == list(reference.world_seeds or []), (
                 f"{actor_name} would be evaluated on a different seed sequence"
             )
-            assert env_config.lidar.noise_std == reference.lidar.noise_std, (
-                f"{actor_name} would not see this condition's sensor noise"
+            # Whichever sensor this policy actually reads must carry the
+            # condition's noise, or the row measures a clean sensor.
+            active_noise = (
+                env_config.camera.noise_std
+                if env_config.obs_mode == "depth"
+                else env_config.lidar.noise_std
+            )
+            assert active_noise == noise, (
+                f"{actor_name} ({env_config.obs_mode}) would not see this "
+                f"condition's sensor noise: got {active_noise}, expected {noise}"
             )
 
-            suffix = f" [{geometry['n_beams']} beams]" if geometry.get("n_beams") else ""
+            if env_config.obs_mode == "depth":
+                suffix = f" [{env_config.camera.width}px @ {np.degrees(env_config.camera.fov):.0f}°]"
+            elif geometry.get("n_beams"):
+                suffix = f" [{geometry['n_beams']} beams]"
+            else:
+                suffix = ""
             print(f"[{cond:>12}] {actor_name}{suffix} ...", end=" ", flush=True)
             actor = build_actor(robot=env_config.robot, **spec)
             metrics, results = evaluate(actor, env_config)
@@ -187,7 +250,11 @@ def main(argv=None) -> int:
                     "shift": shift or "none",
                     "lidar_noise_std": noise,
                     "actor": actor_name,
+                    "obs_mode": env_config.obs_mode,
                     "n_beams": geometry.get("n_beams"),
+                    "camera_width": (
+                        env_config.camera.width if env_config.obs_mode == "depth" else None
+                    ),
                     **metrics.to_dict(),
                 }
             )
