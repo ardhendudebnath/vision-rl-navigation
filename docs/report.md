@@ -575,12 +575,33 @@ caused by timed replanning, but it is a *clutter* pathology with nothing to do
 with whether obstacles move. Without the control, +0.070 on `dynamic_dense`
 would have read as clean confirmation of a mechanism the data refutes.
 
-So the motion cost stands unexplained. Ruled out: churn, planning failure
-(A\* never fails to find a route), and sensing (the movers are fully visible
-to the baseline's costmap). What remains is that committing to any plan is
-itself the cost — architectural rather than configurational, consistent with
-its surviving every configuration change tried, and consistent with Nav2's
-reactive local layer halving it under clutter (−0.075 against −0.160).
+The obvious remaining candidate was that **committing to any plan is itself
+the cost** — a trajectory is computed against a snapshot and goes stale the
+moment the world moves, so a longer commitment should be worse. DWB's rollout
+horizon is exactly that commitment length, and sweeping it over a 6× range
+tests it directly, again with the frozen arm as control:
+
+| DWB horizon | Moving | Frozen (control) | Cost of motion |
+|---|---|---|---|
+| 0.5 s | 0.780 | 0.830 | −0.050 |
+| 1.0 s | 0.910 | 0.960 | −0.050 |
+| 1.5 s | 0.870 | 0.960 | −0.090 |
+| 3.0 s | 0.690 | 0.740 | −0.050 |
+
+**The cost of motion does not move**: −0.050 at every horizon but one, a range
+of 0.040 that sits inside the noise band. Meanwhile the control swings by
+0.220 — an inverted U with its optimum near 1.0–1.5 s, driven by collisions
+that rise to 0.280 (moving) and 0.220 (frozen) at 3.0 s. Horizon length is a
+strong determinant of navigation competence and **no determinant at all of
+robustness to motion**. Read alone, the moving row would have supported an
+optimum-horizon story; the control shows that is ordinary controller tuning.
+
+So the motion cost stands unexplained, with a third mechanism eliminated.
+Ruled out: churn, planning failure (A\* never fails to find a route), sensing
+(the movers are fully visible to the baseline's costmap), and commitment
+length. What survives is only the observation that Nav2's local layer halves
+the cost under clutter (−0.075 against −0.160) for a reason none of the four
+candidate mechanisms explains.
 
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
@@ -631,10 +652,10 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of six quantitative predictions made in advance, the two
-derived from a *measurement* held, to within 0.021 and 0.001; four derived
+**Calibration.** Of seven quantitative predictions made in advance, the two
+derived from a *measurement* held, to within 0.021 and 0.001; five derived
 from extrapolation or intuition failed. Confidence of expression was identical
-in all six. Two of the failures sharpened the rule rather than just breaking
+in all seven. Two of the failures sharpened the rule rather than just breaking
 it:
 
 - Predicting Nav2 ≥ 0.92 on `dynamic` extrapolated a measured collision
@@ -648,6 +669,14 @@ it:
   Without the control, +0.070 on `dynamic_dense` would have read as clean
   confirmation of an explanation the data refutes. **The control cost one
   extra condition to run.**
+
+The horizon sweep repeated that lesson at the next attempt: its moving row
+alone traces a tidy optimum, and only the control shows the effect is general
+competence rather than motion-robustness. Two mechanisms proposed for the same
+phenomenon, two controls, two refutations — the pattern worth carrying forward
+is that **a mechanism claim needs a cell where the mechanism should not
+act**, and that a plausible story fitting every number available is weak
+evidence until one exists.
 
 **And every narrowing of the headline came from the baseline.** The project's
 most RL-favourable result now holds on `dynamic` alone, having been reduced
@@ -696,13 +725,13 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Explain the motion cost.** Section 9.2 ruled out churn, planning failure
-   and sensing, leaving the hypothesis that committing to any plan at all is
-   what motion punishes. The discriminating test is a classical stack with a
-   genuinely reactive local layer but the same global planner — Nav2's DWB is
-   exactly that, and its motion cost under clutter is already half the
-   hand-written stack's (−0.075 against −0.160). Varying lookahead horizon
-   against mover speed would turn that one point into a curve.
+1. **Explain the motion cost**, now that four mechanisms are eliminated
+   (§9.2). The next candidate worth a controlled test is *velocity in the
+   costmap*: every actor here treats each scan as a static snapshot, so none
+   can distinguish a mover approaching from one receding. A costmap layer
+   carrying per-cell velocity would separate "the world changed" from "the
+   world is unknowable", and unlike the four already tested it predicts an
+   asymmetry between head-on and crossing movers that is directly checkable.
 2. **Faster movers** (0.8–1.5 m/s against a 0.6 m/s robot). The cheapest test
    of why frame stacking was inert: if anticipation ever pays, it pays here.
 3. **Explicit velocity features or recurrence.** Distinguishes "the

@@ -43,10 +43,10 @@ decision below follows from wanting that comparison to be trustworthy.
 | Dynamics: moving obstacles, frame stacking | Done |
 | Technical report + demo video | Done |
 | Real Nav2 over ROS 2, scored as one more actor | Done |
-| Frozen-mover subtraction; replanning churn isolated | Done |
+| Frozen-mover subtraction; churn and horizon mechanisms ruled out | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Nineteen experiments, each pre-registered where it tests a hypothesis. The
+Twenty experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).

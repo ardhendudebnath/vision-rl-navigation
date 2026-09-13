@@ -31,6 +31,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5b | Nav2 on the dynamic conditions | **Done** — parity fails on `dynamic_dense` |
 | 5c | Frozen-mover subtraction (movers parked, map still wrong) | **Done** — **the parity was the planner degrading** |
 | 5d | Replanning churn: measured, then causally tested | **Done** — churn real but **not** the explanation; better baseline adopted |
+| 5e | DWB rollout horizon sweep with frozen control | **Done** — commitment length ruled out; motion cost still unexplained |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -1217,6 +1218,58 @@ dynamic number in the report now uses it, which moves the published comparison
 parity finding now survives on `dynamic` alone, its third narrowing in three
 phases -- and each narrowing came from improving the baseline, never from new
 evidence about the policy.
+
+## Phase 5e — Commitment length: the third mechanism, also ruled out
+
+Phase 5d eliminated churn and left one candidate for the motion cost:
+**committing to a plan is itself the cost**, since any trajectory is computed
+against a snapshot and goes stale the moment the world moves. DWB's rollout
+horizon (`sim_time`) is exactly the length of that commitment, so sweeping it
+tests the hypothesis directly. The frozen arm is the control again.
+
+Pre-registered: the cost of motion rises monotonically with horizon, by at
+least 0.04 across the range, while the frozen control stays within +/-0.04.
+
+### Result
+
+| horizon | moving | frozen (control) | cost of motion |
+|---|---|---|---|
+| 0.5 s | 0.780 | 0.830 | -0.050 |
+| 1.0 s | 0.910 | 0.960 | -0.050 |
+| 1.5 s | 0.870 | 0.960 | -0.090 |
+| 3.0 s | 0.690 | 0.740 | -0.050 |
+
+**Failed, and cleanly.** Across a 6x horizon range the cost of motion is flat
+at -0.050 (range 0.040, inside the noise band) while the control swings by
+0.220 -- an inverted U peaking near 1.0-1.5 s, driven by collisions rising to
+0.280 moving and 0.220 frozen at 3.0 s. Horizon length strongly determines
+navigation competence and does not touch robustness to motion at all.
+
+The moving row alone (0.780, 0.910, 0.870, 0.690) traces a tidy optimum and
+would have supported a story about staleness. The control shows it is ordinary
+controller tuning. That is the second consecutive mechanism proposed for this
+phenomenon, refuted by its own control cell.
+
+### A tuning result, deliberately not adopted
+
+At 1.0 s Nav2 reaches 0.910 on `dynamic_dense` against 0.870 at the default
+1.5 s. That is one pass and close to Nav2's run-to-run spread, but more
+importantly adopting it would be **tuning on the evaluation set**. The
+hand-written baseline's replan sweep has the same character and is stated
+openly for that reason; both move in the direction that strengthens a
+classical actor, so both are conservative with respect to this project's
+central claim. Nav2 stays at its shipped default, and the better setting is
+recorded here rather than folded into the headline numbers.
+
+### Where this leaves the motion cost
+
+Four mechanisms eliminated: churn, planning failure, sensing, commitment
+length. What survives is only the observation that Nav2's local layer halves
+the cost under clutter (-0.075 against -0.160) for a reason none of them
+explains. The next candidate with a checkable asymmetry is velocity in the
+costmap -- every actor here treats each scan as a static snapshot and none can
+tell an approaching mover from a receding one, which predicts a head-on
+versus crossing difference that the current design cannot produce.
 
 ## Hardware notes
 

@@ -32,6 +32,19 @@ LOG="${NAV2_LOG_DIR:-$HOME/nav2_logs}"
 mkdir -p "$LOG"
 echo "logs: $LOG"
 
+# DWB_SIM_TIME overrides the controller's rollout horizon, for the sweep in
+# report Section 9.2. Written into a copy of the params rather than passed as
+# a launch argument, because the value lives inside the FollowPath plugin
+# block and ros2 launch cannot reach a nested key.
+PARAMS="$BRIDGE/nav2_params.yaml"
+if [ -n "${DWB_SIM_TIME:-}" ]; then
+  PARAMS="$LOG/nav2_params_sim${DWB_SIM_TIME}.yaml"
+  sed "s/^\( *sim_time:\) *[0-9.]*/\1 ${DWB_SIM_TIME}/" \
+    "$BRIDGE/nav2_params.yaml" > "$PARAMS"
+  echo "DWB sim_time -> ${DWB_SIM_TIME}s  ($PARAMS)"
+  grep -n "sim_time:" "$PARAMS"
+fi
+
 # Killing the micromamba wrapper leaves the ros2 launch children running, and
 # a stale controller_server poisons the next run by answering on the same
 # domain. `setsid` puts the launch in its own process group so the whole tree
@@ -46,7 +59,7 @@ trap cleanup EXIT
 echo "=== launching Nav2 ==="
 setsid "$MM" run -n ros_nav2 ros2 launch "$BRIDGE/nav2_launch.py" \
   use_sim_time:=True \
-  params_file:="$BRIDGE/nav2_params.yaml" \
+  params_file:="$PARAMS" \
   > "$LOG/nav2.log" 2>&1 &
 NAV2_PID=$!
 
