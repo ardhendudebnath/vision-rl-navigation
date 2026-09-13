@@ -51,6 +51,7 @@ decision below follows from wanting that comparison to be trustworthy.
 | RGB + CNN encoder, 6 seeds/arm, pre-registered | Done — **the pixels are the problem** |
 | RGB compute sweep to 4.0M | Done — gap survives 2.7x compute |
 | Moving obstacles absent from the map | Done — **gap shrinks 8x, does not reverse** |
+| Trained on movers + frame stacking | Done — **parity, not victory; stacking inert** |
 | Technical report + demo video | Done |
 
 **Technical report: [`docs/report.md`](docs/report.md)** — the full study written
@@ -365,6 +366,40 @@ classical at 0.690 against the policy's 0.682, with 4/6 seeds above the
 baseline: a clean "parity in tight corridors" claim that was purely an
 artifact of a handicap I'd introduced in the name of fairness. The comparison
 now gives the classical planner its best configuration per condition.
+
+### Parity where the map is wrong — but motion information is inert
+
+The zero-shot policies above structurally *could not* anticipate movers: a
+single scan gives obstacle positions, not velocities, so a one-frame policy is
+in the same position as the replanning planner. Frame stacking fixes that —
+two scans encode motion — so the follow-up trained on movers with a 4-frame
+stack, against a 1-frame control.
+
+**Predicted: the stacked policy beats classical by +0.01 to +0.05. It does
+not.**
+
+| Condition | Classical | `dyn1` (1 frame) | `dyn4` (4 frames) |
+|---|---|---|---|
+| dynamic | 0.870 | 0.860 ± 0.033 | 0.852 ± 0.038 |
+| dynamic_dense | 0.750 | 0.697 ± 0.060 | 0.710 ± 0.042 |
+
+**Frame stacking did nothing**: −0.008 (p = 0.784) and +0.013 (p = 0.703)
+against its control. The one structural advantage the learned side had
+produced no measurable benefit. Training on movers at all was also negligible
+(+0.012 vs zero-shot, p = 0.541).
+
+What *is* real is a regime change:
+
+| Regime | Δ vs classical | Significant? |
+|---|---|---|
+| static clutter (`narrow`) | −0.168 | **yes**, p = 0.031 |
+| moving obstacles | −0.010 | no, p = 0.625 |
+| moving obstacles, cluttered | −0.053 | no, p = 0.219 |
+
+**Parity, not victory.** Where the map is wrong the learned policy becomes
+statistically indistinguishable from a strong replanning planner; where the
+map is right it stays clearly worse. Across the whole study that is the
+closest RL comes to winning.
 
 ### The pixels are the problem, not the geometry
 

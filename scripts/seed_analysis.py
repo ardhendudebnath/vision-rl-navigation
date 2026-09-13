@@ -33,6 +33,11 @@ from omegaconf import OmegaConf
 from vision_nav.training.actors import build_actor
 from vision_nav.training.env_factory import build_env_config
 from vision_nav.training.evaluate import evaluate
+from vision_nav.training.run_spec import (
+    describe_run_sensor,
+    env_overrides_for_run,
+    run_seed,
+)
 
 CONDITIONS: dict[str, tuple[str, str | None]] = {
     "nominal": ("test", None),
@@ -76,65 +81,6 @@ def load_arms(specs: list[str]) -> dict[str, list[Path]]:
     return arms
 
 
-def run_sensor(run: Path) -> dict:
-    """Env overrides needed to evaluate this run's policy.
-
-    Must carry the observation *mode*, not just the sensor geometry. A
-    depth-camera policy evaluated in a lidar env sees a different sensor at a
-    different dimensionality — which fails loudly if the shapes disagree and,
-    worse, would quietly measure the wrong thing if they happened to match.
-    """
-    cfg = OmegaConf.load(run / "config.yaml")
-    env = cfg.env
-    obs_mode = OmegaConf.select(env, "obs_mode") or "privileged"
-    spec: dict = {"obs_mode": obs_mode}
-
-    if obs_mode == "depth":
-        camera = OmegaConf.to_container(env.camera, resolve=True)
-        spec["camera"] = {
-            k: camera[k] for k in ("fov", "width", "max_range") if k in camera
-        }
-    elif obs_mode == "rgb":
-        cam = OmegaConf.to_container(env.rgb_camera, resolve=True)
-        spec["rgb_camera"] = {
-            k: cam[k]
-            for k in ("fov", "width", "height", "max_range")
-            if k in cam
-        }
-    else:
-        lidar = OmegaConf.to_container(env.lidar, resolve=True)
-        spec["lidar"] = {
-            k: lidar[k] for k in ("n_beams", "fov", "max_range") if k in lidar
-        }
-    return spec
-
-
-def describe_sensor(run: Path) -> str:
-    """Short human-readable sensor description for the report.
-
-    Must branch on every implemented mode. An unhandled mode falling through
-    to the lidar branch mislabels the arm in the printed output -- harmless to
-    the numbers, since obs_mode is what drives evaluation, but exactly the
-    kind of wrong label that gets copied into a results table unchecked.
-    """
-    spec = run_sensor(run)
-    mode = spec["obs_mode"]
-    if mode == "depth":
-        cam = spec["camera"]
-        return f"depth {cam.get('width')}px @ {np.degrees(cam.get('fov', 0)):.0f}deg"
-    if mode == "rgb":
-        cam = spec["rgb_camera"]
-        return (
-            f"rgb {cam.get('width')}x{cam.get('height')}px @ "
-            f"{np.degrees(cam.get('fov', 0)):.0f}deg"
-        )
-    return f"lidar {spec['lidar'].get('n_beams')} beams @ 360deg"
-
-
-def run_seed(run: Path) -> int:
-    return int(OmegaConf.load(run / "config.yaml").train.seed)
-
-
 def permutation_p(a: np.ndarray, b: np.ndarray) -> float:
     """Exact two-sided permutation p-value on the difference of means.
 
@@ -163,10 +109,10 @@ def main(argv=None) -> int:
     report: dict = {"episodes": args.episodes, "arms": {}, "conditions": {}}
     for name, runs in arms.items():
         report["arms"][name] = [
-            {"run": str(r), "seed": run_seed(r), "sensor": describe_sensor(r)}
+            {"run": str(r), "seed": run_seed(r), "sensor": describe_run_sensor(r)}
             for r in runs
         ]
-        print(f"arm {name}: {describe_sensor(runs[0])}, seeds {[run_seed(r) for r in runs]}")
+        print(f"arm {name}: {describe_run_sensor(runs[0])}, seeds {[run_seed(r) for r in runs]}")
 
     for cond in args.conditions:
         split, shift = CONDITIONS[cond]
@@ -177,7 +123,7 @@ def main(argv=None) -> int:
             succ, spl, coll = [], [], []
             for run in runs:
                 cfg = build_env_config(
-                    run_sensor(run), split=split, shift=shift,
+                    env_overrides_for_run(run), split=split, shift=shift,
                     n_worlds=args.episodes,
                 )
                 actor = build_actor(

@@ -17,7 +17,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from omegaconf import OmegaConf  # noqa: E402
 
-from seed_analysis import describe_sensor, load_arms, permutation_p, run_sensor  # noqa: E402
+from seed_analysis import load_arms, permutation_p  # noqa: E402
+
+from vision_nav.training.run_spec import (  # noqa: E402
+    describe_run_sensor as describe_sensor,
+    env_overrides_for_run as run_sensor,
+)
 
 
 def test_identical_groups_give_p_of_one():
@@ -146,6 +151,37 @@ def test_rgb_run_yields_rgb_mode_and_camera(tmp_path):
     assert "lidar" not in spec
     assert "rgb" in describe_sensor(run) and "64x48" in describe_sensor(run)
     assert "lidar" not in describe_sensor(run)
+
+
+def test_frame_stack_travels_with_the_run(tmp_path):
+    """Regression: a 4-frame policy handed a 1-frame observation.
+
+    This one crashed loudly, which was luck. The same omission for obs_mode
+    and for the RGB camera failed silently, which is why the reconstruction
+    now lives in a single shared function rather than in each script.
+    """
+    run = _write_run(
+        tmp_path,
+        "fs",
+        {
+            "obs_mode": "privileged",
+            "lidar": {"n_beams": 64, "max_range": 6.0},
+            "frame_stack": 4,
+        },
+    )
+    spec = run_sensor(run)
+    assert spec["frame_stack"] == 4
+    assert "x4 frames" in describe_sensor(run)
+
+
+def test_unstacked_runs_omit_frame_stack(tmp_path):
+    """frame_stack=1 is the default; emitting it would be noise."""
+    run = _write_run(
+        tmp_path, "ns",
+        {"obs_mode": "privileged", "lidar": {"n_beams": 64}, "frame_stack": 1},
+    )
+    assert "frame_stack" not in run_sensor(run)
+    assert "frames" not in describe_sensor(run)
 
 
 def test_sensor_description_distinguishes_the_arms(tmp_path):

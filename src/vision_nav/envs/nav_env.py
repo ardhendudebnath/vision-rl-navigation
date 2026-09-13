@@ -22,6 +22,7 @@ comparison in the final report an apples-to-apples one.
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Sequence
 
@@ -90,6 +91,17 @@ class NavEnvConfig:
     camera: CameraConfig = field(default_factory=CameraConfig)
     rgb_camera: RGBCameraConfig = field(default_factory=RGBCameraConfig)
 
+    #: Number of consecutive observations concatenated into one.
+    #:
+    #: ``1`` (the default) leaves every earlier experiment unchanged. Values
+    #: above 1 matter only when the world itself moves: a single range scan
+    #: carries obstacle *positions* but no *velocities*, so a one-frame
+    #: reactive policy is in exactly the same position as a replanning planner
+    #: — both must treat a mover as a static obstacle wherever it happens to
+    #: be. Two frames encode motion, which is information the map-based stack
+    #: structurally does not have.
+    frame_stack: int = 1
+
     #: Explicit pool of world seeds to draw episodes from.  Passing an
     #: explicit list is how train / val / test splits are kept disjoint; see
     #: :mod:`vision_nav.envs.splits`.
@@ -124,6 +136,14 @@ class ProceduralNavEnv(gym.Env):
                 "Available: 'privileged' (360-degree lidar), 'depth' "
                 "(forward-facing depth camera), 'rgb' (egocentric colour)."
             )
+        if self.config.frame_stack < 1:
+            raise ValueError(f"frame_stack must be >= 1, got {self.config.frame_stack}")
+        if self.config.frame_stack > 1 and self.config.obs_mode == "rgb":
+            raise NotImplementedError(
+                "frame_stack is not supported for obs_mode='rgb'; stacking "
+                "images would change the CNN input shape and confound the "
+                "encoder comparison it exists to measure."
+            )
         self.render_mode = render_mode
 
         self.robot = DiffDriveRobot(self.config.robot)
@@ -154,10 +174,11 @@ class ProceduralNavEnv(gym.Env):
                 }
             )
         else:
+            self._frame_dim = self._n_range + 5
             self.observation_space = spaces.Box(
                 low=-1.0,
                 high=1.0,
-                shape=(self._n_range + 5,),
+                shape=(self._frame_dim * self.config.frame_stack,),
                 dtype=np.float32,
             )
 
@@ -171,6 +192,7 @@ class ProceduralNavEnv(gym.Env):
         self._shortest_path = 0.0
         self._distance_field: np.ndarray | None = None
         self._last_action = np.zeros(2, dtype=np.float64)
+        self._frames: deque[np.ndarray] = deque(maxlen=self.config.frame_stack)
 
     # ------------------------------------------------------------------
     # Gymnasium API
@@ -193,6 +215,7 @@ class ProceduralNavEnv(gym.Env):
         self._shortest_path = l_star
 
         world.set_time(0.0)
+        self._frames.clear()
         self.robot.reset(world.start)
         self._steps = 0
         self._path_length = 0.0
@@ -286,7 +309,7 @@ class ProceduralNavEnv(gym.Env):
     # ------------------------------------------------------------------
     # Observation / reward / termination
     # ------------------------------------------------------------------
-    def _observation(self) -> np.ndarray:
+    def _raw_observation(self):
         assert self._world is not None
         cfg = self.config
         pose = self.robot.pose
@@ -305,6 +328,23 @@ class ProceduralNavEnv(gym.Env):
 
         obs = np.concatenate([scan, to_goal_vec])
         return np.clip(obs, -1.0, 1.0).astype(np.float32)
+
+    def _observation(self):
+        """The observation actually returned, with frame stacking applied.
+
+        On reset the history is filled with copies of the first frame, so the
+        opening observation implies zero motion rather than motion inferred
+        from a zero-padded past that never happened.
+        """
+        raw = self._raw_observation()
+        if self.config.frame_stack == 1 or self.config.obs_mode == "rgb":
+            return raw
+        if not self._frames:
+            self._frames.extend([raw] * self.config.frame_stack)
+        else:
+            self._frames.append(raw)
+        # Oldest first, so the most recent frame is always the final block.
+        return np.concatenate(list(self._frames)).astype(np.float32)
 
     def _goal_vector(self, pose: np.ndarray) -> np.ndarray:
         """Goal distance, bearing as (cos, sin), and current velocities.

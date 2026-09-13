@@ -49,6 +49,13 @@ planner's advantage roughly eightfold (−0.168 to −0.022) and leaves it the
 only condition in the study where that advantage is not statistically
 established (p = 0.062). It does not reverse it.
 
+Training on movers and giving the policy stacked frames — the one setup
+where it holds information the planner structurally lacks — changes
+neither outcome (frame stacking: −0.008, p = 0.784). What emerges instead
+is parity rather than victory: where the map is wrong the learned policy
+is statistically indistinguishable from the planner (p = 0.625), while
+remaining clearly worse where the map is right (−0.168, p = 0.031).
+
 The most transferable contribution is methodological. A correctly computed
 significance test over episodes produced a confident, reproducible, and wrong
 conclusion, because it measured the wrong source of variance. We document that
@@ -734,7 +741,94 @@ amount too small to demonstrate."
   Only the movers are hidden from it. Staleness in the *static* layout would
   be a further, more realistic degradation.
 
-## 13. Discussion
+## 13. Result 12: motion information does not help, but parity arrives anyway
+
+§12 found the learned policy did not win where the map is wrong. Diagnosing
+*why* suggested the test had been unfair to it: **a single range scan carries
+obstacle positions but no velocities.** A one-frame reactive policy is in
+exactly the same epistemic position as a replanning planner — both must treat
+a mover as a static obstacle wherever it currently sits. The policy had no
+informational advantage to exploit.
+
+Frame stacking breaks that symmetry. Two scans encode motion; four give a
+cleaner velocity estimate. This is the only configuration in the study where
+the learned policy holds information the classical stack structurally lacks.
+
+**Prediction, recorded before the runs:** the 4-frame policy beats classical
+by +0.01 to +0.05.
+
+### 13.1 Design
+
+Two arms, six seeds each, both trained *with* movers in the distribution:
+
+| Arm | Frame stack | Role |
+|---|---|---|
+| `dyn1` | 1 | control — isolates mover exposure from motion information |
+| `dyn4` | 4 | the mechanism under test |
+
+The control matters: without it, any win could not be attributed to seeing
+motion rather than simply having trained on movers.
+
+### 13.2 Result
+
+Success rate, 100 held-out worlds, classical at its best configuration:
+
+| Condition | Classical | `dyn1` | `dyn4` |
+|---|---|---|---|
+| dynamic | 0.870 | 0.860 ± 0.033 | 0.852 ± 0.038 |
+| dynamic_dense | 0.750 | 0.697 ± 0.060 | 0.710 ± 0.042 |
+
+**The prediction is falsified.** `dyn4` does not beat classical
+(−0.018, 2/6 seeds above, p = 1.000).
+
+**And the mechanism did nothing.** Frame stacking versus its control:
+
+| Condition | `dyn4` − `dyn1` | p (exact permutation) |
+|---|---|---|
+| dynamic | −0.008 | 0.784 |
+| dynamic_dense | +0.013 | 0.703 |
+
+Motion information — the one advantage the learned side structurally had —
+produced no measurable benefit in either direction. Training on movers at all
+was likewise negligible: `dyn1` versus the zero-shot policy is +0.012,
+p = 0.541.
+
+### 13.3 What did happen
+
+Neither trained arm is *significantly worse* than the classical planner on
+either dynamic condition: p = 0.625 and 1.000 on `dynamic`, 0.219 and 0.125 on
+`dynamic_dense`. Set against `narrow`, where the same lidar policies lose by
+−0.168 at p = 0.031, the contrast is clean:
+
+| Regime | Δ vs classical | Significant? |
+|---|---|---|
+| static clutter (`narrow`) | −0.168 | **yes**, p = 0.031 |
+| moving obstacles (`dynamic`) | −0.010 | no, p = 0.625 |
+| moving obstacles, cluttered | −0.053 | no, p = 0.219 |
+
+So the honest claim is **parity, not victory**: where the map is wrong the
+learned policy becomes statistically indistinguishable from a strong
+replanning planner, while remaining clearly worse where the map is right. The
+regime change is real; the reversal never arrives.
+
+### 13.4 Why the mechanism probably failed
+
+Offered as hypotheses, not findings — none is tested here:
+
+- **The movers may be too slow to matter.** At 0.15–0.45 m/s against a robot
+  capped at 0.6 m/s, avoiding them reactively may simply be easy enough that
+  anticipation buys nothing.
+- **Velocity may be hard to extract from raw stacked scans.** An MLP given
+  four concatenated 69-d vectors must learn differencing itself; an explicit
+  velocity feature, or a recurrent policy, might succeed where this does not.
+- **The 500-step budget rewards caution.** As §5.3 established, this reward
+  makes stalling preferable to collision by 4:1, so a policy that could
+  anticipate might still choose to wait rather than commit.
+
+The first is the cheapest to test and would be the next step: faster movers
+should widen any anticipation advantage, if one exists at all.
+
+## 14. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
 the reasons are now specific rather than vague.** Four standard explanations
@@ -758,7 +852,7 @@ it — seed as unit of analysis, exact permutation tests, pre-registered
 endpoints, and training-free mechanism measurement — is cheap and should be
 default practice.
 
-## 14. Limitations
+## 15. Limitations
 
 - **Simulation is 2D and analytic.** No dynamics, no sensor artefacts beyond
   additive noise and dropout, no appearance. Conclusions about *geometry* should
@@ -779,7 +873,7 @@ default practice.
   significant reward-ablation result (`step_penalty` improving nominal SPL by
   +0.066).
 
-## 15. Future work
+## 16. Future work
 
 In order of expected information per GPU-hour:
 
@@ -795,7 +889,7 @@ In order of expected information per GPU-hour:
 5. **Sim-to-real** on a TurtleBot-class base. The action space is already
    `Twist`, so the policy transfers without modification.
 
-## 16. Reproducing
+## 17. Reproducing
 
 ```bash
 pip install -e ".[dev,viz]"

@@ -32,12 +32,12 @@ from math import comb
 from pathlib import Path
 
 import numpy as np
-from omegaconf import OmegaConf
 
 from vision_nav.agents.classical import PursuitConfig
 from vision_nav.training.actors import ClassicalActor, build_actor
 from vision_nav.training.env_factory import build_env_config
 from vision_nav.training.evaluate import evaluate
+from vision_nav.training.run_spec import env_overrides_for_run
 
 #: (split, shift, best classical replan interval).
 #:
@@ -86,24 +86,6 @@ def sign_test(values: np.ndarray, reference: float) -> tuple[int, float]:
     return k, min(1.0, 2.0 * tail / (2**n))
 
 
-def run_sensor(run: Path) -> dict:
-    env = OmegaConf.load(run / "config.yaml").env
-    mode = OmegaConf.select(env, "obs_mode") or "privileged"
-    spec: dict = {"obs_mode": mode}
-    if mode == "depth":
-        cam = OmegaConf.to_container(env.camera, resolve=True)
-        spec["camera"] = {k: cam[k] for k in ("fov", "width", "max_range") if k in cam}
-    elif mode == "rgb":
-        cam = OmegaConf.to_container(env.rgb_camera, resolve=True)
-        spec["rgb_camera"] = {
-            k: cam[k] for k in ("fov", "width", "height", "max_range") if k in cam
-        }
-    else:
-        lid = OmegaConf.to_container(env.lidar, resolve=True)
-        spec["lidar"] = {k: lid[k] for k in ("n_beams", "fov", "max_range") if k in lid}
-    return spec
-
-
 def main(argv=None) -> int:
     args = parse_args(argv)
 
@@ -138,7 +120,7 @@ def main(argv=None) -> int:
             succ, spl, coll = [], [], []
             for run in runs:
                 cfg = build_env_config(
-                    run_sensor(run), split=split, shift=shift, n_worlds=args.episodes
+                    env_overrides_for_run(run), split=split, shift=shift, n_worlds=args.episodes
                 )
                 assert cfg.world == base.world, "arms must share the same worlds"
                 actor = build_actor(
