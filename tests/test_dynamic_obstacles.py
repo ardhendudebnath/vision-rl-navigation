@@ -355,3 +355,43 @@ def test_start_episode_zeroes_churn():
     agent.start_episode(env.world, env.robot.pose)
     assert agent.replans == 0 and agent.churn_total == 0.0
     assert isinstance(agent, AStarPursuitAgent)
+
+
+# ----------------------------------------------------------------------
+# Faster movers: a clean speed manipulation
+# ----------------------------------------------------------------------
+def test_fast_matches_dynamic_geometry():
+    """`dynamic_fast` must differ from `dynamic` in speed and nothing else.
+
+    Speed is drawn after the placement test and only feeds omega, so the
+    accepted mover set should be identical seed for seed. If that ever stopped
+    holding, the experiment would confound speed with a different world.
+    """
+    slow = shifted_config(WorldConfig(), "dynamic")
+    fast = shifted_config(WorldConfig(), "dynamic_fast")
+
+    for seed in (30000, 30001, 30042, 30199):
+        a, b = generate_world(seed, slow), generate_world(seed, fast)
+        assert np.allclose(a.circles, b.circles)
+        assert np.allclose(a.boxes, b.boxes)
+        assert np.allclose(a.start, b.start)
+        assert np.allclose(a.goal, b.goal)
+        assert a.dynamic.shape == b.dynamic.shape
+        # centre, radius, direction and amplitude identical; only omega differs
+        assert np.allclose(a.dynamic[:, :6], b.dynamic[:, :6])
+        assert np.all(b.dynamic[:, 6] > a.dynamic[:, 6])
+
+
+def test_fast_movers_actually_reach_their_target_speed():
+    """Peak speed is amplitude x omega, and must land in the configured band."""
+    fast = shifted_config(WorldConfig(), "dynamic_fast")
+    peaks = []
+    for seed in range(30000, 30020):
+        w = generate_world(seed, fast)
+        peaks.extend(w.dynamic[:, 5] * w.dynamic[:, 6])
+    peaks = np.asarray(peaks)
+    assert len(peaks) > 20
+    assert peaks.min() >= 0.8 - 1e-9
+    assert peaks.max() <= 1.5 + 1e-9
+    # And they genuinely outrun the robot, which is the point of the condition.
+    assert peaks.mean() > 0.6

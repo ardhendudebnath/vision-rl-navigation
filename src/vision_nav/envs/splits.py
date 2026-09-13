@@ -102,6 +102,20 @@ SHIFTS: dict[str, dict] = {
     "dynamic": {"n_circles": (4, 8), "n_boxes": (1, 4), "n_dynamic": (3, 6)},
     #: Dynamic obstacles on top of clutter: both pressures at once.
     "dynamic_dense": {"n_circles": (10, 16), "n_boxes": (4, 8), "n_dynamic": (3, 6)},
+    #: `dynamic` with the movers roughly three times faster — 0.8-1.5 m/s
+    #: against a 0.6 m/s robot, so they now outrun it. Report Section 9 offered
+    #: mover speed as the leading explanation for frame stacking being inert:
+    #: if anticipation ever pays, it pays here.
+    #:
+    #: Speed is drawn *after* the placement test, which depends only on centre,
+    #: direction, amplitude and radius, and `omega = speed / amplitude` is
+    #: derived. So this changes mover speeds and nothing else — the worlds are
+    #: geometrically identical to `dynamic` seed for seed, which
+    #: ``test_fast_matches_dynamic_geometry`` asserts.
+    "dynamic_fast": {
+        "n_circles": (4, 8), "n_boxes": (1, 4), "n_dynamic": (3, 6),
+        "dynamic_speed": (0.8, 1.5),
+    },
 }
 
 #: Conditions whose movers are frozen in place after the world is generated.

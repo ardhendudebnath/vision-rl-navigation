@@ -46,7 +46,7 @@ decision below follows from wanting that comparison to be trustworthy.
 | Frozen-mover subtraction; churn and horizon mechanisms ruled out | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Twenty experiments, each pre-registered where it tests a hypothesis. The
+Twenty-one experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).
@@ -135,7 +135,9 @@ absent from the map, the learned policy is statistically indistinguishable
 from the planner on `dynamic` (−0.020, p = 0.219) while staying clearly worse
 where the map is right (−0.168, p = 0.031). Frame stacking, the one setup
 giving the policy information the planner structurally lacks, changed nothing
-(−0.008, p = 0.784).
+(−0.008, p = 0.784) — and still changes nothing when the movers are made three
+times faster so they outrun the robot (−0.027, p = 0.442), which kills the
+obvious explanation that there was simply nothing to anticipate.
 
 Three follow-ups cut that claim down, each pushing the same way. Adding
 clutter to the movers removes it: on `dynamic_dense` real Nav2 is **0.150–

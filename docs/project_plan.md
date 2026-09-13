@@ -32,6 +32,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5c | Frozen-mover subtraction (movers parked, map still wrong) | **Done** — **the parity was the planner degrading** |
 | 5d | Replanning churn: measured, then causally tested | **Done** — churn real but **not** the explanation; better baseline adopted |
 | 5e | DWB rollout horizon sweep with frozen control | **Done** — commitment length ruled out; motion cost still unexplained |
+| 5f | Faster movers (0.8-1.5 m/s), 2 arms x 6 seeds, pre-registered | **Done** — **stacking inert at 3x speed**; the 3h speed explanation is dead |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -1270,6 +1271,55 @@ explains. The next candidate with a checkable asymmetry is velocity in the
 costmap -- every actor here treats each scan as a static snapshot and none can
 tell an approaching mover from a receding one, which predicts a head-on
 versus crossing difference that the current design cannot produce.
+
+## Phase 5f — Faster movers: the speed explanation for 3h, tested and dead
+
+Phase 3h found frame stacking inert and offered three untested reasons. The
+leading one was that the movers are too slow to be worth anticipating:
+0.15-0.45 m/s against a 0.6 m/s robot. `dynamic_fast` raises them to
+0.8-1.5 m/s, so they now outrun the robot.
+
+The manipulation is clean by construction. Speed is drawn *after* the mover
+placement test, which depends only on centre, direction, amplitude and radius,
+and `omega = speed / amplitude` is derived from it, so the accepted mover set
+is identical seed for seed and only the angular rate changes.
+`test_fast_matches_dynamic_geometry` asserts that, and a second test asserts
+peak speeds land in band and average above the robot's cap.
+
+Two arms trained from scratch on fast movers, `frame_stack` 1 and 4, six seeds
+each, 1.5M steps, identical to the 3h arms otherwise. The slow condition is
+kept as the control.
+
+Pre-registered: stack4 - stack1 >= +0.05 on fast (p < 0.05) and within +/-0.03
+on slow. Recorded at the time: this is an intuition-derived prediction and the
+calibration record then stood at 2/2 for measurement-derived and 0/5 for
+intuition-derived, so the base rate was against it.
+
+### Result
+
+| condition | stack1 | stack4 | delta | p (exact) |
+|---|---|---|---|---|
+| **fast** (primary) | 0.652 +/- 0.052 | 0.625 +/- 0.058 | **-0.027** | 0.442 |
+| slow (control) | 0.802 +/- 0.027 | 0.778 +/- 0.059 | -0.023 | 0.502 |
+
+**Inert at three times the speed**, and by almost exactly the amount it was
+inert at the original speed. The speed explanation is dead.
+
+Not a ceiling or floor artefact: the condition bites hard. Tripling mover speed
+costs the classical planner 0.880 -> 0.750 (collisions 0.110 -> 0.250) and both
+learned arms about 0.150. Everything gets meaningfully worse; velocity
+information still does not help.
+
+### What it leaves standing
+
+Phase 5c's reading -- that the policy's robustness under motion is *absence of
+commitment* rather than anticipation -- predicts exactly this: extra velocity
+information should buy nothing at any speed. Two independent experiments
+across a 3x speed ratio now agree with it. The frame-stacking null stops being
+a caveat and becomes a finding.
+
+Calibration after this phase: 2 of 2 measurement-derived predictions held, 0
+of 6 intuition-derived ones did.
 
 ## Hardware notes
 

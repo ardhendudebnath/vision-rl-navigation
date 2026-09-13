@@ -484,7 +484,8 @@ they read 0.870 and 0.750, and `dynamic_dense` looked like parity (−0.040,
 p = 0.125). It is not.
 
 Frame stacking versus its own control: −0.008 (p = 0.784) and +0.013
-(p = 0.703). The one structural advantage available produced nothing.
+(p = 0.703). The one structural advantage available produced nothing, and
+§9.3 shows that is not because the movers were too slow.
 
 **What is real is a regime change, not a reversal**, and only on `dynamic`.
 §9.2 shows the parity is the planner degrading rather than the policy coping.
@@ -603,6 +604,36 @@ length. What survives is only the observation that Nav2's local layer halves
 the cost under clutter (−0.075 against −0.160) for a reason none of the four
 candidate mechanisms explains.
 
+### 9.3 Faster movers: the speed explanation, tested and dead
+
+Section 9 offered three untested reasons why frame stacking did nothing, and
+the leading one was that the movers are too slow to be worth anticipating:
+0.15-0.45 m/s against a 0.6 m/s robot. dynamic_fast raises them to
+0.8-1.5 m/s, which **outruns the robot**, on worlds that are geometrically
+identical seed for seed -- speed is drawn after the placement test and only
+feeds the angular rate, so nothing else changes. Two arms trained from scratch
+on fast movers, rame_stack 1 and 4, six seeds each, with the slow condition
+kept as a control.
+
+| Condition | stack1 | stack4 | Delta | p (exact) |
+|---|---|---|---|---|
+| **fast** (primary) | 0.652 +/- 0.052 | 0.625 +/- 0.058 | **-0.027** | 0.442 |
+| slow (control) | 0.802 +/- 0.027 | 0.778 +/- 0.059 | -0.023 | 0.502 |
+
+**Inert at three times the speed**, and inert by almost exactly the same
+amount as on the slow condition. The speed explanation is dead.
+
+This is not a ceiling or floor artefact: tripling mover speed costs every
+actor real performance -- 0.880 to 0.750 for the classical planner (collisions
+0.110 to 0.250) and about 0.150 for both learned arms. The condition bites
+hard; velocity information simply does not help against it.
+
+That leaves Section 9.2's reading as the one that survives. If the policy's
+robustness under motion is *absence of commitment* rather than anticipation,
+then extra velocity information should buy nothing at any speed, which is
+what two independent experiments at a 3x speed ratio now show. The
+frame-stacking null is a finding rather than a caveat.
+
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
 ones, where a correct map means the path is never blocked and it never fires.
@@ -652,10 +683,11 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of seven quantitative predictions made in advance, the two
-derived from a *measurement* held, to within 0.021 and 0.001; five derived
-from extrapolation or intuition failed. Confidence of expression was identical
-in all seven. Two of the failures sharpened the rule rather than just breaking
+**Calibration.** Of eight quantitative predictions made in advance, the two
+derived from a *measurement* held, to within 0.021 and 0.001; **all six**
+derived from extrapolation or intuition failed. Confidence of expression was
+identical in all eight, and the base rate was known and stated before the last
+of them was run. Two of the failures sharpened the rule rather than just breaking
 it:
 
 - Predicting Nav2 ≥ 0.92 on `dynamic` extrapolated a measured collision
