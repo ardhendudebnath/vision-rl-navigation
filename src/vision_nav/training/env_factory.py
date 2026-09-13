@@ -3,16 +3,20 @@
 All three consumers — training, evaluation and the classical baseline — build
 their environments through here, so a config change cannot silently apply to
 one and not the others.
+
+Stable-Baselines3 is imported lazily, inside the two functions that need it.
+:func:`build_env_config` is pure config and is called from places where the RL
+stack is absent — notably the ROS 2 bridge, whose conda env carries Nav2 but
+not torch. An eager import would make the Nav2 baseline impossible to run
+without installing a deep-learning framework it never uses.
 """
 
 from __future__ import annotations
 
-from typing import Any, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 import gymnasium as gym
 import numpy as np
-from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnv
 
 from vision_nav.envs.nav_env import NavEnvConfig, ProceduralNavEnv, RewardConfig
 from vision_nav.envs.randomization import DomainRandomization
@@ -21,6 +25,9 @@ from vision_nav.envs.robot import RobotConfig
 from vision_nav.envs.sensors import CameraConfig, LidarConfig
 from vision_nav.envs.splits import shifted_config, split_seeds
 from vision_nav.envs.world import WorldConfig
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from stable_baselines3.common.vec_env import VecEnv
 
 __all__ = ["build_env_config", "make_env", "make_vec_env"]
 
@@ -132,6 +139,8 @@ def make_env(
     monitor: bool = True,
 ):
     """Create a single, optionally Monitor-wrapped, environment."""
+    from stable_baselines3.common.monitor import Monitor
+
     env: gym.Env = ProceduralNavEnv(env_config, render_mode=render_mode)
     if monitor:
         # ``info_keywords`` propagates per-episode outcomes into the Monitor
@@ -159,6 +168,8 @@ def make_vec_env(
         episodes are short and correlated, the batch is dominated by a handful
         of repeated scenes.
     """
+    from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+
     seeds: Sequence[int] | None = env_config.world_seeds
 
     def _factory(rank: int):

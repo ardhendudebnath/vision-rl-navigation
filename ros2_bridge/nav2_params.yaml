@@ -1,0 +1,203 @@
+# Nav2 configuration for the ProceduralNavEnv bridge.
+#
+# Kinematic limits are copied from RobotConfig, not from Nav2's defaults: if
+# the planner assumed a faster or more agile base than the simulator provides,
+# the controller would command velocities the env clips, and the comparison
+# would measure that mismatch rather than the planner.
+#
+#   max_linear_vel  0.6 m/s     max_linear_accel  2.0 m/s^2
+#   max_angular_vel 1.6 rad/s   max_angular_accel 6.0 rad/s^2
+#   robot_radius    0.22 m      control period    0.1 s (10 Hz)
+
+bt_navigator:
+  ros__parameters:
+    use_sim_time: true
+    global_frame: map
+    robot_base_frame: base_link
+    odom_topic: /odom
+    bt_loop_duration: 10
+    default_server_timeout: 20
+
+controller_server:
+  ros__parameters:
+    use_sim_time: true
+    controller_frequency: 10.0          # matches the 10 Hz sim step
+    # Stated rather than left to the distribution default: the bridge can
+    # subscribe to only one message type on /cmd_vel, and a mismatch here
+    # means Nav2 drives a robot that never moves. Must agree with
+    # CMD_VEL_TYPE in nav2_bridge.py.
+    enable_stamped_cmd_vel: true
+    min_x_velocity_threshold: 0.001
+    min_theta_velocity_threshold: 0.001
+    failure_tolerance: 0.3
+    progress_checker_plugins: ["progress_checker"]
+    goal_checker_plugins: ["goal_checker"]
+    controller_plugins: ["FollowPath"]
+
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"
+      required_movement_radius: 0.5
+      movement_time_allowance: 15.0
+
+    goal_checker:
+      plugin: "nav2_controller::SimpleGoalChecker"
+      # Must match the env's success criterion exactly, or Nav2 and the
+      # metric disagree about what counts as reaching the goal.
+      xy_goal_tolerance: 0.35
+      yaw_goal_tolerance: 6.29          # position-only goal, as in the env
+      stateful: true
+
+    FollowPath:
+      plugin: "dwb_core::DWBLocalPlanner"
+      debug_trajectory_details: false
+      min_vel_x: -0.1                   # RobotConfig.min_linear_vel
+      max_vel_x: 0.6                    # RobotConfig.max_linear_vel
+      min_vel_y: 0.0
+      max_vel_y: 0.0
+      max_vel_theta: 1.6                # RobotConfig.max_angular_vel
+      min_speed_xy: -0.1
+      max_speed_xy: 0.6
+      min_speed_theta: -1.6
+      acc_lim_x: 2.0                    # RobotConfig.max_linear_accel
+      acc_lim_y: 0.0
+      acc_lim_theta: 6.0                # RobotConfig.max_angular_accel
+      decel_lim_x: -2.0
+      decel_lim_y: 0.0
+      decel_lim_theta: -6.0
+      vx_samples: 20
+      vy_samples: 1
+      vtheta_samples: 40
+      sim_time: 1.5
+      transform_tolerance: 0.5
+      short_circuit_trajectory_evaluation: true
+      trajectory_generator_name: "dwb_plugins::StandardTrajectoryGenerator"
+      critics: ["RotateToGoal", "Oscillation", "BaseObstacle", "GoalAlign",
+                "PathAlign", "PathDist", "GoalDist"]
+      BaseObstacle.scale: 0.02
+      PathAlign.scale: 32.0
+      PathAlign.forward_point_distance: 0.15
+      GoalAlign.scale: 24.0
+      GoalAlign.forward_point_distance: 0.15
+      PathDist.scale: 32.0
+      GoalDist.scale: 24.0
+      RotateToGoal.scale: 32.0
+      RotateToGoal.slowing_factor: 5.0
+      RotateToGoal.lookahead_time: -1.0
+
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      use_sim_time: true
+      update_frequency: 10.0
+      publish_frequency: 5.0
+      global_frame: odom
+      robot_base_frame: base_link
+      rolling_window: true
+      width: 6
+      height: 6
+      resolution: 0.05
+      robot_radius: 0.22
+      plugins: ["obstacle_layer", "inflation_layer"]
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: true
+        observation_sources: scan
+        scan:
+          topic: /scan
+          max_obstacle_height: 2.0
+          clearing: true
+          marking: true
+          data_type: "LaserScan"
+          raytrace_max_range: 6.0
+          raytrace_min_range: 0.0
+          obstacle_max_range: 5.5
+          obstacle_min_range: 0.0
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0
+        inflation_radius: 0.40
+      always_send_full_costmap: true
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      use_sim_time: true
+      update_frequency: 2.0
+      publish_frequency: 2.0
+      global_frame: map
+      robot_base_frame: base_link
+      robot_radius: 0.22
+      resolution: 0.1
+      track_unknown_space: false
+      # The obstacle layer stays: this is Nav2 in its standard configuration,
+      # which is the whole point of the comparison. It is stateful, though —
+      # marks are cleared only by ray-tracing from the robot's current
+      # position, and the robot teleports between episodes — so run_nav2_eval
+      # clears both costmaps at every reset. Without that reset the global
+      # costmap silts up with obstacles from previous worlds until NavFn
+      # cannot find a route, which showed up as episodes where Nav2 issued
+      # zero velocity commands and timed out: 12% of episodes on `large`,
+      # the arena with the most area to pollute.
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: true
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: true
+        observation_sources: scan
+        scan:
+          topic: /scan
+          max_obstacle_height: 2.0
+          clearing: true
+          marking: true
+          data_type: "LaserScan"
+          raytrace_max_range: 6.0
+          obstacle_max_range: 5.5
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0
+        inflation_radius: 0.40
+      always_send_full_costmap: true
+
+planner_server:
+  ros__parameters:
+    use_sim_time: true
+    expected_planner_frequency: 2.0
+    planner_plugins: ["GridBased"]
+    GridBased:
+      plugin: "nav2_navfn_planner::NavfnPlanner"
+      tolerance: 0.35
+      use_astar: true                   # matches the hand-written baseline
+      allow_unknown: false
+
+behavior_server:
+  ros__parameters:
+    use_sim_time: true
+    enable_stamped_cmd_vel: true        # see controller_server above
+    local_costmap_topic: local_costmap/costmap_raw
+    global_costmap_topic: global_costmap/costmap_raw
+    local_frame: odom
+    global_frame: map
+    robot_base_frame: base_link
+    cycle_frequency: 10.0
+    behavior_plugins: ["spin", "backup", "wait"]
+    spin:
+      plugin: "nav2_behaviors::Spin"
+    backup:
+      plugin: "nav2_behaviors::BackUp"
+    wait:
+      plugin: "nav2_behaviors::Wait"
+    max_rotational_vel: 1.6
+    min_rotational_vel: 0.2
+    rotational_acc_lim: 6.0
+
+# No velocity_smoother or collision_monitor block: nav2_launch.py does not
+# start them. Both only ever slow the robot down — the env already enforces
+# the acceleration limits a smoother would — so leaving them out can only
+# help Nav2, and each is one more node whose failure to configure would abort
+# the entire lifecycle bringup.
+#
+# No lifecycle_manager_navigation block either: node_names is passed as a
+# parameter override from the launch file, which takes precedence over
+# anything written here.

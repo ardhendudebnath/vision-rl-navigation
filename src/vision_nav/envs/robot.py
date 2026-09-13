@@ -59,6 +59,24 @@ class DiffDriveRobot:
         omega = a[1] * cfg.max_angular_vel
         return np.array([v, omega])
 
+    def unscale_action(self, velocity: np.ndarray) -> np.ndarray:
+        """Inverse of :meth:`scale_action`: ``(v, omega)`` back to ``[-1, 1]^2``.
+
+        Needed by controllers that natively speak SI velocities — the Nav2
+        bridge publishes ``geometry_msgs/Twist`` and has to enter the same
+        normalised action space every other actor drives, rather than the env
+        growing a second control interface for one caller. Kept next to
+        ``scale_action`` so the two cannot drift; ``test_robot`` round-trips
+        them.
+        """
+        cfg = self.config
+        v, omega = np.asarray(velocity, dtype=np.float64)
+        span = cfg.max_linear_vel - cfg.min_linear_vel
+        v = np.clip(v, cfg.min_linear_vel, cfg.max_linear_vel)
+        a_v = 2.0 * (v - cfg.min_linear_vel) / span - 1.0
+        a_w = np.clip(omega / cfg.max_angular_vel, -1.0, 1.0)
+        return np.array([a_v, a_w])
+
     def step(self, action: np.ndarray) -> np.ndarray:
         """Advance one control period. Returns the new pose ``(x, y, theta)``."""
         cfg = self.config

@@ -29,22 +29,15 @@ from pathlib import Path
 
 import numpy as np
 
-from vision_nav.envs.splits import SHIFTS
+from vision_nav.envs.splits import BENCHMARK_CONDITIONS, SHIFTS
 from vision_nav.metrics.navigation import NavigationMetrics
 from vision_nav.training.actors import build_actor
 from vision_nav.training.env_factory import build_env_config
 from vision_nav.training.evaluate import evaluate
 
-#: Each condition is (label, split, shift, lidar noise std).  ``test`` is the
-#: in-distribution held-out set; the rest are the Phase-5 robustness suite.
-CONDITIONS: dict[str, tuple[str, str | None, float]] = {
-    "nominal": ("test", None, 0.0),
-    "dense": ("test_ood", "dense", 0.0),
-    "sparse": ("test_ood", "sparse", 0.0),
-    "large": ("test_ood", "large", 0.0),
-    "narrow": ("test_ood", "narrow", 0.0),
-    "noisy_lidar": ("test", None, 0.10),
-}
+#: Each condition is (split, shift, lidar noise std). Defined in the library so
+#: the Nav2 runner scores against the identical table — see splits.py.
+CONDITIONS = BENCHMARK_CONDITIONS
 
 
 def parse_args(argv=None) -> argparse.Namespace:

@@ -240,3 +240,33 @@ def test_geodesic_shaping_toggle_selects_the_right_distance():
     assert euc._progress_distance(pos) == pytest.approx(euclid)
     # The geodesic distance must route around obstacles, never cut through.
     assert geo._progress_distance(pos) >= euclid - 1e-6
+
+
+def test_unscale_action_inverts_scale_action():
+    """The Nav2 bridge enters the action space through unscale_action.
+
+    If it disagreed with scale_action, every velocity Nav2 commands would be
+    distorted before reaching the simulator and the baseline would be
+    handicapped invisibly — the metrics would look plausible and be wrong.
+    """
+    robot = DiffDriveRobot(RobotConfig())
+    for a in np.linspace(-1.0, 1.0, 9):
+        for w in np.linspace(-1.0, 1.0, 9):
+            action = np.array([a, w])
+            assert np.allclose(
+                robot.unscale_action(robot.scale_action(action)), action, atol=1e-12
+            )
+
+
+def test_unscale_action_clips_out_of_range_velocities():
+    """Nav2 can command beyond the configured limits; the action space cannot."""
+    cfg = RobotConfig()
+    robot = DiffDriveRobot(cfg)
+    fast = robot.unscale_action(np.array([10.0, 10.0]))
+    slow = robot.unscale_action(np.array([-10.0, -10.0]))
+    assert np.allclose(fast, [1.0, 1.0])
+    assert np.allclose(slow, [-1.0, -1.0])
+    # And the asymmetric linear range still maps zero velocity off-centre.
+    zero = robot.unscale_action(np.array([0.0, 0.0]))
+    expected = 2.0 * (0.0 - cfg.min_linear_vel) / (cfg.max_linear_vel - cfg.min_linear_vel) - 1.0
+    assert zero[0] == pytest.approx(expected)

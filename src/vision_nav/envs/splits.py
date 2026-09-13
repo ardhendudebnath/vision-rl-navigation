@@ -16,7 +16,31 @@ from dataclasses import replace
 
 from vision_nav.envs.world import WorldConfig
 
-__all__ = ["SEED_BANDS", "split_seeds", "shifted_config", "SHIFTS"]
+__all__ = [
+    "SEED_BANDS",
+    "split_seeds",
+    "shifted_config",
+    "SHIFTS",
+    "BENCHMARK_CONDITIONS",
+]
+
+#: The six evaluation conditions every actor is scored on, as
+#: ``(split, shift, lidar noise std)``. ``nominal`` is the in-distribution
+#: held-out set; the rest are the robustness suite.
+#:
+#: This lives in the library rather than in ``scripts/run_benchmark.py``
+#: because a second runner (``ros2_bridge/run_nav2_eval.py``, which cannot
+#: import a script) has to reproduce these conditions exactly. Two copies of
+#: this table drifting apart would show up as a Nav2 row that looks
+#: comparable but was measured under different conditions.
+BENCHMARK_CONDITIONS: dict[str, tuple[str, str | None, float]] = {
+    "nominal": ("test", None, 0.0),
+    "dense": ("test_ood", "dense", 0.0),
+    "sparse": ("test_ood", "sparse", 0.0),
+    "large": ("test_ood", "large", 0.0),
+    "narrow": ("test_ood", "narrow", 0.0),
+    "noisy_lidar": ("test", None, 0.10),
+}
 
 #: Disjoint seed bands, ``(low, high)`` half-open.
 SEED_BANDS: dict[str, tuple[int, int]] = {
