@@ -34,7 +34,7 @@ decision below follows from wanting that comparison to be trustworthy.
 
 | Stage | State |
 |---|---|
-| Task, metrics, splits, 239-test suite | Done |
+| Task, metrics, splits, 251-test suite | Done |
 | Classical baseline (A* + pure pursuit, full map) | Done |
 | Privileged RL, robustness suite, distribution shifts | Done |
 | Four explanations for the gap, each tested and rejected | Done |
@@ -43,10 +43,12 @@ decision below follows from wanting that comparison to be trustworthy.
 | Dynamics: moving obstacles, frame stacking | Done |
 | Technical report + demo video | Done |
 | Real Nav2 over ROS 2, scored as one more actor | Done |
+| Frozen-mover subtraction; replanning churn isolated | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Fifteen experiments, each pre-registered where it tests a hypothesis. The
-phase-by-phase record, including every prediction that failed, is in
+Nineteen experiments, each pre-registered where it tests a hypothesis. The
+phase-by-phase record, including every prediction that failed and three
+successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).
 
 **Technical report: [`docs/report.md`](docs/report.md)** — the full study written

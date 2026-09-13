@@ -24,10 +24,14 @@ Phases are numbered as in the roadmap's Section 3.
 | 3d | Decoupling FOV from sample count | **Done** — **coverage causal, samples inert** |
 | 3e | RGB + CNN encoder, 6 seeds/arm, pre-registered | **Done** — **the pixels are the problem** |
 | 3f | RGB compute sweep to 4.0M (closes 3e's confound) | **Done** — rejected; gap survives 2.7x compute |
-| 3g | Moving obstacles absent from the map | **Done** — hypothesis falsified; gap shrinks 8x |
+| 3g | Moving obstacles absent from the map | **Done** — hypothesis falsified; parity, later narrowed by 5b-5d |
 | 3h | Trained on movers + frame stacking (6 seeds x 2 arms) | **Done** — parity; stacking inert |
 | 4 | Technical report ([`report.md`](report.md)) + demo video | **Done** |
-| 5 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real via ROS 2 | Not started |
+| 5 | Real Nav2 over ROS 2 as one more actor, 2 passes x 6 conditions | **Done** — **baseline was conservative, not weak** |
+| 5b | Nav2 on the dynamic conditions | **Done** — parity fails on `dynamic_dense` |
+| 5c | Frozen-mover subtraction (movers parked, map still wrong) | **Done** — **the parity was the planner degrading** |
+| 5d | Replanning churn: measured, then causally tested | **Done** — churn real but **not** the explanation; better baseline adopted |
+| 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
 
@@ -677,6 +681,28 @@ Not established:
   audit degenerates to one all-encompassing gap, and the measurement says
   nothing. 3 m is long enough that obstacles actually partition the sweep.
 
+## Phase 3a — Groundwork: getting off privileged observations
+
+No experiment; the seam that made Phases 3b-3f possible. `NavEnvConfig.obs_mode`
+selects the observation, and deliberately raises `NotImplementedError` for a
+mode that is not built rather than silently returning something plausible —
+the failure mode being guarded against is a run that trains happily on the
+wrong observation and is only caught, if ever, at analysis time.
+
+Planned order of work, all of which was subsequently done:
+
+1. Egocentric depth strip from the existing ray-caster — the cheapest honest
+   step away from privileged state, since it is the same geometry in a
+   camera-shaped observation (Phase 3b).
+2. Rendered egocentric RGB behind a CNN encoder (Phase 3e).
+3. Frame stacking (Phase 3h).
+
+Two later bug classes trace back to this seam and are worth recording here:
+evaluation configs that did not carry `obs_mode` through, and a camera
+mis-labelled as a lidar in the benchmark. Both were silent. They are why
+`training/run_spec.py` exists, and why the benchmark now reports the sensor
+each policy actually reads rather than the one its row is named after.
+
 ## Phase 3b — Depth camera vs lidar: field of view beats resolution
 
 Phases 2f-2i established that sensor angular resolution is a real constraint.
@@ -752,25 +778,190 @@ The obvious follow-ups, in order of value:
    more view fixes it; if it is *forgetting* what was just seen, memory fixes
    it. These predict different outcomes and the experiment distinguishes them.
 
-## Phase 3c — RGB observations (next)
+## Phase 3c — FOV sweep: a monotone curve, and a second forecast that held
 
-Replace the privileged observation with rendered egocentric observations
-behind a small CNN encoder. `NavEnvConfig.obs_mode` is the seam; it currently
-raises `NotImplementedError` for anything but `privileged` rather than
-silently accepting an unimplemented mode.
+Phase 3b compared one camera against one lidar, which establishes a direction
+and not a frontier. Sweeping field of view at a **fixed sample count**
+(90 / 180 / 270 / 360 degrees, 64 samples) turns that single point into a
+curve, and lets the Phase 2h audit make a second forecast before any of the
+policies existed.
 
-Planned order of work:
+Pre-registered: a monotone increase in `narrow` success with field of view,
+tested by Spearman rho against a Monte Carlo permutation null, 24 seeds.
 
-1. Egocentric depth strip from the existing ray-caster (cheapest honest step
-   away from privileged state — same geometry, camera-shaped observation).
-2. Rendered RGB-D from the top-down rasteriser reprojected to a camera frustum.
-3. CNN encoder, frame stacking, domain randomisation over textures/lighting.
+### Result
 
-## Phase 4 — Robustness suite (harness done)
+**rho = +0.508, p = 0.013.** Monotone, as predicted.
+
+The stronger part is the audit's quantitative forecast. It predicted the two
+*interior* levels — the ones it was not fitted on — to within **+0.021 and
++0.001**. The tooling reports a mean absolute error of 0.006 across all four
+levels, but two of those were the anchors used to fit the slope, so the honest
+out-of-sample figure is 0.011. Stated that way in the report rather than
+quoting the flattering number.
+
+Two independent forecasts from one training-free measurement (Phase 2i and
+this) is the strongest evidence in the project that the perception mechanism
+is real rather than fitted after the fact.
+
+## Phase 3d — Coverage is causal, sample count is inert
+
+"Field of view beats angular resolution" is the obvious reading of 3b and 3c,
+and it is wrong in a way worth pinning down: it implies a frontier where
+either knob buys performance. Resolution = FOV / samples, so the two cannot
+both be held — but either can be, and each gives a different experiment.
+
+Three predictions were pre-registered, two of them **nulls with magnitude
+bounds**, which is the part that makes them falsifiable:
+
+1. Doubling samples at fixed 90 degrees changes nothing, within +/-0.01.
+2. Doubling samples at fixed 360 degrees changes nothing, within +/-0.01.
+3. Quadrupling coverage at *identical* angular resolution produces the effect.
+
+### Result
+
+| Test | Contrast | Delta `narrow` | p |
+|---|---|---|---|
+| Samples at fixed FOV | 32 vs 64 @ 90 deg | +0.002 | 1.000 |
+| Samples at fixed FOV | 64 vs 128 @ 360 deg | -0.003 | 0.955 |
+| Coverage at fixed resolution | 32 @ 90 vs 128 @ 360, both 2.81 deg/sample | **+0.095** | **0.024** |
+
+**All three held.** Doubling the sample count changes nothing, twice, at both
+ends of the range; quadrupling coverage at identical resolution produces the
+entire effect. There is no frontier — one knob is inert.
+
+A null predicted with a magnitude bound and then observed at +0.002 and -0.003
+is much better evidence than an unbounded "no significant difference", which
+is compatible with any effect the design was too weak to see.
+
+## Phase 3e — The encoder costs 0.16-0.24, and the prediction was wrong
+
+Everything so far reads geometry as a vector. Real cameras deliver pixels. The
+question is what the *representation* costs when the information is held
+constant: the RGB camera renders the same geometry the depth camera measures —
+same 90 degree FOV, same 64 columns, goal vector bit-identical between modes —
+and only the encoding changes, pixels through a CNN rather than a vector
+through an MLP.
+
+Pre-registered prediction: **-0.05 to -0.10** on `narrow`.
+
+### Result
+
+**-0.218 on `narrow` (p = 0.002), 0.16-0.24 across every condition.** Every
+depth seed beats every RGB seed. The encoder costs reliability too: seed
+spread roughly doubles for success and quadruples for collisions.
+
+The prediction failed by two to three times. Worth contrasting with 3c: the
+forecasts that held were derived from a *measured* quantity; this one was
+intuition expressed in the same confident register.
+
+The render is clean — no texture, no lighting variation, no sensor artefacts —
+so 0.16-0.24 is a **lower bound** on what pixels cost, not an estimate.
+
+## Phase 3f — The compute confound, rejected
+
+The obvious objection to 3e is that a CNN is harder to optimise and simply
+needed more training. Two predictions were pre-registered: extra compute
+narrows the gap by less than 0.05, and the gap remains significant.
+
+### Result
+
+At **2.7x the compute**, the gap is -0.162 (p = 0.030). **Both predictions
+held.** The last standing alternative explanation for 3e is rejected: the
+deficit is representational, not an optimisation artefact.
+
+## Phase 3g — Moving obstacles: the map stops being correct
+
+Every condition so far hands the classical planner a perfect, current, static
+map — its largest privilege and the one real deployments lack. Obstacles that
+move and are **absent from the map** are the first place a reactive policy has
+a structural reason to win.
+
+The asymmetry is load-bearing and is asserted in tests: movers are visible to
+the range sensor and absent from the occupancy grid the planner reads. Leaking
+either way would make the experiment meaningless.
+
+Pre-registered: the zero-shot policies beat the planner where the map is
+wrong.
+
+### Result (as measured at the time)
+
+| Condition | classical | learned (best) | delta | p |
+|---|---|---|---|---|
+| narrow (static) | 0.850 | 0.682 +/- 0.060 | -0.168 | 0.031 |
+| dynamic | 0.870 | 0.860 +/- 0.033 | -0.010 | 0.625 |
+| dynamic_dense | 0.750 | 0.710 +/- 0.042 | -0.040 | 0.125 |
+
+**Falsified.** The policy does not win; the gap closes to statistical parity
+and stops. A regime change, not a reversal.
+
+### The near-miss that makes the rest of it trustworthy
+
+The planner replans against a costmap containing the movers, because a
+baseline driving blind into them would prove nothing. Sweeping that interval
+showed replanning helps where movers exist (+0.06 to +0.07) and *hurts* where
+they do not, dropping `narrow` from 0.850 to 0.690 through path churn in tight
+corridors.
+
+With one global setting, `narrow` would have read classical 0.690 against the
+policy's 0.682 — 4 of 6 seeds above the baseline, a clean "parity in tight
+corridors" claim that was **purely an artefact of a handicap introduced in the
+name of fairness.** It survived only because the interval was swept rather
+than assumed.
+
+> **Superseded.** Phases 5b, 5c and 5d revise these numbers three times, each
+> by improving the baseline rather than by new evidence about the policy. The
+> `dynamic_dense` row in particular becomes -0.110 at p = 0.031 once the
+> baseline replans sensibly, and the parity finding ends up surviving on
+> `dynamic` alone. The report carries the current numbers; this entry records
+> what was measured at the time.
+
+## Phase 3h — Frame stacking is inert
+
+If the policy loses under motion because it cannot perceive velocity, giving
+it velocity should help. Frame stacking is the cheapest way to provide it, and
+it is the one setup handing the policy information the map-based stack
+structurally lacks.
+
+Pre-registered: stacking beats its own unstacked control on the dynamic
+conditions.
+
+### Result
+
+**-0.008 (p = 0.784) and +0.013 (p = 0.703).** Nothing, twice.
+
+Three untested explanations, in the order they are worth testing: the movers
+may be too slow (0.15-0.45 m/s against a 0.6 m/s robot) for anticipation to
+pay; velocity may be present but hard to extract from raw stacked scans
+without an explicit difference feature or recurrence; and the reward's 4:1
+preference for stalling over crashing may suppress commitment even when
+anticipation is possible.
+
+Phase 5c later supplies a fourth reading that fits better than any of these:
+the policy's apparent robustness under motion is not anticipation at all but
+*absence of commitment* — it has no plan to invalidate — which predicts
+exactly that extra velocity information buys nothing.
+
+## Phase 4 — Packaging: report, demo video, and the harness behind both
 
 `scripts/run_benchmark.py` evaluates every actor across six conditions:
 in-distribution, four world-distribution shifts, and sensor noise. All actors
-see identical worlds in identical order, so rows are directly comparable.
+see identical worlds in identical order, asserted at evaluation time rather
+than assumed, so rows are directly comparable. `BENCHMARK_CONDITIONS` lives in
+the library rather than the script because a second runner — the Nav2 bridge
+of Phase 5 — has to reproduce those conditions exactly, and two copies of that
+table would drift.
+
+The write-up is [`report.md`](report.md); a one-page distillation for an
+application document is [`one_page_summary.md`](one_page_summary.md).
+
+**The demo video needed its own correction.** Taking the first six seeds in
+order gave six successes for both actors, which misrepresents a policy
+measured at 0.70 on `narrow`. The clip is now stratified to match the measured
+outcome rates: the learned policy succeeds in 4 of 6 and the classical planner
+in 5 of 6, including one world where the *planner* is the one that crashes.
+Every seed is listed in `scripts/make_comparison_video.py`, so the selection
+is reproducible rather than flattering.
 
 ## Phase 5 — Nav2 as the baseline: the hand-written stack was the weak one
 
@@ -851,7 +1042,7 @@ collision reduction there is real, but the success margin sits inside the
 run-to-run spread, and the rule that demotes it is the same rule Phase 2g
 exists to enforce. Two passes bound Nav2's spread rather than estimating it.
 
-### Phase 5b — the dynamic conditions, and half a retraction
+## Phase 5b — The dynamic conditions, and half a retraction
 
 The parity finding of Phase 3g/3h — the learned policy indistinguishable from
 the planner once the map is wrong — is the project's most RL-favourable claim
@@ -895,19 +1086,24 @@ condition was re-run with the movers parked at their t = 0 positions:
 identical worlds and seeds, movers still absent from the map, only the motion
 removed.
 
+Numbers below are the final ones, with the baseline given the best replanning
+policy Phase 5d went on to find. Measured first against the timed baseline,
+the classical column read 0.980 / 0.870 (sparse) and 0.910 / 0.750 (dense);
+the *cost of motion*, which is what this phase is about, barely moved.
+
 | clutter | actor | frozen | moving | cost of motion |
 |---|---|---|---|---|
-| sparse | classical | 0.980 | 0.870 | -0.110 |
+| sparse | classical | 1.000 | 0.880 | -0.120 |
 | | Nav2 | 0.985 | 0.855 | -0.130 |
 | | learned (best) | 0.900 | 0.852 | **-0.048** |
-| dense | classical | 0.910 | 0.750 | -0.160 |
+| dense | classical | 0.980 | 0.820 | -0.160 |
 | | Nav2 | 0.945 | 0.870 | -0.075 |
 | | learned (best) | 0.778 | 0.710 | **-0.068** |
 
-Frozen, the classical advantage returns in full and significantly: -0.080
-(sparse) and -0.132 (dense), 0 of 6 seeds above the baseline in both,
-p = 0.031, against -0.010 and -0.040 with the movers running. **The parity was
-the planner degrading, not the policy coping.** The learned policy is worse in
+Frozen, the classical advantage returns and widens sharply: -0.100 (sparse)
+and -0.202 (dense), 0 of 6 seeds above the baseline in both, p = 0.031,
+against -0.020 and -0.110 with the movers running. **The parity was the
+planner degrading, not the policy coping.** The learned policy is worse in
 both regimes; it just degrades less, because a policy that never commits to a
 path has nothing to invalidate when the world moves. Robustness by absence of
 commitment, which is consistent with frame stacking having been inert.
@@ -926,7 +1122,9 @@ start, goal, mover centres and `l*` per seed.
 the frozen numbers by ~0.15 (0.750 to 0.910 on dense, 0.840 to 0.980 on
 sparse between `replan=0` and `replan=10`). Assuming it would have understated
 the baseline in exactly the direction that flatters the learned side, which is
-the same trap Phase 3g documented.
+the same trap Phase 3g documented. Phase 5d then found a setting better than
+either — replan when blocked rather than on a timer — taking those two cells
+to 0.980 and 1.000, so even the swept value was not the best available.
 
 ### It also corrected Phase 5b
 
