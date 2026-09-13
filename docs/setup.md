@@ -34,6 +34,17 @@ pip install -e ".[dev,viz]"
 pytest
 ```
 
+Or with conda, which pins the interpreter as well:
+
+```bash
+conda env create -f environment.yml
+conda activate vision-nav
+pytest
+```
+
+That covers everything except the Nav2 baseline, which needs its own
+environment — see below.
+
 Optional extras:
 
 - `pip install -e ".[tracking]"` — Weights & Biases
@@ -50,13 +61,33 @@ throughput is ~2,000 environment steps/s on CPU.
 The GPU becomes the right choice at Phase 3, when observations become images
 and the encoder becomes a CNN. Set `train.device=cuda` then.
 
+## ROS 2 + Nav2 (for the Nav2 baseline)
+
+Report §4.1 scores the real Nav2 stack on the same worlds. It lives in a
+**separate** environment from the training venv, because ROS 2 pins its own
+Python and NumPy and has no need of torch:
+
+```bash
+bash scripts/install_ros2_nav2.sh      # ~937 packages, all under $HOME
+bash ros2_bridge/run_nav2.sh --condition narrow --episodes 100
+```
+
+The installer uses [RoboStack](https://robostack.github.io/) rather than apt,
+because the apt route needs root and this WSL image has no passwordless sudo.
+Nothing is installed system-wide; `rm -rf ~/mamba ~/bin/micromamba` removes the
+entire stack. Versions are pinned (ROS 2 Jazzy, Nav2 1.3.12) so the numbers in
+the report are reproducible rather than "whatever RoboStack ships today".
+
+What Nav2 is given, and the failure modes the harness guards against:
+[`ros2_bridge/README.md`](../ros2_bridge/README.md).
+
 ## Roadmap dependencies not yet installed
 
 These belong to later phases and are intentionally absent:
 
 | Tool | Phase | Note |
 |---|---|---|
-| ROS 2 Jazzy + Gazebo + Nav2 | Sim-to-real | Linux-native. WSL2 Ubuntu 24.04 is already present on this machine — that is the intended path. |
+| Gazebo | Sim-to-real | Not needed yet: the Nav2 comparison drives `ProceduralNavEnv` directly through the ROS 2 bridge, so there is no second physics engine to reconcile. |
 | Isaac Sim / Isaac Lab | Final runs | Needs 16 GB VRAM; this GPU has 12 GB. Plan on rented cloud GPU (RTX 4090/A6000 class) for the two or three heavy runs. |
 | Habitat-Sim | Alternate track | Much lighter than Isaac Sim; viable locally if the project leans embodied-AI rather than ground-robot control. |
 | Depth Anything v2 / YOLOv11 / SAM2 | Phase 3+ | Only needed once observations become images. |

@@ -6,7 +6,7 @@ stack in place of the hand-written A* + pure-pursuit baseline. The point is
 not a new finding but a credibility check: is the hand-written baseline as
 strong as the report claims?
 
-    python ros2_bridge/run_nav2_eval.py --split test --episodes 20
+    python ros2_bridge/run_nav2_eval.py --condition narrow --episodes 100
 
 Must run inside the ROS 2 env with Nav2 already launched against
 nav2_params.yaml. See ros2_bridge/README.md.
@@ -30,9 +30,13 @@ from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 from rclpy.executors import SingleThreadedExecutor
 
 from nav2_bridge import CMD_VEL_TYPE, Nav2Bridge, yaw_to_quaternion
-from vision_nav.envs.splits import BENCHMARK_CONDITIONS
+from vision_nav.envs.splits import BENCHMARK_CONDITIONS, DYNAMIC_CONDITIONS
 from vision_nav.metrics import EpisodeResult, aggregate
 from vision_nav.training.env_factory import build_env_config
+
+#: Every condition Nav2 can be scored on: the six static benchmark rows plus
+#: the two moving-obstacle ones.
+CONDITIONS = {**BENCHMARK_CONDITIONS, **DYNAMIC_CONDITIONS}
 
 #: Sim steps to run before sending the goal, letting Nav2's costmaps populate
 #: from the first scan. Without this the first plan is made against an empty
@@ -60,7 +64,7 @@ MAP_SETTLE_STEPS = 5
 
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--condition", default="nominal", choices=list(BENCHMARK_CONDITIONS),
+    p.add_argument("--condition", default="nominal", choices=list(CONDITIONS),
                    help="Evaluation condition, from the shared benchmark table")
     p.add_argument("--episodes", type=int, default=100)
     p.add_argument("--out-dir", default="results")
@@ -195,7 +199,7 @@ def main(argv=None) -> int:
     args = parse_args(argv)
     rclpy.init()
 
-    split, shift, noise = BENCHMARK_CONDITIONS[args.condition]
+    split, shift, noise = CONDITIONS[args.condition]
     overrides = {"lidar": {"noise_std": noise}} if noise else {}
     env_config = build_env_config(overrides, split=split, shift=shift,
                                   n_worlds=args.episodes)

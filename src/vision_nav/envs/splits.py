@@ -22,6 +22,7 @@ __all__ = [
     "shifted_config",
     "SHIFTS",
     "BENCHMARK_CONDITIONS",
+    "DYNAMIC_CONDITIONS",
 ]
 
 #: The six evaluation conditions every actor is scored on, as
@@ -40,6 +41,20 @@ BENCHMARK_CONDITIONS: dict[str, tuple[str, str | None, float]] = {
     "large": ("test_ood", "large", 0.0),
     "narrow": ("test_ood", "narrow", 0.0),
     "noisy_lidar": ("test", None, 0.10),
+}
+
+#: The moving-obstacle conditions, kept separate from BENCHMARK_CONDITIONS so
+#: that adding them does not silently change what ``run_benchmark.py`` runs by
+#: default for every other actor. Same ``(split, shift, noise)`` shape.
+#:
+#: These are scored by ``scripts/dynamic_experiment.py`` for the learned arms,
+#: where the classical baseline replans every 10 steps — its measured best
+#: setting here. Nav2 needs no equivalent knob: its default behaviour tree
+#: re-plans on a 1 Hz rate controller, which at the 10 Hz sim step is the same
+#: interval the baseline was tuned to.
+DYNAMIC_CONDITIONS: dict[str, tuple[str, str | None, float]] = {
+    "dynamic": ("test_ood", "dynamic", 0.0),
+    "dynamic_dense": ("test_ood", "dynamic_dense", 0.0),
 }
 
 #: Disjoint seed bands, ``(low, high)`` half-open.

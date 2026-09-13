@@ -1,0 +1,31 @@
+# Conda environment for the simulator, training and analysis.
+#
+#   conda env create -f environment.yml && conda activate vision-nav
+#   pip install -e ".[dev,viz]"
+#   pytest
+#
+# A plain venv works equally well (see docs/setup.md); this file exists so the
+# Python half can be recreated exactly, and to sit alongside the ROS 2 half,
+# which is a *separate* environment created by scripts/install_ros2_nav2.sh.
+# The two are deliberately not merged: ROS 2 pins its own Python and NumPy,
+# and torch has no business in the environment that runs Nav2.
+name: vision-nav
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.11
+  - pip>=24.0
+
+  # Installed with pip rather than conda so the versions match pyproject.toml
+  # exactly and there is one source of truth for dependency bounds.
+  - pip:
+      - -e .[dev,viz]
+
+# GPU note: the project trains on CPU by default and only needs CUDA once
+# observations become images (see docs/setup.md). On Blackwell (sm_120) the
+# default torch wheel may not include kernels for the card; if
+# torch.cuda.is_available() is False, install the CUDA 12.8 build explicitly:
+#
+#   pip install torch --index-url https://download.pytorch.org/whl/cu128
