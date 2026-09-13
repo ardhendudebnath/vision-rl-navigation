@@ -285,3 +285,73 @@ def test_frozen_flag_reaches_the_env_through_config():
     # Identical in every other respect, or it is not a subtraction.
     assert frozen.world == moving.world
     assert list(frozen.world_seeds) == list(moving.world_seeds)
+
+
+# ----------------------------------------------------------------------
+# Block-triggered replanning (report Section 9.5)
+# ----------------------------------------------------------------------
+def _run_classical(condition_world, seed, config, steps=400):
+    from vision_nav.agents.classical import AStarPursuitAgent
+
+    cfg = NavEnvConfig(world_seeds=[seed], world=condition_world)
+    env = ProceduralNavEnv(cfg)
+    env.reset(options={"world_seed": seed})
+    agent = AStarPursuitAgent(config, robot=cfg.robot)
+    assert agent.start_episode(env.world, env.robot.pose)
+    for _ in range(steps):
+        _, _, terminated, truncated, _ = env.step(agent.act(env.robot.pose))
+        if terminated or truncated:
+            break
+    return agent
+
+
+def test_block_triggered_never_fires_on_a_correct_static_map():
+    """With a perfect map the committed path is never blocked.
+
+    This is why block-triggered replanning is safe to adopt everywhere: on the
+    six static benchmark conditions it reduces exactly to replan_every=0, so
+    the headline results are untouched by the Section 9.5 change.
+    """
+    from vision_nav.agents.classical import PursuitConfig
+
+    static = shifted_config(WorldConfig(), "dense")
+    for seed in (30000, 30001, 30002):
+        agent = _run_classical(static, seed, PursuitConfig(replan_on_block=True))
+        assert agent.replans == 0
+        assert agent.churn_total == 0.0
+
+
+def test_block_triggered_fires_when_a_mover_obstructs():
+    """It must actually replan somewhere, or it is just replan_every=0."""
+    from vision_nav.agents.classical import PursuitConfig
+
+    dense = shifted_config(WorldConfig(), "dynamic_dense")
+    fired = sum(
+        _run_classical(dense, seed, PursuitConfig(replan_on_block=True)).replans
+        for seed in range(30000, 30012)
+    )
+    assert fired > 0
+
+
+def test_churn_counters_survive_a_replan():
+    """reset() performs replans, so it must not zero the counters it feeds."""
+    from vision_nav.agents.classical import PursuitConfig
+
+    dense = shifted_config(WorldConfig(), "dynamic_dense")
+    agent = _run_classical(dense, 30000, PursuitConfig(replan_every=10))
+    assert agent.replans > 1, "expected the timer to fire repeatedly"
+    assert agent.churn_mean == pytest.approx(agent.churn_total / agent.replans)
+
+
+def test_start_episode_zeroes_churn():
+    from vision_nav.agents.classical import AStarPursuitAgent, PursuitConfig
+
+    dense = shifted_config(WorldConfig(), "dynamic_dense")
+    agent = _run_classical(dense, 30000, PursuitConfig(replan_every=10))
+    assert agent.replans > 0
+    env = ProceduralNavEnv(NavEnvConfig(world_seeds=[30001], world=dense))
+    env.reset(options={"world_seed": 30001})
+    agent.robot = env.config.robot
+    agent.start_episode(env.world, env.robot.pose)
+    assert agent.replans == 0 and agent.churn_total == 0.0
+    assert isinstance(agent, AStarPursuitAgent)

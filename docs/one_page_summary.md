@@ -56,9 +56,17 @@ nothing.
    clutter is added, where Nav2 is 0.150–0.170 ahead of every training seed.
    A controlled subtraction then froze the movers in place — identical worlds,
    still absent from the map, only the motion removed — and the classical
-   advantage returned in full (p = 0.031, 0/6 seeds). The parity was motion
-   degrading the planner, not the policy handling it. Both findings came from
-   deliberately re-testing the claim that most flattered the work.
+   advantage returned and widened (p = 0.031, 0/6 seeds). The parity was
+   motion degrading the planner, not the policy handling it. A third pass
+   found the baseline a better replanning policy, which removed the last of
+   the parity on cluttered dynamic worlds (−0.110, p = 0.031). All three came
+   from deliberately re-testing the claim that most flattered the work.
+6. **A causal test that failed usefully.** The explanation offered for the
+   above — that replanning churn was the culprit — was pre-registered with a
+   treated cell and a control. The treated cell moved exactly as predicted
+   (+0.070) and the control moved by the same amount, which refutes the
+   mechanism rather than confirming it. Without the control it would have read
+   as a clean success and the report would assert something false.
 
 ## The part that matters most
 

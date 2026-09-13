@@ -27,11 +27,10 @@ import json
 import os
 import statistics as st
 
-#: (label, moving condition, frozen condition, frozen results file).
+#: (label, moving condition, frozen condition).
 PAIRS = [
-    ("sparse", "dynamic", "dynamic_frozen", "results/dynamic_frozen_sparse.json"),
-    ("dense", "dynamic_dense", "dynamic_dense_frozen",
-     "results/dynamic_frozen_experiment.json"),
+    ("sparse", "dynamic", "dynamic_frozen"),
+    ("dense", "dynamic_dense", "dynamic_dense_frozen"),
 ]
 
 #: Success-rate gap below which two actors are not worth separating. At 100
@@ -65,19 +64,18 @@ def main(argv=None) -> int:
     p.add_argument("--out", default=None, help="Write the markdown table here")
     args = p.parse_args(argv)
 
-    moving_all = _load("results/dynamic_experiment.json")["conditions"]
+    conditions = _load("results/dynamic_experiment.json")["conditions"]
     lines = [
         "| Clutter | Actor | Frozen | Moving | Cost of motion |",
         "|---|---|---|---|---|",
     ]
     notes = []
 
-    for label, mov_cond, frz_cond, frz_path in PAIRS:
-        if not os.path.exists(frz_path):
-            notes.append("no frozen results for {}".format(label))
+    for label, mov_cond, frz_cond in PAIRS:
+        if mov_cond not in conditions or frz_cond not in conditions:
+            notes.append("no paired results for {}".format(label))
             continue
-        mov = moving_all[mov_cond]
-        frz = _load(frz_path)["conditions"][frz_cond]
+        mov, frz = conditions[mov_cond], conditions[frz_cond]
 
         rows = [("classical",
                  frz["classical"]["success_rate"], mov["classical"]["success_rate"])]
@@ -103,12 +101,13 @@ def main(argv=None) -> int:
         if "Nav2" in by:
             fz_gap = by["Nav2"][0] - by["classical"][0]
             mv_gap = by["Nav2"][1] - by["classical"][1]
+            swing = mv_gap - fz_gap
             notes.append(
-                "{}: Nav2 leads the hand-written planner by {:+.3f} with the "
-                "movers frozen and {:+.3f} with them moving, so {} of its "
-                "advantage is motion handling rather than clutter handling."
-                .format(label, fz_gap, mv_gap,
-                        "most" if mv_gap - fz_gap > NOISE_BAND else "little"))
+                "{}: Nav2 stands {:+.3f} against the hand-written planner with "
+                "the movers frozen and {:+.3f} with them moving — a swing of "
+                "{:+.3f} attributable to motion alone, which is {} the noise "
+                "band.".format(label, fz_gap, mv_gap, swing,
+                               "outside" if abs(swing) > NOISE_BAND else "inside"))
 
     table = "\n".join(lines)
     print(table)

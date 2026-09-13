@@ -4,16 +4,17 @@
     "dynamic": {
       "classical": {
         "n_episodes": 100,
-        "success_rate": 0.87,
-        "spl": 0.8613315907353474,
-        "collision_rate": 0.13,
-        "timeout_rate": 0.0,
-        "mean_steps_to_goal": 155.183908045977,
-        "mean_path_length": 6.951000870585616,
-        "mean_path_efficiency": 0.9900363111900543,
-        "mean_final_goal_distance": 1.0061223561920778
+        "success_rate": 0.88,
+        "spl": 0.8633271902264835,
+        "collision_rate": 0.11,
+        "timeout_rate": 0.01,
+        "mean_steps_to_goal": 154.82954545454547,
+        "mean_path_length": 7.261261715516754,
+        "mean_path_efficiency": 0.9810536252573676,
+        "mean_final_goal_distance": 0.8512898532100468
       },
-      "classical_replan_every": 10,
+      "classical_mode": "on_block",
+      "classical_replan_every": null,
       "arms": {
         "dyn1": {
           "success": [
@@ -41,8 +42,8 @@
             0.11
           ],
           "seeds_above_classical": 1,
-          "sign_p": 0.625,
-          "delta_mean": -0.010000000000000009
+          "sign_p": 0.21875,
+          "delta_mean": -0.020000000000000018
         },
         "dyn4": {
           "success": [
@@ -69,25 +70,26 @@
             0.1,
             0.11
           ],
-          "seeds_above_classical": 2,
-          "sign_p": 1.0,
-          "delta_mean": -0.018333333333333313
+          "seeds_above_classical": 0,
+          "sign_p": 0.125,
+          "delta_mean": -0.02833333333333332
         }
       }
     },
     "dynamic_dense": {
       "classical": {
         "n_episodes": 100,
-        "success_rate": 0.75,
-        "spl": 0.7193149271539248,
-        "collision_rate": 0.25,
+        "success_rate": 0.82,
+        "spl": 0.7635215936879501,
+        "collision_rate": 0.18,
         "timeout_rate": 0.0,
-        "mean_steps_to_goal": 198.62666666666667,
-        "mean_path_length": 7.36564390200383,
-        "mean_path_efficiency": 0.9590865695385664,
-        "mean_final_goal_distance": 1.720562441387438
+        "mean_steps_to_goal": 200.2439024390244,
+        "mean_path_length": 8.129901805871846,
+        "mean_path_efficiency": 0.9311238947414027,
+        "mean_final_goal_distance": 1.2809241486316751
       },
-      "classical_replan_every": 10,
+      "classical_mode": "on_block",
+      "classical_replan_every": null,
       "arms": {
         "dyn1": {
           "success": [
@@ -114,9 +116,9 @@
             0.17,
             0.25
           ],
-          "seeds_above_classical": 1,
-          "sign_p": 0.21875,
-          "delta_mean": -0.053333333333333344
+          "seeds_above_classical": 0,
+          "sign_p": 0.03125,
+          "delta_mean": -0.1233333333333333
         },
         "dyn4": {
           "success": [
@@ -144,8 +146,158 @@
             0.2
           ],
           "seeds_above_classical": 0,
-          "sign_p": 0.125,
-          "delta_mean": -0.040000000000000036
+          "sign_p": 0.03125,
+          "delta_mean": -0.10999999999999999
+        }
+      }
+    },
+    "dynamic_frozen": {
+      "classical": {
+        "n_episodes": 100,
+        "success_rate": 1.0,
+        "spl": 0.9816961639761455,
+        "collision_rate": 0.0,
+        "timeout_rate": 0.0,
+        "mean_steps_to_goal": 160.35,
+        "mean_path_length": 7.695946534681695,
+        "mean_path_efficiency": 0.9816961639761455,
+        "mean_final_goal_distance": 0.3357497711840716
+      },
+      "classical_mode": "on_block",
+      "classical_replan_every": null,
+      "arms": {
+        "dyn1": {
+          "success": [
+            0.91,
+            0.84,
+            0.95,
+            0.79,
+            0.88,
+            0.95
+          ],
+          "spl": [
+            0.8482373405951946,
+            0.808121250992626,
+            0.8928036485786862,
+            0.7362205309529327,
+            0.8310628370845666,
+            0.8837427193175726
+          ],
+          "collision": [
+            0.03,
+            0.02,
+            0.03,
+            0.03,
+            0.0,
+            0.01
+          ],
+          "seeds_above_classical": 0,
+          "sign_p": 0.03125,
+          "delta_mean": -0.11333333333333329
+        },
+        "dyn4": {
+          "success": [
+            0.9,
+            0.85,
+            0.95,
+            0.92,
+            0.95,
+            0.83
+          ],
+          "spl": [
+            0.8336989414931828,
+            0.788005313219296,
+            0.8664257764845597,
+            0.8614822915248029,
+            0.8780937141739052,
+            0.7883205392949766
+          ],
+          "collision": [
+            0.04,
+            0.04,
+            0.05,
+            0.03,
+            0.02,
+            0.05
+          ],
+          "seeds_above_classical": 0,
+          "sign_p": 0.03125,
+          "delta_mean": -0.09999999999999998
+        }
+      }
+    },
+    "dynamic_dense_frozen": {
+      "classical": {
+        "n_episodes": 100,
+        "success_rate": 0.98,
+        "spl": 0.9266707401205759,
+        "collision_rate": 0.01,
+        "timeout_rate": 0.01,
+        "mean_steps_to_goal": 201.3877551020408,
+        "mean_path_length": 8.883065810786327,
+        "mean_path_efficiency": 0.9455823878781386,
+        "mean_final_goal_distance": 0.39709075369247515
+      },
+      "classical_mode": "on_block",
+      "classical_replan_every": null,
+      "arms": {
+        "dyn1": {
+          "success": [
+            0.75,
+            0.62,
+            0.84,
+            0.66,
+            0.76,
+            0.86
+          ],
+          "spl": [
+            0.6763020643173248,
+            0.5824649614539736,
+            0.7498412776034972,
+            0.5959350786088072,
+            0.7023991114529583,
+            0.7656223679319916
+          ],
+          "collision": [
+            0.12,
+            0.08,
+            0.07,
+            0.07,
+            0.05,
+            0.12
+          ],
+          "seeds_above_classical": 0,
+          "sign_p": 0.03125,
+          "delta_mean": -0.23166666666666658
+        },
+        "dyn4": {
+          "success": [
+            0.81,
+            0.75,
+            0.81,
+            0.79,
+            0.81,
+            0.7
+          ],
+          "spl": [
+            0.7245792410594686,
+            0.673744876987458,
+            0.7252944631044886,
+            0.7130142873438475,
+            0.717321262164969,
+            0.6402379368379465
+          ],
+          "collision": [
+            0.15,
+            0.16,
+            0.19,
+            0.14,
+            0.13,
+            0.07
+          ],
+          "seeds_above_classical": 0,
+          "sign_p": 0.03125,
+          "delta_mean": -0.20166666666666666
         }
       }
     }

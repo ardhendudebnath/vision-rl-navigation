@@ -71,6 +71,17 @@ def parse_args(argv=None):
     p.add_argument("--condition", nargs="+", default=["dynamic", "dynamic_dense"],
                    choices=list(CONDITIONS))
     p.add_argument("--episodes", type=int, default=100)
+    p.add_argument(
+        "--classical-mode", choices=("on_block", "timer"), default="on_block",
+        help=(
+            "How the classical baseline decides to replan. 'on_block' rebuilds "
+            "the plan only when a mover actually obstructs it and is the "
+            "measured best on every dynamic condition (+0.010 to +0.070 over "
+            "the timer, and identical to it on static worlds, where a correct "
+            "map means the path is never blocked). 'timer' reproduces the "
+            "earlier published numbers."
+        ),
+    )
     p.add_argument("--replan-every", type=int, default=None,
                    help="Override the per-condition best classical replan interval")
     p.add_argument("--out", default="results/dynamic_experiment.json")
@@ -118,15 +129,23 @@ def main(argv=None) -> int:
         frozen = {"freeze_dynamic": True} if cond in FROZEN_CONDITIONS else {}
         base = build_env_config(dict(frozen), split=split, shift=shift,
                                 n_worlds=args.episodes)
-        cls_actor = ClassicalActor(PursuitConfig(replan_every=replan), robot=base.robot)
+        if args.classical_mode == "on_block":
+            cls_config = PursuitConfig(replan_on_block=True)
+            mode_label = "replan on block"
+        else:
+            cls_config = PursuitConfig(replan_every=replan)
+            mode_label = f"replan every {replan}"
+        cls_actor = ClassicalActor(cls_config, robot=base.robot)
         cls_metrics, _ = evaluate(cls_actor, base)
         print(
-            f"  classical (replan every {replan}): "
+            f"  classical ({mode_label}): "
             f"SR={cls_metrics.success_rate:.3f} SPL={cls_metrics.spl:.3f} "
             f"coll={cls_metrics.collision_rate:.3f}"
         )
 
-        entry = {"classical": cls_metrics.to_dict(), "classical_replan_every": replan,
+        entry = {"classical": cls_metrics.to_dict(),
+                 "classical_mode": args.classical_mode,
+                 "classical_replan_every": replan if args.classical_mode == "timer" else None,
                  "arms": {}}
         for name, runs in arms.items():
             succ, spl, coll = [], [], []

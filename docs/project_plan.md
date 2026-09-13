@@ -945,6 +945,81 @@ second is actively harmful -- the churn pathology Phase 3g measured costing
 `narrow` 0.160. `dynamic_dense` forces the hand-written baseline into exactly
 that combination. Logging path changes per episode would confirm or kill it.
 
+## Phase 5d — Churn: measured, causal, and the wrong explanation
+
+Phase 5c blamed the hand-written baseline's motion cost on path churn -- it
+re-commits to a fresh global plan every second, and Phase 3g measured that
+pathology costing `narrow` 0.160 in a purely static world. The explanation fit
+every number available and was labelled a hypothesis. This tests it.
+
+Churn is operationalised as the shift in the lookahead point the controller is
+steering at, measured across a replan from an unchanged pose: how far the
+commitment moves when the plan is rebuilt.
+
+### It behaves exactly as the hypothesis requires
+
+| cell | success | churn (m) | replans |
+|---|---|---|---|
+| sparse frozen | 0.980 | 0.026 | 15.5 |
+| sparse moving | 0.870 | 0.037 | 14.3 |
+| dense frozen | 0.910 | 0.038 | 19.5 |
+| dense moving | 0.750 | **0.058** | 17.6 |
+
+Highest where the motion cost is largest; not merely a function of replan
+count, since `dense frozen` replans most and churns less; and within every
+cell the episodes that collided churned more (+0.072 to +0.098).
+
+All consistent, none of it a test.
+
+### The intervention, with a control
+
+`replan_on_block` rebuilds the plan only when a mover actually obstructs it,
+cutting replans from ~17 per episode to ~1. Pre-registered: `dynamic_dense`
+recovers by >= +0.05, frozen cells stay within +/-0.03.
+
+| cell | timed | block-triggered | delta |
+|---|---|---|---|
+| sparse moving | 0.870 | 0.880 | +0.010 |
+| sparse frozen | 0.980 | 1.000 | +0.020 |
+| dense moving | 0.750 | **0.820** | **+0.070** |
+| dense frozen | 0.910 | **0.980** | **+0.070** |
+
+The treated cell moved exactly as predicted. **The control cell moved by the
+same amount**, so the cost of motion is unchanged: -0.120 sparse and -0.160
+dense, identical to the timed baseline. Churn is real and is caused by timed
+replanning, but it is a *clutter* pathology with nothing to do with whether
+obstacles move. **The hypothesis is falsified as an explanation of the motion
+cost.**
+
+Had the control been left out, +0.070 on `dynamic_dense` would have read as
+clean confirmation. It cost one extra condition to run.
+
+### Consequences
+
+The motion cost stands unexplained. Ruled out: churn, planning failure (A*
+never fails to find a route) and sensing (the movers are fully visible to the
+baseline's costmap). The remaining candidate is that committing to any plan is
+itself the cost -- an architectural property, consistent with its surviving
+every configuration change tried.
+
+Block-triggered replanning is a strictly better baseline: it wins on all four
+dynamic cells and is identical to the previous best on the six static ones,
+where a correct map means the path is never blocked and it never fires. Every
+dynamic number in the report now uses it, which moves the published comparison
+*against* the learned policy:
+
+| condition | classical | learned (best) | delta | sign p |
+|---|---|---|---|---|
+| dynamic | 0.880 | 0.860 | -0.020 | 0.219 |
+| dynamic_dense | 0.820 | 0.710 | **-0.110** | **0.031** |
+| dynamic_frozen | 1.000 | 0.900 | -0.100 | 0.031 |
+| dynamic_dense_frozen | 0.980 | 0.778 | -0.202 | 0.031 |
+
+`dynamic_dense` was -0.040 and not significant against the timed baseline. The
+parity finding now survives on `dynamic` alone, its third narrowing in three
+phases -- and each narrowing came from improving the baseline, never from new
+evidence about the policy.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

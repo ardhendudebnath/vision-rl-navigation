@@ -65,7 +65,7 @@ class ClassicalActor:
     def reset(self, env: ProceduralNavEnv, obs: np.ndarray) -> bool:
         if self.agent.robot is not env.config.robot:
             self.agent.robot = env.config.robot
-        return self.agent.reset(env.world, env.robot.pose)
+        return self.agent.start_episode(env.world, env.robot.pose)
 
     def act(self, env: ProceduralNavEnv, obs: np.ndarray) -> np.ndarray:
         return self.agent.act(env.robot.pose)

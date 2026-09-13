@@ -69,7 +69,8 @@ configuration on every condition.
 | large | **1.000** | 0.970 | −0.030 | — |
 | dense | **0.890** | 0.730 | −0.160 | yes |
 | narrow | **0.850** | 0.682 ± 0.060 | −0.168 | yes |
-| **dynamic** | **0.870** | 0.860 ± 0.033 | **−0.010** | **no** (p = 0.625) |
+| **dynamic** | **0.880** | 0.860 ± 0.033 | **−0.020** | **no** (p = 0.219) |
+| dynamic_dense | **0.820** | 0.710 ± 0.042 | −0.110 | yes (p = 0.031) |
 
 Full tables: [`results/benchmark.md`](results/benchmark.md). The classical
 planner is given the full obstacle map and exact pose throughout — a baseline
@@ -126,26 +127,29 @@ geometry as images for a CNN, rather than reading it as a vector, costs
 0.16–0.24 success on every condition — every depth seed beats every RGB seed.
 The gap survives giving RGB 2.7× the compute.
 
-**4. Where the map is wrong, the gap closes to parity — with sparse movers
-only.** With obstacles that move and are absent from the map, the learned
-policy is statistically indistinguishable from the planner (−0.010,
-p = 0.625), while staying clearly worse where the map is right (−0.168,
-p = 0.031). Frame stacking, the one setup giving the policy information the
-planner structurally lacks, changed nothing (−0.008, p = 0.784).
+**4. Where the map is wrong, the gap narrows to parity — with sparse movers
+only, and for an unflattering reason.** With obstacles that move and are
+absent from the map, the learned policy is statistically indistinguishable
+from the planner on `dynamic` (−0.020, p = 0.219) while staying clearly worse
+where the map is right (−0.168, p = 0.031). Frame stacking, the one setup
+giving the policy information the planner structurally lacks, changed nothing
+(−0.008, p = 0.784).
 
-Two follow-ups cut that claim down. It does not survive adding clutter to the
-movers: on `dynamic_dense`, real Nav2 is **0.150–0.170 ahead of the learned
-policy and above all six training seeds**, where the hand-written baseline had
-been only 0.040 ahead.
+Three follow-ups cut that claim down, each pushing the same way. Adding
+clutter to the movers removes it: on `dynamic_dense` real Nav2 is **0.150–
+0.170 ahead of the learned policy and above all six training seeds**. Giving
+the hand-written baseline its genuinely best replanning policy — rebuild only
+when the path is blocked, not on a timer — removes it there too (−0.110,
+p = 0.031, where the timed baseline had shown −0.040 and no significance).
 
 And a controlled subtraction — the same worlds with the movers **parked**,
-still absent from the map, only the motion removed — shows the parity is the
-planner breaking rather than the policy coping. Frozen, the classical
-advantage returns in full (−0.080 and −0.132, both p = 0.031, 0/6 seeds).
-Motion costs the planner 0.110–0.160 and the learned policy only 0.048–0.068.
-The policy is behind in *both* regimes; it is just harder to disrupt, because
-one that never commits to a path has no plan to invalidate. Robustness by
-absence of commitment — not the competence the original framing implies.
+still absent from the map, only the motion removed — shows what the remaining
+parity is made of. Frozen, the classical advantage returns and widens (−0.100
+and −0.202, both p = 0.031, 0/6 seeds). Motion costs the planner 0.120–0.160
+and the learned policy only 0.048–0.068. The policy is behind in *every*
+regime; it is just harder to disrupt, because one that never commits to a path
+has no plan to invalidate. Robustness by absence of commitment — not the
+competence the original framing implies.
 
 ### The part worth reading
 

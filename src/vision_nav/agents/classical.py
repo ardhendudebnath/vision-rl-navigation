@@ -59,6 +59,23 @@ class PursuitConfig:
     #: control.
     replan_every: int = 0
 
+    #: Replan only when the committed path is actually blocked, instead of on
+    #: a timer. Keeps the benefit of replanning — re-routing when a mover sits
+    #: on the path — and drops the part that rebuilds a perfectly good plan
+    #: every N steps.
+    #:
+    #: This is the causal test for report Section 9.4's churn hypothesis. If
+    #: the baseline's outsized motion cost under clutter is caused by
+    #: re-committing to fresh plans, suppressing the gratuitous rebuilds
+    #: should recover it; if the cost is inherent to moving obstacles, this
+    #: changes nothing. Overrides ``replan_every`` when set.
+    replan_on_block: bool = False
+
+    #: How far along the committed path to check for a blockage, in metres.
+    #: Roughly the distance covered in one replan interval at full speed, so
+    #: the robot reacts about as early as the timer would have.
+    block_check_distance: float = 2.0
+
 
 class AStarPursuitAgent:
     """Map-based planner with a pure-pursuit local controller.
@@ -83,6 +100,26 @@ class AStarPursuitAgent:
         self._world = None
         self._cursor = 0
         self._since_replan = 0
+        #: Churn statistics for the current episode. Zeroed by
+        #: :meth:`start_episode`, not by :meth:`reset`, because ``reset`` is
+        #: also what performs a replan and would otherwise wipe the counters
+        #: it is meant to be counting.
+        self.replans = 0
+        self.churn_total = 0.0
+        self.churn_max = 0.0
+
+    # ------------------------------------------------------------------
+    def start_episode(self, world, pose: np.ndarray) -> bool:
+        """Plan for a new episode and zero the churn counters."""
+        self.replans = 0
+        self.churn_total = 0.0
+        self.churn_max = 0.0
+        return self.reset(world, pose)
+
+    @property
+    def churn_mean(self) -> float:
+        """Mean lookahead shift per replan, in metres. 0.0 if never replanned."""
+        return self.churn_total / self.replans if self.replans else 0.0
 
     # ------------------------------------------------------------------
     def reset(self, world, pose: np.ndarray, include_dynamic: bool = False) -> bool:
@@ -131,14 +168,31 @@ class AStarPursuitAgent:
             return np.zeros(2, dtype=np.float32)
 
         self._since_replan += 1
-        if cfg.replan_every and self._since_replan >= cfg.replan_every:
+        if cfg.replan_on_block:
+            due = self._path_ahead_blocked(np.asarray(pose[:2], dtype=np.float64))
+        else:
+            due = bool(cfg.replan_every) and self._since_replan >= cfg.replan_every
+        if due:
             self._since_replan = 0
             # Replan against a costmap containing the movers where they are
             # right now. If that fails (a mover is sitting on the goal, say)
             # the previous plan is kept rather than the robot being stranded.
             saved = (self.path, self._track, self._cursor)
+            # Churn instrumentation: how far the commitment moves when the
+            # plan is rebuilt, measured as the shift in the lookahead point
+            # the controller is actually steering at, from an unchanged pose.
+            # Report Section 9.4 blames path churn for the hand-written
+            # baseline's outsized motion cost under clutter; this is the
+            # quantity that claim is about. Measurement only — the control
+            # path below is untouched.
+            before = self._lookahead_point(np.asarray(pose[:2], dtype=np.float64))
             if not self.reset(self._world, pose, include_dynamic=True):
                 self.path, self._track, self._cursor = saved
+            after = self._lookahead_point(np.asarray(pose[:2], dtype=np.float64))
+            self.replans += 1
+            shift = float(np.linalg.norm(after - before))
+            self.churn_total += shift
+            self.churn_max = max(self.churn_max, shift)
 
         position = np.asarray(pose[:2], dtype=np.float64)
         target = self._lookahead_point(position)
@@ -164,6 +218,25 @@ class AStarPursuitAgent:
         return np.array([self._speed_to_action(speed), omega], dtype=np.float32)
 
     # ------------------------------------------------------------------
+    def _path_ahead_blocked(self, position: np.ndarray) -> bool:
+        """Is the committed path obstructed within ``block_check_distance``?
+
+        Checks against a costmap that includes the movers where they are now,
+        which is the same information the timed replan uses — the difference
+        is only *when* the plan is rebuilt, not what it is rebuilt against.
+        """
+        if self._track is None or self._world is None or not len(self._track):
+            return False
+        ahead = self._track[self._cursor:]
+        if not len(ahead):
+            return False
+        # Trim to the check distance along the track, which is uniformly
+        # spaced at track_spacing.
+        n = max(1, int(self.config.block_check_distance / self.config.track_spacing))
+        ahead = ahead[:n]
+        radius = self._world.config.robot_radius
+        return bool(np.any(self._world.clearance(ahead, include_dynamic=True) <= radius))
+
     def _caution_scale(self, position: np.ndarray) -> float:
         """Scale speed down when the robot is close to an obstacle.
 
