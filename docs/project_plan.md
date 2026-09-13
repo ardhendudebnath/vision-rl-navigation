@@ -24,6 +24,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 3d | Decoupling FOV from sample count | **Done** — **coverage causal, samples inert** |
 | 3e | RGB + CNN encoder, 6 seeds/arm, pre-registered | **Done** — **the pixels are the problem** |
 | 3f | RGB compute sweep to 4.0M (closes 3e's confound) | **Done** — rejected; gap survives 2.7x compute |
+| 3g | Moving obstacles absent from the map | **Done** — hypothesis falsified; gap shrinks 8x |
 | 4 | Technical report ([`report.md`](report.md)) + demo video | **Done** |
 | 5 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real via ROS 2 | Not started |
 

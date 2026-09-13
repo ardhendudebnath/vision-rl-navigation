@@ -39,11 +39,21 @@ from vision_nav.training.actors import ClassicalActor, build_actor
 from vision_nav.training.env_factory import build_env_config
 from vision_nav.training.evaluate import evaluate
 
+#: (split, shift, best classical replan interval).
+#:
+#: The replan interval is chosen PER CONDITION, from a measured sweep, because
+#: no single setting is best everywhere: replanning is worth +0.06 to +0.07
+#: where movers exist and costs -0.04 to -0.16 where they do not (path churn
+#: in tight corridors). Handing the baseline one global setting would
+#: handicap it on half the suite -- and using replan_every=10 on `narrow`
+#: drops it from 0.850 to 0.690, which would have manufactured a false parity
+#: with the learned policy. The baseline gets its best configuration on every
+#: condition; anything else is a strawman by omission.
 CONDITIONS = {
-    "dynamic": ("test_ood", "dynamic"),
-    "dynamic_dense": ("test_ood", "dynamic_dense"),
-    "narrow": ("test_ood", "narrow"),
-    "nominal": ("test", None),
+    "dynamic": ("test_ood", "dynamic", 10),
+    "dynamic_dense": ("test_ood", "dynamic_dense", 10),
+    "narrow": ("test_ood", "narrow", 0),
+    "nominal": ("test", None, 0),
 }
 
 
@@ -53,8 +63,8 @@ def parse_args(argv=None):
     p.add_argument("--condition", nargs="+", default=["dynamic", "dynamic_dense"],
                    choices=list(CONDITIONS))
     p.add_argument("--episodes", type=int, default=100)
-    p.add_argument("--replan-every", type=int, default=10,
-                   help="Classical replanning interval, in control steps")
+    p.add_argument("--replan-every", type=int, default=None,
+                   help="Override the per-condition best classical replan interval")
     p.add_argument("--out", default="results/dynamic_experiment.json")
     return p.parse_args(argv)
 
@@ -106,25 +116,24 @@ def main(argv=None) -> int:
                 raise FileNotFoundError(f"no best_model.zip in {r}")
         arms[name] = runs
 
-    report: dict = {"episodes": args.episodes, "replan_every": args.replan_every,
-                    "conditions": {}}
+    report: dict = {"episodes": args.episodes, "conditions": {}}
 
     for cond in args.condition:
-        split, shift = CONDITIONS[cond]
+        split, shift, best_replan = CONDITIONS[cond]
+        replan = args.replan_every if args.replan_every is not None else best_replan
         print(f"\n=== {cond} ({args.episodes} worlds) ===")
 
         base = build_env_config({}, split=split, shift=shift, n_worlds=args.episodes)
-        cls_actor = ClassicalActor(
-            PursuitConfig(replan_every=args.replan_every), robot=base.robot
-        )
+        cls_actor = ClassicalActor(PursuitConfig(replan_every=replan), robot=base.robot)
         cls_metrics, _ = evaluate(cls_actor, base)
         print(
-            f"  classical (replan every {args.replan_every}): "
+            f"  classical (replan every {replan}): "
             f"SR={cls_metrics.success_rate:.3f} SPL={cls_metrics.spl:.3f} "
             f"coll={cls_metrics.collision_rate:.3f}"
         )
 
-        entry = {"classical": cls_metrics.to_dict(), "arms": {}}
+        entry = {"classical": cls_metrics.to_dict(), "classical_replan_every": replan,
+                 "arms": {}}
         for name, runs in arms.items():
             succ, spl, coll = [], [], []
             for run in runs:

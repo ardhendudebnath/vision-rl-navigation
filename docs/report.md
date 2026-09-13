@@ -43,6 +43,12 @@ read as a vector by an MLP — costs 0.16–0.24 success across every condition,
 with every depth seed beating every RGB seed. On this task the pixels, not the
 geometry, are the hard part.
 
+Adding obstacles that move and are absent from the map — the one place a
+reactive policy has a structural reason to win — shrinks the classical
+planner's advantage roughly eightfold (−0.168 to −0.022) and leaves it the
+only condition in the study where that advantage is not statistically
+established (p = 0.062). It does not reverse it.
+
 The most transferable contribution is methodological. A correctly computed
 significance test over episodes produced a confident, reproducible, and wrong
 conclusion, because it measured the wrong source of variance. We document that
@@ -642,7 +648,93 @@ occurrences is enough to state the rule plainly: **when a selection statistic
 and a held-out measurement disagree, the held-out measurement wins, and the
 selection statistic should not be read as a preview of it.**
 
-## 12. Discussion
+## 12. Result 11: where the map is wrong — the gap shrinks but does not reverse
+
+Every condition so far hands the classical planner a **perfect, current,
+static map**. That is its largest privilege and the one real deployments do
+not have: maps go stale and obstacles move. This condition adds obstacles that
+move and are **absent from the map**, which is the first place a reactive
+policy has a structural reason to win.
+
+**Hypothesis, recorded before the runs:** the learned policy would beat the
+classical planner here.
+
+### 12.1 Keeping the baseline honest
+
+Nav2 does not plan once and drive blind; it maintains a local costmap from
+live sensing and replans continuously. So the baseline replans against a
+costmap containing the movers where they currently are.
+
+Sweeping that interval turned out to matter, and not in the direction
+expected:
+
+| Condition | no replan | replan 10 | replan 25 |
+|---|---|---|---|
+| nominal | **1.000** | 0.960 | 0.990 |
+| narrow | **0.850** | 0.690 | 0.760 |
+| dynamic | 0.810 | **0.870** | 0.860 |
+| dynamic_dense | 0.680 | **0.750** | 0.730 |
+
+Replanning is worth +0.06 to +0.07 where movers exist and costs up to −0.16
+where they do not, through path churn in tight corridors. **A single global
+setting would have handicapped the baseline on half the suite.** The
+comparison therefore gives the classical planner its best configuration on
+every condition.
+
+This nearly produced a false result. With `replan_every=10` applied
+everywhere, `narrow` showed classical at 0.690 against the learned policy's
+0.682 — 4 of 6 seeds above the baseline, which reads as parity. That parity
+was entirely an artefact of a handicap introduced in the name of *fairness*
+one step earlier. It survived only because the interval was swept rather than
+assumed.
+
+### 12.2 Result
+
+Success rate, 100 held-out worlds, six seeds per learned arm, classical at its
+best configuration:
+
+| Condition | Classical | Lidar 360° | Δ | sign test |
+|---|---|---|---|---|
+| nominal | **1.000** | 0.937 ± 0.021 | −0.063 | 0/6, p = 0.031 |
+| narrow | **0.850** | 0.682 ± 0.060 | **−0.168** | 0/6, p = 0.031 |
+| dynamic_dense | **0.750** | 0.700 ± 0.023 | −0.050 | 0/6, p = 0.031 |
+| **dynamic** | **0.870** | 0.848 ± 0.019 | **−0.022** | 0/6, **p = 0.062** |
+
+**The hypothesis is falsified.** The learned policy does not beat the
+classical planner even where the map is wrong. No seed, on any condition,
+exceeds the baseline.
+
+### 12.3 What is real
+
+The gap **shrinks roughly eightfold**: −0.168 in tight static corridors versus
+−0.022 with movers. And `dynamic` is the only condition in the entire study
+where classical's advantage is **not statistically established** — p = 0.062,
+above 0.05, with one seed exactly tying the baseline.
+
+So the honest statement is narrower than the hypothesis and still worth
+having: *reactive control closes most of the distance precisely where the map
+degrades, without overtaking.* The direction of the effect is exactly what was
+predicted; only the magnitude falls short of a reversal.
+
+It is also the first two-sided result in the project. Everywhere else the
+answer was "classical wins, and here is why"; here it is "classical wins by an
+amount too small to demonstrate."
+
+### 12.4 Why this is a weaker test than it looks
+
+- **The movers are benign.** They oscillate on fixed line segments at
+  0.15–0.45 m/s and never pursue the robot. Real pedestrians are faster, less
+  predictable, and reactive. A harder mover distribution is the obvious way to
+  push this further.
+- **The policies are zero-shot.** None was trained with moving obstacles,
+  which makes the near-parity more impressive, but also means a policy trained
+  on movers was never tested — the natural next experiment and the one most
+  likely to produce an actual reversal.
+- **The classical planner still gets a perfect static map** and exact pose.
+  Only the movers are hidden from it. Staleness in the *static* layout would
+  be a further, more realistic degradation.
+
+## 13. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
 the reasons are now specific rather than vague.** Four standard explanations
@@ -666,7 +758,7 @@ it — seed as unit of analysis, exact permutation tests, pre-registered
 endpoints, and training-free mechanism measurement — is cheap and should be
 default practice.
 
-## 13. Limitations
+## 14. Limitations
 
 - **Simulation is 2D and analytic.** No dynamics, no sensor artefacts beyond
   additive noise and dropout, no appearance. Conclusions about *geometry* should
@@ -687,7 +779,7 @@ default practice.
   significant reward-ablation result (`step_penalty` improving nominal SPL by
   +0.066).
 
-## 14. Future work
+## 15. Future work
 
 In order of expected information per GPU-hour:
 
@@ -703,7 +795,7 @@ In order of expected information per GPU-hour:
 5. **Sim-to-real** on a TurtleBot-class base. The action space is already
    `Twist`, so the policy transfers without modification.
 
-## 15. Reproducing
+## 16. Reproducing
 
 ```bash
 pip install -e ".[dev,viz]"

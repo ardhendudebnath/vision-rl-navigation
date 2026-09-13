@@ -50,6 +50,7 @@ decision below follows from wanting that comparison to be trustworthy.
 | Decoupling FOV from sample count | Done — **coverage causal, samples inert** |
 | RGB + CNN encoder, 6 seeds/arm, pre-registered | Done — **the pixels are the problem** |
 | RGB compute sweep to 4.0M | Done — gap survives 2.7x compute |
+| Moving obstacles absent from the map | Done — **gap shrinks 8x, does not reverse** |
 | Technical report + demo video | Done |
 
 **Technical report: [`docs/report.md`](docs/report.md)** — the full study written
@@ -332,6 +333,38 @@ the 32-vs-64 case before it.
 more than the 64-beam arm (0.188 vs 0.105, p = 0.006) with success unchanged.
 Across ~9 secondary tests the Bonferroni threshold is 0.0056, so this **does
 not survive correction.**
+
+### Where the map is wrong, the gap nearly closes — but does not reverse
+
+Every condition above hands the classical planner a **perfect, current, static
+map** — its largest privilege, and the one real deployments don't have. The
+final experiment adds obstacles that **move and are absent from the map**.
+
+**Hypothesis, recorded beforehand: the learned policy would win here. It does
+not.** Success rate, 100 worlds, 6 seeds per arm, classical at its best
+configuration on each condition:
+
+| Condition | Classical | Lidar 360° | Δ | sign test |
+|---|---|---|---|---|
+| nominal | **1.000** | 0.937 ± 0.021 | −0.063 | 0/6, p = 0.031 |
+| narrow | **0.850** | 0.682 ± 0.060 | **−0.168** | 0/6, p = 0.031 |
+| dynamic_dense | **0.750** | 0.700 ± 0.023 | −0.050 | 0/6, p = 0.031 |
+| **dynamic** | **0.870** | 0.848 ± 0.019 | **−0.022** | 0/6, **p = 0.062** |
+
+No seed beats the baseline anywhere. But the gap **shrinks about eightfold**
+between tight static corridors and moving obstacles, and `dynamic` is the only
+condition in the whole study where classical's advantage **isn't
+statistically established**. Reactive control closes most of the distance
+exactly where the map degrades — it just doesn't overtake.
+
+**A near-miss worth recording.** I added replanning to make the baseline
+stronger under movers. It does help there (+0.06 to +0.07) — but it *hurts*
+on static conditions, dropping `narrow` from 0.850 to 0.690 through path churn
+in tight corridors. Using one global setting, `narrow` would have shown
+classical at 0.690 against the policy's 0.682, with 4/6 seeds above the
+baseline: a clean "parity in tight corridors" claim that was purely an
+artifact of a handicap I'd introduced in the name of fairness. The comparison
+now gives the classical planner its best configuration per condition.
 
 ### The pixels are the problem, not the geometry
 
