@@ -30,9 +30,10 @@ identical resolution produces the whole effect (+0.095, p = 0.024). Holding
 information constant and changing only the *representation* — the same
 geometry as pixels for a CNN rather than a vector for an MLP — costs 0.16–0.24
 success. Where the map is wrong the gap closes to statistical parity (−0.010,
-p = 0.625) but never reverses — and only with sparse movers: adding clutter to
-them puts real Nav2 0.150–0.170 ahead of every training seed, so half of that
-parity was a property of our own baseline rather than of learned navigation.
+p = 0.625) but never reverses — and a controlled subtraction that freezes the
+moving obstacles shows why: the classical advantage returns in full (−0.080,
+−0.132, both p = 0.031), so the parity is motion degrading the planner
+(−0.110 to −0.160) rather than the policy handling it (−0.048 to −0.068).
 
 **The most transferable contribution is methodological.** A correctly computed
 significance test produced a confident, reproducible, and wrong conclusion,
@@ -519,7 +520,8 @@ Frame stacking versus its own control: −0.008 (p = 0.784) and +0.013
 the learned policy becomes statistically indistinguishable from a strong
 replanning planner; where the map is right it stays clearly worse. Across the
 whole study that is the closest RL comes to winning — **on `dynamic`. Section
-9.3 shows it does not extend to `dynamic_dense`.**
+9.3 shows it does not extend to `dynamic_dense`, and Section 9.4 shows the
+parity itself is the planner degrading rather than the policy coping.**
 
 ### 9.1 A near-miss in the baseline
 
@@ -574,17 +576,73 @@ This one survived to publication and needed a different baseline to expose.
 **A prediction, recorded in advance, that failed instructively.** From the
 collision reductions in Section 4.1 — 58–92% on `narrow`, 56–78% on `dense` —
 the pre-registered prediction was Nav2 ≥ 0.92 on `dynamic`. It reached 0.840
-to 0.870. The pre-registered counter-hypothesis is what actually happened:
-DWB's 1.5 s sampling horizon does not anticipate a crossing mover, so the
-collision mechanism that repairs *clutter* does not transfer to *motion*.
-The collision rates say it plainly — on `dynamic`, Nav2 collides at
-0.130–0.160 against the baseline's 0.130, no better at all. On
-`dynamic_dense` it collides at 0.110–0.140 against 0.250, because there most
-of the collisions come from the clutter, which is the part DWB does fix.
+to 0.870. The pre-registered counter-hypothesis is what actually happened on
+that condition: DWB's 1.5 s sampling horizon does not anticipate a crossing
+mover, and on `dynamic` Nav2 collides at 0.130–0.160 against the baseline's
+0.130, no better at all.
 
-So the win on `dynamic_dense` is not evidence that Nav2 handles moving
-obstacles well. It handles the *static* obstacles around them well, and the
-movers defeat every actor here about equally.
+Section 9.4 shows the natural extension of that reading — that Nav2's
+`dynamic_dense` win is therefore about clutter rather than motion — is
+**wrong**, and measures why.
+
+### 9.4 The frozen-mover subtraction: what motion actually costs
+
+Everything above compares actors *within* a condition, which cannot say
+whether parity means the policy coped or the planner broke. So each dynamic
+condition was re-run with the movers **parked** at the positions they already
+occupy at t = 0: identical worlds, identical seeds, movers still absent from
+the map — so the map is exactly as wrong as before — and only the motion gone.
+
+Freezing is done after world generation, not by zeroing `dynamic_amplitude` in
+the config. Mover placement validates the swept path, so a zero sweep accepts
+positions the moving config rejects and the two worlds end up with different
+obstacles; the subtraction would then confound motion with geometry. A test
+asserts the frozen and moving worlds are identical per seed, `l*` included.
+The classical baseline's replan interval was swept again on both new
+conditions rather than inherited — it matters, 0.750 → 0.910 and 0.840 →
+0.980 between `replan=0` and `replan=10`.
+
+| Clutter | Actor | Frozen | Moving | Cost of motion |
+|---|---|---|---|---|
+| sparse | classical | 0.980 | 0.870 | −0.110 |
+| | Nav2 | 0.985 | 0.855 | −0.130 |
+| | learned (best) | 0.900 | 0.852 | **−0.048** |
+| dense | classical | 0.910 | 0.750 | −0.160 |
+| | Nav2 | 0.945 | 0.870 | −0.075 |
+| | learned (best) | 0.778 | 0.710 | **−0.068** |
+
+**The parity was the planner breaking, not the policy coping.** With the
+movers frozen the classical advantage returns in full and significantly:
+−0.080 on sparse and −0.132 on dense, 0 of 6 seeds above the baseline in both
+(p = 0.031), against −0.010 and −0.040 with the movers running. The learned
+policy is worse in *both* regimes. What it does is degrade less: motion costs
+it 0.048–0.068 where it costs the hand-written planner 0.110–0.160.
+
+That is the mechanism behind Result 12, and it is considerably less
+flattering than the original framing. A policy that never commits to a path
+has nothing to invalidate when the world moves. That is a real property, but
+it is robustness by *absence of commitment*, not competence at anticipation —
+consistent with frame stacking having changed nothing.
+
+**And it overturns Section 9.3's explanation of the Nav2 result.** That
+section reasoned from `dynamic` collision rates that Nav2's `dynamic_dense`
+win must be clutter handling rather than motion handling. The subtraction says
+the opposite: Nav2 leads the hand-written planner by **+0.035 with the movers
+frozen and +0.120 with them moving**, so most of that advantage appears only
+when things move. On sparse worlds the same comparison is +0.005 frozen and
+−0.015 moving — nothing either way.
+
+So a better local planner buys motion robustness **only under clutter**. The
+reading that fits: in open worlds there is room to route around a mover, which
+replanning already achieves, so both classical stacks perform alike. In tight
+worlds there is no such room; the robot must dodge inside the corridor, and
+re-committing to a fresh global plan every second is actively harmful there —
+Section 9.1 measured that exact pathology, replanning costing `narrow` 0.160
+through path churn. `dynamic_dense` forces the hand-written baseline into it:
+movers compel replanning, clutter punishes it. DWB dodges locally without
+re-committing and avoids the trap. That explanation is consistent with every
+number here but has not been isolated experimentally, and is offered as the
+leading hypothesis rather than a result.
 
 ## 10. Discussion
 
@@ -608,13 +666,21 @@ lost: the classical planner has no training distribution, so the shifts are
 not shifts for it; and two learned arms received 2.7× the compute.
 
 **Where the learned side does earn its keep** is narrower than it first
-appeared. It is statistically indistinguishable from *both* classical stacks
-on `dynamic`, ~6% faster on successful nominal episodes, and indifferent to
-sensor noise — the one axis the hand-written baseline cannot be compared on at
-all, since it never reads the sensor. But the same claim on `dynamic_dense`
-did not survive a production baseline: Nav2 is 0.150–0.170 ahead there, above
-every training seed (Section 9.3). Sparse movers, not moving obstacles in
-general, is the regime where this policy competes.
+appeared, and different in kind. It is statistically indistinguishable from
+*both* classical stacks on `dynamic`, ~6% faster on successful nominal
+episodes, and indifferent to sensor noise — the one axis the hand-written
+baseline cannot be compared on at all, since it never reads the sensor. The
+same claim on `dynamic_dense` did not survive a production baseline: Nav2 is
+0.150–0.170 ahead there, above every training seed (Section 9.3).
+
+And the surviving claim is weaker than it reads. Section 9.4 freezes the
+movers and the classical advantage returns in full on both conditions, so the
+parity is the planner degrading under motion (−0.110 to −0.160) rather than
+the policy handling it (−0.048 to −0.068). The learned policy is behind in
+both regimes; it is simply harder to disrupt, because a policy that never
+commits to a path has no plan to invalidate. **Robustness by absence of
+commitment is a real property and not the one the framing "RL competes when
+the map is wrong" implies.**
 
 **The transferable lesson is methodological.** A correctly computed
 significance test produced a confident, reproducible, wrong conclusion because
@@ -685,12 +751,12 @@ the thing you are studying, the baseline is the first place to look.**
 
 In order of expected information per GPU-hour:
 
-1. **Why `dynamic_dense` and not `dynamic`.** Section 9.3 leaves the learned
-   policy at parity with a production stack on sparse movers and 0.150–0.170
-   behind once clutter is added. Whether that is the clutter alone or an
-   interaction between clutter and motion is answerable by running the static
-   `dense` policies against dense worlds with the movers frozen — a controlled
-   subtraction that needs no new training.
+1. **Isolate the replanning-churn hypothesis.** Section 9.4 attributes the
+   hand-written baseline's outsized motion cost under clutter to re-committing
+   to a fresh global plan every second, which Section 9.1 already measured
+   costing `narrow` 0.160. Logging path changes per episode and correlating
+   them with collisions would confirm or kill it directly, at no training
+   cost, and it is the one untested link in that section's explanation.
 2. **Faster movers** (0.8–1.5 m/s against a 0.6 m/s robot). The cheapest test
    of why frame stacking was inert: if anticipation ever pays, it pays here.
 3. **Explicit velocity features or recurrence.** Distinguishes "the

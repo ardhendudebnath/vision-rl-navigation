@@ -54,8 +54,11 @@ nothing.
    is wrong, the learned policy had looked statistically indistinguishable
    from the planner. Against Nav2 that holds with sparse movers and fails once
    clutter is added, where Nav2 is 0.150–0.170 ahead of every training seed.
-   Half of the parity was a property of the baseline, not of the policy —
-   found by deliberately re-testing the claim that most flattered the work.
+   A controlled subtraction then froze the movers in place — identical worlds,
+   still absent from the map, only the motion removed — and the classical
+   advantage returned in full (p = 0.031, 0/6 seeds). The parity was motion
+   degrading the planner, not the policy handling it. Both findings came from
+   deliberately re-testing the claim that most flattered the work.
 
 ## The part that matters most
 

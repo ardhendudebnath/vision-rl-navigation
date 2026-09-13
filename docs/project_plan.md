@@ -887,6 +887,64 @@ still failed, because it extrapolated across a change of mechanism the
 measurement never spanned. Measurement-derived predictions hold *within* the
 regime measured and revert to intuition outside it.
 
+## Phase 5c — The frozen-mover subtraction: the parity was the planner
+
+Phases 3g and 5b compared actors *within* a condition, which cannot say
+whether parity means the policy coped or the planner broke. So each dynamic
+condition was re-run with the movers parked at their t = 0 positions:
+identical worlds and seeds, movers still absent from the map, only the motion
+removed.
+
+| clutter | actor | frozen | moving | cost of motion |
+|---|---|---|---|---|
+| sparse | classical | 0.980 | 0.870 | -0.110 |
+| | Nav2 | 0.985 | 0.855 | -0.130 |
+| | learned (best) | 0.900 | 0.852 | **-0.048** |
+| dense | classical | 0.910 | 0.750 | -0.160 |
+| | Nav2 | 0.945 | 0.870 | -0.075 |
+| | learned (best) | 0.778 | 0.710 | **-0.068** |
+
+Frozen, the classical advantage returns in full and significantly: -0.080
+(sparse) and -0.132 (dense), 0 of 6 seeds above the baseline in both,
+p = 0.031, against -0.010 and -0.040 with the movers running. **The parity was
+the planner degrading, not the policy coping.** The learned policy is worse in
+both regimes; it just degrades less, because a policy that never commits to a
+path has nothing to invalidate when the world moves. Robustness by absence of
+commitment, which is consistent with frame stacking having been inert.
+
+### Two methodological notes
+
+**Freezing had to happen after generation.** Zeroing `dynamic_amplitude` in
+the world config looks equivalent and is not: mover placement validates the
+swept path, so a zero sweep accepts positions the moving config rejects and
+the worlds end up with different obstacles. The first attempt did exactly
+that, and the geometry-identity test written alongside it caught the extra
+mover immediately. The subtraction now asserts identical circles, boxes,
+start, goal, mover centres and `l*` per seed.
+
+**The baseline's replan interval was swept again, not inherited.** It moves
+the frozen numbers by ~0.15 (0.750 to 0.910 on dense, 0.840 to 0.980 on
+sparse between `replan=0` and `replan=10`). Assuming it would have understated
+the baseline in exactly the direction that flatters the learned side, which is
+the same trap Phase 3g documented.
+
+### It also corrected Phase 5b
+
+Phase 5b reasoned from `dynamic` collision rates that Nav2's `dynamic_dense`
+win must be clutter handling rather than motion handling. The subtraction says
+the opposite: Nav2 leads the hand-written planner by +0.035 frozen and +0.120
+moving, so most of that advantage appears only when things move. On sparse the
+same comparison is +0.005 and -0.015, nothing either way.
+
+A better local planner therefore buys motion robustness **only under clutter**.
+The leading explanation, consistent with every number here but not isolated:
+in open worlds there is room to route around a mover and replanning achieves
+that, so both classical stacks perform alike; in tight worlds the robot must
+dodge inside the corridor, and re-committing to a fresh global plan every
+second is actively harmful -- the churn pathology Phase 3g measured costing
+`narrow` 0.160. `dynamic_dense` forces the hand-written baseline into exactly
+that combination. Logging path changes per episode would confirm or kill it.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

@@ -30,7 +30,11 @@ from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 from rclpy.executors import SingleThreadedExecutor
 
 from nav2_bridge import CMD_VEL_TYPE, Nav2Bridge, yaw_to_quaternion
-from vision_nav.envs.splits import BENCHMARK_CONDITIONS, DYNAMIC_CONDITIONS
+from vision_nav.envs.splits import (
+    BENCHMARK_CONDITIONS,
+    DYNAMIC_CONDITIONS,
+    FROZEN_CONDITIONS,
+)
 from vision_nav.metrics import EpisodeResult, aggregate
 from vision_nav.training.env_factory import build_env_config
 
@@ -200,7 +204,9 @@ def main(argv=None) -> int:
     rclpy.init()
 
     split, shift, noise = CONDITIONS[args.condition]
-    overrides = {"lidar": {"noise_std": noise}} if noise else {}
+    overrides: dict = {"lidar": {"noise_std": noise}} if noise else {}
+    if args.condition in FROZEN_CONDITIONS:
+        overrides["freeze_dynamic"] = True
     env_config = build_env_config(overrides, split=split, shift=shift,
                                   n_worlds=args.episodes)
     seeds = list(env_config.world_seeds)

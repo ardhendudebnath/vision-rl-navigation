@@ -102,6 +102,12 @@ class NavEnvConfig:
     #: structurally does not have.
     frame_stack: int = 1
 
+    #: Park the moving obstacles at their starting positions. The controlled
+    #: subtraction of report Section 9.3: identical worlds to `dynamic_dense`,
+    #: movers still absent from the map so the map is just as wrong, and only
+    #: the motion removed. See FROZEN_CONDITIONS in envs.splits.
+    freeze_dynamic: bool = False
+
     #: Explicit pool of world seeds to draw episodes from.  Passing an
     #: explicit list is how train / val / test splits are kept disjoint; see
     #: :mod:`vision_nav.envs.splits`.
@@ -290,6 +296,13 @@ class ProceduralNavEnv(gym.Env):
 
         world_config = self.config.domain_randomization.sample(self.config.world, seed)
         world = generate_world(seed, world_config)
+        if self.config.freeze_dynamic and len(world.dynamic):
+            # Park every mover at the centre it already occupies at t = 0.
+            # Done after generation, not by zeroing dynamic_amplitude in the
+            # config: mover placement validates the swept path, so a zero
+            # sweep would accept positions the moving config rejects and the
+            # two worlds would differ in geometry, not just in motion.
+            world.dynamic[:, 5] = 0.0
         l_star = shortest_path_length(world, world.start[:2], world.goal)
         if l_star is None:  # generate_world guarantees reachability
             raise RuntimeError(f"world seed={seed} is unreachable after generation")

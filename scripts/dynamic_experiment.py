@@ -34,6 +34,7 @@ from pathlib import Path
 import numpy as np
 
 from vision_nav.agents.classical import PursuitConfig
+from vision_nav.envs.splits import FROZEN_CONDITIONS
 from vision_nav.training.actors import ClassicalActor, build_actor
 from vision_nav.training.env_factory import build_env_config
 from vision_nav.training.evaluate import evaluate
@@ -52,6 +53,13 @@ from vision_nav.training.run_spec import env_overrides_for_run
 CONDITIONS = {
     "dynamic": ("test_ood", "dynamic", 10),
     "dynamic_dense": ("test_ood", "dynamic_dense", 10),
+    #: The same worlds as `dynamic_dense` with the movers parked. Nav2 beats
+    #: the learned policy by 0.150-0.170 on `dynamic_dense` but only ties on
+    #: `dynamic`; this separates the clutter from the motion. The map stays
+    #: wrong -- frozen movers are still absent from it -- so the subtraction
+    #: removes motion and nothing else. See FROZEN_CONDITIONS in envs.splits.
+    "dynamic_frozen": ("test_ood", "dynamic", 10),
+    "dynamic_dense_frozen": ("test_ood", "dynamic_dense", 10),
     "narrow": ("test_ood", "narrow", 0),
     "nominal": ("test", None, 0),
 }
@@ -105,7 +113,11 @@ def main(argv=None) -> int:
         replan = args.replan_every if args.replan_every is not None else best_replan
         print(f"\n=== {cond} ({args.episodes} worlds) ===")
 
-        base = build_env_config({}, split=split, shift=shift, n_worlds=args.episodes)
+        # Freezing is an env-config flag, not a world shift, so it applies
+        # identically to every actor and leaves the world config comparable.
+        frozen = {"freeze_dynamic": True} if cond in FROZEN_CONDITIONS else {}
+        base = build_env_config(dict(frozen), split=split, shift=shift,
+                                n_worlds=args.episodes)
         cls_actor = ClassicalActor(PursuitConfig(replan_every=replan), robot=base.robot)
         cls_metrics, _ = evaluate(cls_actor, base)
         print(
@@ -120,9 +132,13 @@ def main(argv=None) -> int:
             succ, spl, coll = [], [], []
             for run in runs:
                 cfg = build_env_config(
-                    env_overrides_for_run(run), split=split, shift=shift, n_worlds=args.episodes
+                    {**env_overrides_for_run(run), **frozen},
+                    split=split, shift=shift, n_worlds=args.episodes,
                 )
                 assert cfg.world == base.world, "arms must share the same worlds"
+                assert cfg.freeze_dynamic == base.freeze_dynamic, (
+                    "arms must see the same movers as the baseline"
+                )
                 actor = build_actor(
                     "rl", model_path=str(run / "best_model.zip"), robot=cfg.robot
                 )

@@ -133,12 +133,19 @@ p = 0.625), while staying clearly worse where the map is right (−0.168,
 p = 0.031). Frame stacking, the one setup giving the policy information the
 planner structurally lacks, changed nothing (−0.008, p = 0.784).
 
-But that parity does not survive adding clutter to the movers. On
-`dynamic_dense`, real Nav2 is **0.150–0.170 ahead of the learned policy and
-above all six training seeds**, where the hand-written baseline had been only
-0.040 ahead. Half of the project's most RL-favourable claim was a property of
-its own baseline. Nav2 gets there by removing *clutter* collisions, not by
-handling movers — against movers it is no better than pure pursuit.
+Two follow-ups cut that claim down. It does not survive adding clutter to the
+movers: on `dynamic_dense`, real Nav2 is **0.150–0.170 ahead of the learned
+policy and above all six training seeds**, where the hand-written baseline had
+been only 0.040 ahead.
+
+And a controlled subtraction — the same worlds with the movers **parked**,
+still absent from the map, only the motion removed — shows the parity is the
+planner breaking rather than the policy coping. Frozen, the classical
+advantage returns in full (−0.080 and −0.132, both p = 0.031, 0/6 seeds).
+Motion costs the planner 0.110–0.160 and the learned policy only 0.048–0.068.
+The policy is behind in *both* regimes; it is just harder to disrupt, because
+one that never commits to a path has no plan to invalidate. Robustness by
+absence of commitment — not the competence the original framing implies.
 
 ### The part worth reading
 

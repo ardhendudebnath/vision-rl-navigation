@@ -179,3 +179,109 @@ def test_sign_test_is_symmetric():
     above = sign_test(np.array([0.7, 0.8, 0.9, 0.75, 0.85, 0.95]), 0.5)
     below = sign_test(np.array([0.3, 0.2, 0.1, 0.25, 0.15, 0.05]), 0.5)
     assert above[1] == pytest.approx(below[1])
+
+
+# ----------------------------------------------------------------------
+# Frozen movers: the controlled subtraction of report Section 9.3
+# ----------------------------------------------------------------------
+def _frozen_and_moving(seed):
+    dense = shifted_config(WorldConfig(), "dynamic_dense")
+    moving = ProceduralNavEnv(NavEnvConfig(world_seeds=[seed], world=dense))
+    frozen = ProceduralNavEnv(
+        NavEnvConfig(world_seeds=[seed], world=dense, freeze_dynamic=True)
+    )
+    moving.reset(options={"world_seed": seed})
+    frozen.reset(options={"world_seed": seed})
+    return moving, frozen
+
+
+@pytest.mark.parametrize("seed", [30000, 30001, 30017, 30099])
+def test_frozen_matches_dynamic_dense(seed):
+    """Freezing must remove motion and change nothing else.
+
+    Zeroing ``dynamic_amplitude`` in the world config looks equivalent and is
+    not: mover placement validates the swept path, so a zero sweep accepts
+    positions the moving config rejects and the worlds end up with different
+    obstacles. That would confound the subtraction with a geometry change, so
+    the freeze happens after generation and this asserts the geometry survives.
+    """
+    moving, frozen = _frozen_and_moving(seed)
+    m, f = moving.world, frozen.world
+
+    assert np.allclose(m.circles, f.circles)
+    assert np.allclose(m.boxes, f.boxes)
+    assert np.allclose(m.start, f.start)
+    assert np.allclose(m.goal, f.goal)
+    # Same movers, same places, same radii -- differing only in amplitude.
+    assert m.dynamic.shape == f.dynamic.shape
+    assert np.allclose(m.dynamic[:, :5], f.dynamic[:, :5])
+    assert np.allclose(f.dynamic[:, 5], 0.0)
+    assert np.all(m.dynamic[:, 5] > 0.0)
+    # The optimal path is measured on the static map, so l* must be unchanged
+    # -- otherwise SPL would not be comparable between the two conditions.
+    assert moving._shortest_path == pytest.approx(frozen._shortest_path)
+
+
+def test_frozen_movers_do_not_move_but_are_still_sensed():
+    moving, frozen = _frozen_and_moving(30000)
+
+    at_zero = frozen.world.sensed_circles.copy()
+    for _ in range(40):
+        frozen.step(np.array([0.0, 0.0]))
+    assert np.allclose(at_zero, frozen.world.sensed_circles)
+
+    before = moving.world.sensed_circles.copy()
+    for _ in range(40):
+        moving.step(np.array([0.0, 0.0]))
+    assert not np.allclose(before, moving.world.sensed_circles)
+
+    # Frozen movers are obstacles, not ghosts: still sensed, still absent from
+    # the map. The map has to stay wrong or the subtraction removes two things.
+    w = frozen.world
+    assert len(w.sensed_circles) == len(w.circles) + len(w.dynamic)
+    assert np.array_equal(
+        w.occupancy, w.occupancy_at(w.config.robot_radius, include_dynamic=False)
+    )
+
+
+def test_freeze_dynamic_is_off_by_default():
+    """Every earlier result must be unaffected."""
+    assert NavEnvConfig().freeze_dynamic is False
+
+
+def test_frozen_conditions_pair_with_their_moving_twins():
+    """A frozen condition must differ from its twin only by the freeze.
+
+    The subtraction compares `dynamic_dense_frozen` against `dynamic_dense`,
+    so if the two ever pointed at different splits or shifts the comparison
+    would silently stop being a subtraction. Two runners consume this table
+    (run_benchmark and the Nav2 bridge), which is exactly the drift this
+    project has been bitten by before.
+    """
+    from vision_nav.envs.splits import DYNAMIC_CONDITIONS, FROZEN_CONDITIONS
+
+    assert FROZEN_CONDITIONS <= set(DYNAMIC_CONDITIONS)
+    for name in FROZEN_CONDITIONS:
+        twin = name.removesuffix("_frozen")
+        assert twin in DYNAMIC_CONDITIONS, f"{name} has no moving twin"
+        assert DYNAMIC_CONDITIONS[name] == DYNAMIC_CONDITIONS[twin], (
+            f"{name} and {twin} must share split, shift and sensor noise"
+        )
+        assert twin not in FROZEN_CONDITIONS
+
+
+def test_frozen_flag_reaches_the_env_through_config():
+    """build_env_config must carry freeze_dynamic, not drop it silently."""
+    from vision_nav.envs.splits import DYNAMIC_CONDITIONS
+    from vision_nav.training.env_factory import build_env_config
+
+    split, shift, noise = DYNAMIC_CONDITIONS["dynamic_dense_frozen"]
+    frozen = build_env_config({"freeze_dynamic": True}, split=split, shift=shift,
+                              n_worlds=4)
+    moving = build_env_config({}, split=split, shift=shift, n_worlds=4)
+
+    assert frozen.freeze_dynamic is True
+    assert moving.freeze_dynamic is False
+    # Identical in every other respect, or it is not a subtraction.
+    assert frozen.world == moving.world
+    assert list(frozen.world_seeds) == list(moving.world_seeds)

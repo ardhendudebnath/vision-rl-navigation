@@ -23,6 +23,7 @@ __all__ = [
     "SHIFTS",
     "BENCHMARK_CONDITIONS",
     "DYNAMIC_CONDITIONS",
+    "FROZEN_CONDITIONS",
 ]
 
 #: The six evaluation conditions every actor is scored on, as
@@ -55,6 +56,10 @@ BENCHMARK_CONDITIONS: dict[str, tuple[str, str | None, float]] = {
 DYNAMIC_CONDITIONS: dict[str, tuple[str, str | None, float]] = {
     "dynamic": ("test_ood", "dynamic", 0.0),
     "dynamic_dense": ("test_ood", "dynamic_dense", 0.0),
+    # Same worlds, movers parked. Together these complete a 2x2 over
+    # clutter and motion. See FROZEN_CONDITIONS.
+    "dynamic_frozen": ("test_ood", "dynamic", 0.0),
+    "dynamic_dense_frozen": ("test_ood", "dynamic_dense", 0.0),
 }
 
 #: Disjoint seed bands, ``(low, high)`` half-open.
@@ -98,6 +103,24 @@ SHIFTS: dict[str, dict] = {
     #: Dynamic obstacles on top of clutter: both pressures at once.
     "dynamic_dense": {"n_circles": (10, 16), "n_boxes": (4, 8), "n_dynamic": (3, 6)},
 }
+
+#: Conditions whose movers are frozen in place after the world is generated.
+#:
+#: The controlled subtraction for report Section 9.3, which isolates whether
+#: Nav2's advantage on `dynamic_dense` is the clutter or an interaction between
+#: clutter and motion.
+#:
+#: Freezing is deliberately NOT a shift. Setting ``dynamic_amplitude`` to
+#: ``(0, 0)`` in the world config looks equivalent and is not: mover placement
+#: validates the swept path, so a zero sweep accepts positions the moving
+#: config rejects, and the two worlds end up with different obstacles. That
+#: would confound the subtraction with a geometry change. Instead the world is
+#: generated exactly as `dynamic_dense` and the amplitudes are zeroed
+#: afterwards, pinning each mover at the centre it already occupies at t = 0.
+#: ``test_frozen_matches_dynamic_dense`` asserts the geometry is identical.
+FROZEN_CONDITIONS: frozenset[str] = frozenset(
+    {"dynamic_frozen", "dynamic_dense_frozen"}
+)
 
 
 def shifted_config(base: WorldConfig, shift: str) -> WorldConfig:
