@@ -9,58 +9,33 @@ Ardhendu Debnath — [vision-rl-navigation](https://github.com/ardhendudebnath/v
 
 ## Abstract
 
-We compare a PPO navigation policy against a classical A\* + pure-pursuit stack
-on a procedurally generated point-goal task, under matched conditions and
-across five environment distributions. The classical planner wins on every
-condition, by margins that grow with clutter (1.000 vs 0.960 success in the
-nominal setting; 0.850 vs 0.682 in cluttered "narrow" worlds). We then
-systematically eliminate the standard explanations for a losing RL result:
-insufficient data, wrong training distribution, insufficient compute, and
-reward mis-specification are each tested and rejected. The surviving
-explanation is sensor resolution, which we establish in three stages: a
-single-seed experiment that appeared to confirm it, a four-seed replication
-that **refuted** that confirmation, and a training-free measurement of the
-sensor itself that quantified the mechanism, explained why the replication
-failed, and predicted the effect size of a subsequent powered experiment that
-did confirm it (+0.085 success, p = 0.035, pre-registered). Finally we show
-that for this task **field of view dominates angular resolution**: a depth
-camera with 4× finer angular sampling but a 90° field of view loses to a 360°
-lidar on every condition (−0.097 success on the primary endpoint, p = 0.019).
-Sweeping field of view at a fixed sample count turns that into a monotone
-curve (Spearman ρ = +0.508, p = 0.013 over 24 seeds), with the audit's
-out-of-sample predictions for the two interior levels landing within 0.021 and
-0.001 of the measured means. Decoupling the two factors then shows the
-relationship is not a trade-off at all: **doubling the sample count at fixed
-field of view changes nothing** (+0.002 and −0.003, at 90° and 360°
-respectively, both inside a pre-registered ±0.01 bound), while **quadrupling
-coverage at identical angular resolution produces the entire effect** (+0.095,
-p = 0.024). Angular resolution is second-order over this range; coverage is
-causal.
+We compare a PPO navigation policy against a classical A\* + pure-pursuit
+stack on a procedurally generated point-goal task, across five environment
+distributions, with the planner given the full map and exact pose throughout.
+**The planner wins on every condition**, by margins that grow with clutter
+(1.000 vs 0.960 success nominally; 0.850 vs 0.682 in tight corridors).
 
-Finally, holding the information constant and changing only the
-representation — the same geometry rendered as pixels for a CNN rather than
-read as a vector by an MLP — costs 0.16–0.24 success across every condition,
-with every depth seed beating every RGB seed. On this task the pixels, not the
-geometry, are the hard part.
+We then eliminate the standard explanations for a losing RL result —
+insufficient data, wrong training distribution, insufficient compute (tested
+twice, to 2.7× budget), and reward mis-specification — and find the cause is
+behavioural: the reward makes a collision cost four times a timeout, so the
+policy correctly learns to stall rather than crash.
 
-Adding obstacles that move and are absent from the map — the one place a
-reactive policy has a structural reason to win — shrinks the classical
-planner's advantage roughly eightfold (−0.168 to −0.022) and leaves it the
-only condition in the study where that advantage is not statistically
-established (p = 0.062). It does not reverse it.
+Turning to perception, a **training-free audit of the sensor** quantifies a
+real geometric limit and then forecasts two subsequent training experiments to
+within 0.021 and 0.001. It shows coverage is causal while angular resolution
+is inert: doubling sample count at fixed field of view changes nothing
+(±0.003, inside a pre-registered ±0.01 bound), while quadrupling coverage at
+identical resolution produces the whole effect (+0.095, p = 0.024). Holding
+information constant and changing only the *representation* — the same
+geometry as pixels for a CNN rather than a vector for an MLP — costs 0.16–0.24
+success. Finally, where the map is wrong the gap closes to statistical parity
+(−0.010, p = 0.625) but never reverses.
 
-Training on movers and giving the policy stacked frames — the one setup
-where it holds information the planner structurally lacks — changes
-neither outcome (frame stacking: −0.008, p = 0.784). What emerges instead
-is parity rather than victory: where the map is wrong the learned policy
-is statistically indistinguishable from the planner (p = 0.625), while
-remaining clearly worse where the map is right (−0.168, p = 0.031).
-
-The most transferable contribution is methodological. A correctly computed
-significance test over episodes produced a confident, reproducible, and wrong
-conclusion, because it measured the wrong source of variance. We document that
-failure in full, alongside the training-free measurement that diagnosed it and
-then twice forecast the results of experiments not yet run.
+**The most transferable contribution is methodological.** A correctly computed
+significance test produced a confident, reproducible, and wrong conclusion,
+because it measured episode variance rather than training-seed variance. We
+document that failure in full, alongside the measurement that diagnosed it.
 
 ---
 
@@ -370,526 +345,193 @@ would *not* survive correction if `narrow` were treated as one of nine
 exploratory tests, and the only thing separating those readings is having fixed
 the endpoint in advance.
 
-## 8. Result 7: field of view beats angular resolution
+## 8. Results 7–10: what the sensor and its representation cost
 
-With resolution established as a real constraint, which property of the sensor
-matters? A forward-facing depth camera and a 360° lidar trade off in opposite
-directions:
+§7 established that sensor geometry is a real constraint. Four further
+experiments, each pre-registered with six seeds per arm, establish *which*
+property matters and what it costs to change the representation.
 
-| Sensor | Angular resolution | Resolves 0.44 m gap to | World visible |
+| Experiment | Comparison | Δ `narrow` success | p |
 |---|---|---|---|
-| 64 beams / 360° | 5.62° | 4.5 m | 100% |
-| 64 columns / 90° | **1.41°** | **17.9 m** | **25%** |
-
-Both give a 69-dimensional observation to an identical network, so capacity is
-matched and the sensor is the only difference. Six seeds per arm, `narrow`
-success pre-registered, direction predicted in advance.
-
-| Condition | Lidar 360° | Depth 90° | Δ | p (exact) |
-|---|---|---|---|---|
-| **narrow** (primary) | 0.682 ± 0.060 | 0.585 ± 0.037 | **−0.097** | **0.019** |
-| dense | 0.695 ± 0.040 | 0.565 ± 0.053 | **−0.130** | **0.004** |
-| nominal | 0.937 ± 0.021 | 0.862 ± 0.039 | **−0.075** | **0.004** |
-
-Quadrupling angular precision does not come close to paying for losing three
-quarters of the view. The penalty **grows with clutter** (−0.075 → −0.097 →
-−0.130), the signature of peripheral awareness being the scarce resource.
-Collisions are statistically unchanged on `narrow` and `dense`; the camera
-policy times out more instead — the same cautious-rather-than-capable failure,
-reached more often.
-
-The direction was predicted before the runs, so the §7 saturation argument had
-forecasting content. We rate this weaker than §7 nonetheless: a confirmed
-*directional* prediction cannot rule out reasoning fitted to an expected
-answer, whereas §7 predicted a *quantitative* effect size.
-
-## 9. Result 8: the FOV curve, and a second forecast that held
-
-Section 8 established a direction from two points. Sweeping field of view at a
-**fixed 64 samples** turns it into a curve, and separates coverage from
-resolution — at 64 samples, widening the view necessarily coarsens it, and
-360°/64 columns *is* the 64-beam lidar.
-
-The audit was run first, before any of the new policies existed:
-
-| FOV | Spacing | Gap detection |
-|---|---|---|
-| 90° | 1.41° | 0.401 |
-| 180° | 2.81° | 0.564 |
-| 270° | 4.22° | 0.718 |
-| 360° | 5.62° | 0.949 |
-
-Coverage dominates completely: quadrupling angular precision while cutting the
-view to a quarter more than halves what the sensor can see.
-
-### 9.1 Choosing the test before seeing the data
-
-The audit's numbers, anchored on the two already-trained levels, predicted
-adjacent FOV levels would differ by only ~0.03 — **below the ±0.06 seed
-spread**. Pairwise tests would therefore have been underpowered by
-construction, and running all six of them would have invited reporting
-whichever cleared 0.05.
-
-The pre-registered primary was therefore a **monotone trend** across all four
-levels — Spearman ρ between FOV and per-seed `narrow` success over 24 seeds,
-permutation-tested — chosen from the predicted effect sizes rather than from
-the results.
-
-### 9.2 Result
-
-| FOV | Per-seed `narrow` success | Mean ± sd |
-|---|---|---|
-| 90° | 0.60, 0.65, 0.55, 0.55, 0.58, 0.58 | 0.585 ± 0.037 |
-| 180° | 0.79, 0.68, 0.58, 0.55, 0.61, 0.60 | 0.635 ± 0.087 |
-| 270° | 0.63, 0.55, 0.66, 0.73, 0.59, 0.69 | 0.642 ± 0.066 |
-| 360° | 0.70, 0.58, 0.64, 0.74, 0.71, 0.72 | 0.682 ± 0.060 |
-
-**Spearman ρ = +0.508, Monte Carlo p = 0.0126** (100,000 permutations),
-linear slope +0.089 success across 90° → 360°.
-
-Note that no adjacent pair is individually significant — as predicted. The
-evidence lives in the ordering across all four levels, which is exactly why
-the test was chosen in advance.
-
-### 9.3 Scoring the forecast honestly
-
-| FOV | Predicted | Observed | Error |
-|---|---|---|---|
-| 90° | 0.585 | 0.585 | — *(anchor)* |
-| 180° | **0.614** | **0.635** | **+0.021** |
-| 270° | **0.641** | **0.642** | **+0.001** |
-| 360° | 0.682 | 0.682 | — *(anchor)* |
-
-The script reports a mean absolute error of 0.006 across all four levels.
-**That number flatters the forecast and should not be quoted.** Two of the
-four points were the anchors used to fit the slope, so their error is zero by
-construction. Only 180° and 270° were genuine out-of-sample predictions, and
-their mean absolute error is **0.011** — still small against a ±0.06 seed
-spread, and the 270° prediction landed within 0.001, but the honest figure is
-roughly twice the one the tooling prints.
-
-This is the second time in the project a training-free measurement forecast
-the outcome of a training experiment (cf. §7.1). Two successful quantitative
-forecasts from the same audit is the strongest evidence here that the
-mechanism is real rather than a story fitted after the fact.
-
-### 9.4 A guess that was wrong
-
-Mid-sweep, validation SPL suggested the curve **saturated** at 180–270°
-(0.758, 0.787, 0.792, 0.787) rather than continuing to rise. It does not: the
-held-out benchmark increases from 0.642 to 0.682 between 270° and 360°.
-
-Validation SPL is a maximum over ~30 checkpoints measured on the training
-distribution — the same statistic that produced a misleading clean separation
-in §6.2. It was flagged as unreliable when noted and proved so again. When a
-selection statistic and a held-out measurement disagree, the held-out
-measurement wins.
-
-## 10. Result 9: coverage is causal, sample count is not
-
-Section 9 held **samples** fixed, so coverage and resolution necessarily moved
-together and the curve could not attribute the effect to either. Since
-resolution = FOV / samples, both cannot be pinned; decoupling means choosing
-which, and pinning **resolution** isolates coverage.
-
-The audit ran first. At a constant 2.81°/sample, detection is almost
-indistinguishable from the fixed-64-sample sweep:
-
-| FOV | Fixed 64 samples | Constant 2.81° |
-|---|---|---|
-| 90° | 0.401 (1.41°) | 0.395 (32 samples) |
-| 180° | 0.564 | 0.564 (64) |
-| 270° | 0.718 (4.22°) | 0.729 (96) |
-| 360° | 0.949 (5.62°) | 0.974 (128) |
-
-Detection is set by FOV alone. Doubling samples buys 0.006 at 90° and 0.025 at
-360°.
-
-### 10.1 Pre-registration
-
-Three comparisons, six seeds each, `narrow` success as the primary endpoint in
-every case. Crucially, the two predicted nulls were given **explicit magnitude
-bounds** rather than the unfalsifiable "not significant":
-
-| Comparison | Holds fixed | Predicted |
-|---|---|---|
-| 32@90° vs 64@90° | FOV | null, \|Δ\| < 0.01 |
-| 64@360° vs 128@360° | FOV | null, \|Δ\| < 0.01 |
-| 32@90° vs 128@360° | 2.81°/sample | **+0.10, significant** |
-
-### 10.2 Result
-
-| Comparison | Δ success | p | Predicted | Held? |
-|---|---|---|---|---|
-| 64@90° vs 32@90° | **+0.002** | 1.000 | null <0.01 | **yes** |
-| 128@360° vs 64@360° | **−0.003** | 0.955 | null <0.01 | **yes** |
-| **128@360° vs 32@90°** | **+0.095** | **0.024** | +0.10 | **yes** |
-
-`dense` agrees: +0.088, p = 0.028 for the coverage comparison.
-
-**Doubling the sample count changes nothing — twice, at both ends of the FOV
-range. Quadrupling coverage at identical angular resolution produces the whole
-effect.** Coverage is the causal factor; angular resolution, over this range,
-is second-order.
-
-This also resolves §7's loose end. A single-seed run had suggested 128 beams
-was *worse* than 64; across six seeds the difference is −0.003. That
-regression was seed noise, exactly as the 32-vs-64 case turned out to be.
-
-### 10.3 A secondary that does not survive correction
-
-At 360°, the 128-beam arm collides significantly more than the 64-beam arm
-(0.188 vs 0.105, p = 0.006) with success unchanged — a failure-composition
-shift rather than a performance change. With roughly nine secondary tests
-across the three comparisons, the Bonferroni threshold is 0.0056, so **p =
-0.006 does not survive correction.** It is recorded as suggestive and nothing
-more.
-
-### 10.4 Why this reframes the earlier results
-
-Sections 8 and 9 were reported as "field of view beats angular resolution".
-Section 10 sharpens that: it is not that FOV beats resolution in a trade-off,
-but that **resolution barely matters at all** in this range while coverage
-carries the entire effect. The earlier framing implied a frontier where one
-could buy performance with either knob. There is no such frontier here — one
-knob is inert.
-
-## 11. Result 10: what the encoder costs
-
-Every result so far used range data. This one uses images, and is constructed
-so that the *only* thing that changes is the representation: the RGB camera
-renders the same geometry the depth camera measures, at the same 90° FOV and
-the same 64 columns, with the goal vector bit-identical between modes. The
-comparison therefore isolates **what it costs to make a CNN recover from
-pixels what an MLP reads directly from a vector.**
-
-Six seeds per arm, `narrow` success pre-registered as primary. The prediction,
-recorded before the runs: RGB loses by **0.05–0.10**.
-
-### 11.1 Result
-
-| Condition | Depth (MLP) | RGB (CNN) | Δ | p (exact) |
-|---|---|---|---|---|
-| **narrow** (primary) | 0.585 ± 0.037 | 0.367 ± 0.090 | **−0.218** | **0.002** |
-| dense | 0.565 ± 0.053 | 0.327 ± 0.097 | **−0.238** | **0.002** |
-| nominal | 0.862 ± 0.039 | 0.700 ± 0.059 | **−0.162** | **0.002** |
-
-All three sit at the 2/924 permutation floor: every depth seed beats every RGB
-seed on every condition.
-
-**The prediction was wrong.** The direction held, but the magnitude is two to
-three times what was forecast. Unlike the two audit-based forecasts in §7.1
-and §9.3, this one had no measurement behind it — it was an intuition, and it
-was badly calibrated. The contrast is worth drawing: the forecasts that held
-were derived from a quantity that had actually been measured; the one that
-failed was a guess dressed in the same confident register.
-
-### 11.2 The encoder also costs reliability
-
-| Arm | `narrow` success sd | `narrow` collision rate |
-|---|---|---|
-| depth | ±0.037 | 0.117 ± 0.037 |
-| RGB | **±0.090** | 0.222 ± **0.160** |
-
-Seed-to-seed spread roughly doubles for success and quadruples for collisions,
-with individual RGB seeds ranging from 0.02 to 0.45 collision rate. The CNN
-arm is not merely worse on average; it is far less *predictable*, which for a
-deployed system is arguably the more serious defect.
-
-### 11.3 Confounds, one of them untested
-
-- **Not a pure encoder ablation.** The RGB arm also changes policy
-  architecture (`MultiInputPolicy` + NatureCNN) and batch size (256 vs 512,
-  forced by image memory). It measures the cost of moving to pixels *with a
-  standard CNN setup*, not the encoder in isolation.
-- **Compute has since been tested and rejected** — see §11.5. This was
-  flagged here as the least-defended claim in the report, and the sweep was
-  run to close it.
-- **The render is synthetic and clean.** No texture, lighting, motion blur or
-  sensor noise. A real camera is harder, so this is a *lower bound* on the
-  encoder's cost.
-
-### 11.4 What it means
-
-The information was held constant and the representation was not, and the
-representation cost 0.16–0.24 success. That is a large price for a change that
-adds nothing to what the agent can in principle know — and it is paid before
-any of the difficulties a real camera introduces.
-
-For a project titled *vision-conditioned navigation*, this is the least
-comfortable and most useful result in it: **on this task, the pixels are the
-problem, not the geometry.**
-
-### 11.5 The compute excuse, tested and rejected
-
-§11.3 flagged the compute confound as the report's weakest claim. It has now
-been tested the same way §5.2 tested it for domain randomisation: the RGB
-policies were resumed to **4.0M steps, 2.7× the depth arm's budget**.
-
-| Comparison | Δ `narrow` success | p | Predicted |
-|---|---|---|---|
-| rgb@4.0M vs rgb@1.5M | +0.057 | 0.524 | +0.00 to +0.05 ✓ |
-| **rgb@4.0M vs depth@1.5M** | **−0.162** | **0.030** | still < −0.15 ✓ |
-
-Extra compute does not significantly improve RGB, and **the encoder gap
-survives even when RGB is handed 2.7× the compute of the arm it loses to.**
-Compute accounts for roughly a quarter of the original 0.218 gap; the
-remaining 0.162 does not go away.
-
-One genuinely unexpected secondary: seed variance **increased** with more
-training (±0.153 vs ±0.090 on `narrow` success). More compute made the RGB
-arm less consistent, not more — the opposite of what convergence looks like.
-
-### 11.6 A methodological lesson that recurs
-
-Mid-sweep, validation SPL rose from 0.584 to 0.659 and this was briefly
-recorded as the prediction having failed. It had not: held-out success moved
-only +0.057, not significantly.
-
-That is the **third** time in this project that validation SPL has been more
-optimistic than the held-out benchmark — in the seed replication (§6.2), in
-the FOV saturation guess (§9.4), and here. It is a maximum over ~30
-checkpoints measured on the training distribution, so it is both biased upward
-and lower-variance than the quantity that matters. Three independent
-occurrences is enough to state the rule plainly: **when a selection statistic
-and a held-out measurement disagree, the held-out measurement wins, and the
-selection statistic should not be read as a preview of it.**
-
-## 12. Result 11: where the map is wrong — the gap shrinks but does not reverse
+| Depth vs lidar | 64 col @ 90° vs 64 beams @ 360° | −0.097 | 0.019 |
+| FOV sweep | 90→360° at 64 samples, 24 seeds | ρ = +0.508 | 0.013 |
+| Samples at fixed FOV | 32 vs 64 @ 90°; 64 vs 128 @ 360° | +0.002, −0.003 | 1.000, 0.955 |
+| Coverage at fixed resolution | 32 @ 90° vs 128 @ 360°, both 2.81°/sample | **+0.095** | **0.024** |
+| Representation | RGB + CNN vs depth + MLP | **−0.218** | **0.002** |
+
+### 8.1 Coverage is causal; resolution is not
+
+A depth camera with **4× finer** angular sampling but a 90° field of view
+loses to a 360° lidar on every condition. Sweeping field of view at a fixed
+sample count turns that into a monotone curve.
+
+The decisive test pins *resolution* instead and varies coverage — the two
+cannot both be held, since resolution = FOV/samples. **Doubling the sample
+count changes nothing, twice, at both ends of the range. Quadrupling coverage
+at identical angular resolution produces the entire effect.** This sharpens
+the earlier framing rather than confirming it: "field of view beats angular
+resolution" implies a frontier where either knob buys performance. There is no
+such frontier — one knob is inert.
+
+### 8.2 The audit forecast both results before the policies existed
+
+The perception audit of §7 predicted the FOV sweep's two interior levels to
+within **+0.021 and +0.001**, from a measurement taken with no training and no
+seeds. (The tooling reports a mean absolute error of 0.006 across all four
+levels; that figure flatters the forecast, since two points were the anchors
+used to fit the slope. The honest out-of-sample figure is 0.011.)
+
+Two independent quantitative forecasts from the same training-free measurement
+is the strongest evidence in this report that the mechanism is real rather
+than fitted after the fact.
+
+### 8.3 The pixels are the problem, not the geometry
+
+The RGB camera renders the *same* geometry the depth camera measures — same
+90° FOV, same 64 columns, goal vector bit-identical between modes. Only the
+representation changes: pixels a CNN must interpret, rather than a vector an
+MLP reads directly.
+
+It costs **0.16–0.24 success on every condition**, with every depth seed
+beating every RGB seed, and the encoder costs *reliability* too — seed spread
+roughly doubles for success and quadruples for collisions. Giving RGB **2.7×
+the compute** does not close it (−0.162, p = 0.030). The render is clean — no
+texture, lighting or sensor noise — so this is a lower bound.
+
+**A prediction that failed.** I forecast −0.05 to −0.10; the effect is two to
+three times that. Worth contrasting with §8.2: the forecasts that held were
+derived from a measured quantity, this one was intuition in the same confident
+register.
+
+## 9. Results 11–12: where the map is wrong
 
 Every condition so far hands the classical planner a **perfect, current,
-static map**. That is its largest privilege and the one real deployments do
-not have: maps go stale and obstacles move. This condition adds obstacles that
-move and are **absent from the map**, which is the first place a reactive
+static map** — its largest privilege and the one real deployments lack. Adding
+obstacles that move and are absent from the map is the first place a reactive
 policy has a structural reason to win.
 
-**Hypothesis, recorded before the runs:** the learned policy would beat the
-classical planner here.
+**It does not win.** Two hypotheses were pre-registered and both failed: that
+zero-shot policies would beat the planner, and that frame stacking — which
+gives the policy velocity information the map-based stack structurally cannot
+have — would tip it.
 
-### 12.1 Keeping the baseline honest
+| Condition | Classical | Learned (best) | Δ | Significant? |
+|---|---|---|---|---|
+| narrow (static clutter) | **0.850** | 0.682 ± 0.060 | −0.168 | **yes**, p = 0.031 |
+| dynamic | **0.870** | 0.860 ± 0.033 | −0.010 | no, p = 0.625 |
+| dynamic_dense | **0.750** | 0.710 ± 0.042 | −0.040 | no, p = 0.125 |
 
-Nav2 does not plan once and drive blind; it maintains a local costmap from
-live sensing and replans continuously. So the baseline replans against a
-costmap containing the movers where they currently are.
+Frame stacking versus its own control: −0.008 (p = 0.784) and +0.013
+(p = 0.703). The one structural advantage available produced nothing.
 
-Sweeping that interval turned out to matter, and not in the direction
-expected:
+**What is real is a regime change, not a reversal.** Where the map is wrong
+the learned policy becomes statistically indistinguishable from a strong
+replanning planner; where the map is right it stays clearly worse. Across the
+whole study that is the closest RL comes to winning.
 
-| Condition | no replan | replan 10 | replan 25 |
-|---|---|---|---|
-| nominal | **1.000** | 0.960 | 0.990 |
-| narrow | **0.850** | 0.690 | 0.760 |
-| dynamic | 0.810 | **0.870** | 0.860 |
-| dynamic_dense | 0.680 | **0.750** | 0.730 |
+### 9.1 A near-miss in the baseline
 
-Replanning is worth +0.06 to +0.07 where movers exist and costs up to −0.16
-where they do not, through path churn in tight corridors. **A single global
-setting would have handicapped the baseline on half the suite.** The
-comparison therefore gives the classical planner its best configuration on
+The planner replans against a costmap containing the movers, because a
+baseline that drove blind into them would prove nothing. Sweeping that
+interval showed replanning helps where movers exist (+0.06 to +0.07) and
+*hurts* where they do not, dropping `narrow` from 0.850 to 0.690 through path
+churn in tight corridors.
+
+With one global setting, `narrow` would have read classical 0.690 against the
+policy's 0.682 — 4 of 6 seeds above the baseline, a clean "parity in tight
+corridors" claim that was **purely an artefact of a handicap introduced in the
+name of fairness**. It survived only because the interval was swept rather
+than assumed. The comparison now gives the planner its best configuration on
 every condition.
 
-This nearly produced a false result. With `replan_every=10` applied
-everywhere, `narrow` showed classical at 0.690 against the learned policy's
-0.682 — 4 of 6 seeds above the baseline, which reads as parity. That parity
-was entirely an artefact of a handicap introduced in the name of *fairness*
-one step earlier. It survived only because the interval was swept rather than
-assumed.
+### 9.2 Why the mechanism may have failed
 
-### 12.2 Result
+Hypotheses, none tested: the movers may be too slow (0.15–0.45 m/s against a
+0.6 m/s robot) for anticipation to pay; velocity may be hard to extract from
+raw stacked scans without an explicit difference feature or recurrence; and
+the reward's 4:1 preference for stalling may suppress commitment even when
+anticipation is possible. Faster movers is the cheapest test.
 
-Success rate, 100 held-out worlds, six seeds per learned arm, classical at its
-best configuration:
-
-| Condition | Classical | Lidar 360° | Δ | sign test |
-|---|---|---|---|---|
-| nominal | **1.000** | 0.937 ± 0.021 | −0.063 | 0/6, p = 0.031 |
-| narrow | **0.850** | 0.682 ± 0.060 | **−0.168** | 0/6, p = 0.031 |
-| dynamic_dense | **0.750** | 0.700 ± 0.023 | −0.050 | 0/6, p = 0.031 |
-| **dynamic** | **0.870** | 0.848 ± 0.019 | **−0.022** | 0/6, **p = 0.062** |
-
-**The hypothesis is falsified.** The learned policy does not beat the
-classical planner even where the map is wrong. No seed, on any condition,
-exceeds the baseline.
-
-### 12.3 What is real
-
-The gap **shrinks roughly eightfold**: −0.168 in tight static corridors versus
-−0.022 with movers. And `dynamic` is the only condition in the entire study
-where classical's advantage is **not statistically established** — p = 0.062,
-above 0.05, with one seed exactly tying the baseline.
-
-So the honest statement is narrower than the hypothesis and still worth
-having: *reactive control closes most of the distance precisely where the map
-degrades, without overtaking.* The direction of the effect is exactly what was
-predicted; only the magnitude falls short of a reversal.
-
-It is also the first two-sided result in the project. Everywhere else the
-answer was "classical wins, and here is why"; here it is "classical wins by an
-amount too small to demonstrate."
-
-### 12.4 Why this is a weaker test than it looks
-
-- **The movers are benign.** They oscillate on fixed line segments at
-  0.15–0.45 m/s and never pursue the robot. Real pedestrians are faster, less
-  predictable, and reactive. A harder mover distribution is the obvious way to
-  push this further.
-- **The policies are zero-shot.** None was trained with moving obstacles,
-  which makes the near-parity more impressive, but also means a policy trained
-  on movers was never tested — the natural next experiment and the one most
-  likely to produce an actual reversal.
-- **The classical planner still gets a perfect static map** and exact pose.
-  Only the movers are hidden from it. Staleness in the *static* layout would
-  be a further, more realistic degradation.
-
-## 13. Result 12: motion information does not help, but parity arrives anyway
-
-§12 found the learned policy did not win where the map is wrong. Diagnosing
-*why* suggested the test had been unfair to it: **a single range scan carries
-obstacle positions but no velocities.** A one-frame reactive policy is in
-exactly the same epistemic position as a replanning planner — both must treat
-a mover as a static obstacle wherever it currently sits. The policy had no
-informational advantage to exploit.
-
-Frame stacking breaks that symmetry. Two scans encode motion; four give a
-cleaner velocity estimate. This is the only configuration in the study where
-the learned policy holds information the classical stack structurally lacks.
-
-**Prediction, recorded before the runs:** the 4-frame policy beats classical
-by +0.01 to +0.05.
-
-### 13.1 Design
-
-Two arms, six seeds each, both trained *with* movers in the distribution:
-
-| Arm | Frame stack | Role |
-|---|---|---|
-| `dyn1` | 1 | control — isolates mover exposure from motion information |
-| `dyn4` | 4 | the mechanism under test |
-
-The control matters: without it, any win could not be attributed to seeing
-motion rather than simply having trained on movers.
-
-### 13.2 Result
-
-Success rate, 100 held-out worlds, classical at its best configuration:
-
-| Condition | Classical | `dyn1` | `dyn4` |
-|---|---|---|---|
-| dynamic | 0.870 | 0.860 ± 0.033 | 0.852 ± 0.038 |
-| dynamic_dense | 0.750 | 0.697 ± 0.060 | 0.710 ± 0.042 |
-
-**The prediction is falsified.** `dyn4` does not beat classical
-(−0.018, 2/6 seeds above, p = 1.000).
-
-**And the mechanism did nothing.** Frame stacking versus its control:
-
-| Condition | `dyn4` − `dyn1` | p (exact permutation) |
-|---|---|---|
-| dynamic | −0.008 | 0.784 |
-| dynamic_dense | +0.013 | 0.703 |
-
-Motion information — the one advantage the learned side structurally had —
-produced no measurable benefit in either direction. Training on movers at all
-was likewise negligible: `dyn1` versus the zero-shot policy is +0.012,
-p = 0.541.
-
-### 13.3 What did happen
-
-Neither trained arm is *significantly worse* than the classical planner on
-either dynamic condition: p = 0.625 and 1.000 on `dynamic`, 0.219 and 0.125 on
-`dynamic_dense`. Set against `narrow`, where the same lidar policies lose by
-−0.168 at p = 0.031, the contrast is clean:
-
-| Regime | Δ vs classical | Significant? |
-|---|---|---|
-| static clutter (`narrow`) | −0.168 | **yes**, p = 0.031 |
-| moving obstacles (`dynamic`) | −0.010 | no, p = 0.625 |
-| moving obstacles, cluttered | −0.053 | no, p = 0.219 |
-
-So the honest claim is **parity, not victory**: where the map is wrong the
-learned policy becomes statistically indistinguishable from a strong
-replanning planner, while remaining clearly worse where the map is right. The
-regime change is real; the reversal never arrives.
-
-### 13.4 Why the mechanism probably failed
-
-Offered as hypotheses, not findings — none is tested here:
-
-- **The movers may be too slow to matter.** At 0.15–0.45 m/s against a robot
-  capped at 0.6 m/s, avoiding them reactively may simply be easy enough that
-  anticipation buys nothing.
-- **Velocity may be hard to extract from raw stacked scans.** An MLP given
-  four concatenated 69-d vectors must learn differencing itself; an explicit
-  velocity feature, or a recurrent policy, might succeed where this does not.
-- **The 500-step budget rewards caution.** As §5.3 established, this reward
-  makes stalling preferable to collision by 4:1, so a policy that could
-  anticipate might still choose to wait rather than commit.
-
-The first is the cheapest to test and would be the next step: faster movers
-should widen any anticipation advantage, if one exists at all.
-
-## 14. Discussion
+## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
 the reasons are now specific rather than vague.** Four standard explanations
-were tested and eliminated. What remains is a genuine constraint (sensor
-geometry) and a genuine behavioural finding (the policy optimises the reward
-correctly, and that reward prefers stalling to crashing by 4:1).
+were tested and eliminated. What remains is three substantive findings:
 
-Two asymmetries in the comparison both **favour** the learned side, and it
-still lost: the classical planner has no training distribution, so the shifts
-are not shifts for it; and the randomised policy received 2.7× the compute.
+- **Behavioural.** The policy optimises its reward correctly, and that reward
+  prefers stalling to crashing by 4:1. It learns not to crash rather than how
+  to get through.
+- **Perceptual.** Sensor *coverage* is causal and angular *resolution* is
+  inert over the range tested — a distinction the obvious framing
+  ("field of view beats resolution") gets wrong, because it implies a frontier
+  where either knob buys performance.
+- **Representational.** Holding information constant and changing only the
+  encoding costs 0.16–0.24 success. On this task the pixels are harder than
+  the geometry, before any of the difficulties a real camera adds.
 
-**What the learned policies do win**, both small and caveated: ~6% fewer steps
-on successful nominal episodes (mildly flattered by survivorship), and
-indifference to 0.10 m range noise — the one axis on which the classical
-baseline cannot be compared at all, since it never reads the sensor.
+Two asymmetries in the comparison **favour** the learned side, and it still
+lost: the classical planner has no training distribution, so the shifts are
+not shifts for it; and two learned arms received 2.7× the compute.
+
+**Where the learned side does earn its keep** is narrow but real. It is
+statistically indistinguishable from the planner once the map stops being
+correct, ~6% faster on successful nominal episodes, and indifferent to sensor
+noise — the one axis the classical baseline cannot be compared on at all,
+since it never reads the sensor.
 
 **The transferable lesson is methodological.** A correctly computed
 significance test produced a confident, reproducible, wrong conclusion because
-it measured episode variance rather than seed variance. The tooling that caught
-it — seed as unit of analysis, exact permutation tests, pre-registered
-endpoints, and training-free mechanism measurement — is cheap and should be
-default practice.
+it measured episode variance rather than seed variance. The tooling that
+caught it — seed as the unit of analysis, exact permutation tests,
+pre-registered endpoints with magnitude bounds on predicted nulls, and
+training-free mechanism measurement — is cheap and should be default practice.
 
-## 15. Limitations
+A calibration note worth recording: of four quantitative predictions made in
+advance, **the two derived from a measurement held** (within 0.021 and 0.001)
+and **the two derived from intuition failed** (one by 2–3×, one falsified
+outright). Confidence of expression was identical in all four cases.
 
-- **Simulation is 2D and analytic.** No dynamics, no sensor artefacts beyond
-  additive noise and dropout, no appearance. Conclusions about *geometry* should
-  transfer; conclusions about perception in the full sense should not be assumed
-  to.
-- **Sample sizes are small.** Six seeds per arm is enough to detect ~0.09
-  against a ±0.06 spread, and not enough to characterise a curve. The 128-beam
-  regression relative to 64 remains unexplained and unreplicated.
-- **One camera configuration.** §8 establishes a direction, not a frontier. A
-  180°/270° camera, or one with memory across frames, might close the gap. The
-  FOV-vs-resolution trade has two knobs and this samples one point.
-- **Reward is not exhaustively searched.** §5.4 tested three single-term
-  changes, not the joint space.
-- **The classical baseline is not Nav2.** It is structurally analogous and
-  strong on this task (1.000 nominal success), but a real Nav2 comparison would
-  be more convincing.
-- **Single-seed findings remain flagged as unreplicated**, including the one
-  significant reward-ablation result (`step_penalty` improving nominal SPL by
-  +0.066).
+## 11. Limitations
 
-## 16. Future work
+- **Simulation is 2D and analytic.** No dynamics, no appearance, no sensor
+  artefacts beyond additive noise and dropout. Conclusions about *geometry*
+  should transfer; conclusions about perception in the full sense should not
+  be assumed to.
+- **The RGB render is clean** — no texture, lighting or motion blur — so the
+  encoder cost is a **lower bound**, not an estimate.
+- **The movers are benign.** Fixed line segments, 0.15–0.45 m/s, never
+  pursuing the robot. That is a weak test of anticipation and the most likely
+  reason frame stacking showed nothing.
+- **Sample sizes are small.** Six seeds per arm resolves ~0.09 against a ±0.06
+  spread; it cannot characterise a curve. The 128-beam regression relative to
+  64 remains unexplained.
+- **Reward is not exhaustively searched.** Three single-term changes, not the
+  joint space.
+- **The classical baseline is not Nav2.** Structurally analogous and strong on
+  this task (1.000 nominal success), but a real Nav2 comparison would be more
+  convincing — and this is the single largest outstanding caveat.
+- **Single-seed findings are flagged as unreplicated** throughout, including
+  the one significant reward-ablation result (`step_penalty` improving nominal
+  SPL by +0.066).
+
+## 12. Future work
 
 In order of expected information per GPU-hour:
 
-1. **FOV sweep at fixed column count** (90/180/270/360°). Converts §8 from a
-   point into a curve and separates FOV from resolution, which §8 deliberately
-   confounds.
-2. **Frame stacking or recurrence.** Distinguishes *missing* information from
-   *forgetting* it — the two predict different outcomes.
-3. **RGB observations with a CNN encoder**, testing whether an image encoder
-   inherits the same angular-resolution constraint.
-4. **Nav2 as the baseline**, over the same task via ROS 2, removing the
-   "structurally analogous" caveat.
+1. **Nav2 as the baseline**, over the same task via ROS 2. Removes the largest
+   caveat above without producing a new result — a credibility upgrade to
+   claims already made.
+2. **Faster movers** (0.8–1.5 m/s against a 0.6 m/s robot). The cheapest test
+   of why frame stacking was inert: if anticipation ever pays, it pays here.
+3. **Explicit velocity features or recurrence.** Distinguishes "the
+   information was absent" from "the information was present but hard to
+   extract from raw stacked scans".
+4. **Harder perception** — texture, lighting variation, sensor artefacts — to
+   turn the encoder-cost lower bound into an estimate.
 5. **Sim-to-real** on a TurtleBot-class base. The action space is already
    `Twist`, so the policy transfers without modification.
 
-## 17. Reproducing
+## 13. Reproducing
 
 ```bash
 pip install -e ".[dev,viz]"
