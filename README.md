@@ -34,7 +34,7 @@ decision below follows from wanting that comparison to be trustworthy.
 
 | Stage | State |
 |---|---|
-| Task, metrics, splits, 237-test suite | Done |
+| Task, metrics, splits, 239-test suite | Done |
 | Classical baseline (A* + pure pursuit, full map) | Done |
 | Privileged RL, robustness suite, distribution shifts | Done |
 | Four explanations for the gap, each tested and rejected | Done |
@@ -42,9 +42,10 @@ decision below follows from wanting that comparison to be trustworthy.
 | Vision: depth camera, RGB + CNN encoder | Done |
 | Dynamics: moving obstacles, frame stacking | Done |
 | Technical report + demo video | Done |
-| *(Next)* Nav2 via ROS 2; Isaac Lab; sim-to-real | Not started |
+| Real Nav2 over ROS 2, scored as one more actor | Done |
+| *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Fourteen experiments, each pre-registered where it tests a hypothesis. The
+Fifteen experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed, is in
 [`docs/project_plan.md`](docs/project_plan.md).
 
@@ -72,6 +73,35 @@ configuration on every condition.
 Full tables: [`results/benchmark.md`](results/benchmark.md). The classical
 planner is given the full obstacle map and exact pose throughout — a baseline
 that loses through handicap proves nothing.
+
+**The hand-written baseline was checked against the real thing.** Nav2 1.3.12
+on ROS 2 Jazzy runs as one more actor over the same worlds in the same order
+([`ros2_bridge/`](ros2_bridge/)), two independent passes because Nav2 is
+asynchronous and does not reproduce itself exactly.
+
+| Condition | Classical (hand-written) | Nav2 | Δ |
+|---|---|---|---|
+| nominal | 1.000 | 0.970–0.980 | −0.030 to −0.020 |
+| sparse | 1.000 | 0.990 | −0.010 |
+| large | 1.000 | 0.990 | −0.010 |
+| noisy_lidar | 1.000 | 0.970–0.980 | −0.030 to −0.020 |
+| dense | 0.890 | 0.910–0.940 | +0.020 to +0.050 |
+| narrow | 0.850 | 0.910–0.930 | +0.060 to +0.080 |
+
+The two agree to within 0.03 wherever clutter is not the binding constraint.
+On `narrow` Nav2 is ahead in both passes, so the `narrow` gap above is a
+*lower bound* on the gap to a production stack; `dense` leans the same way
+without clearing the noise band.
+
+The gain is a collision reduction — 58–92% on `narrow`, 56–78% on `dense` —
+and that is the failure mode the report had already diagnosed by counting how
+the baseline fails: A\* never once fails to plan, and most losses are the
+controller leaving the path while cornering. On `dense` those recovered
+episodes turn into timeouts rather than successes, which is why the mechanism
+replicates on both conditions and the success rate does not. Details,
+including the costmap bug that made this experiment report the opposite before
+it was fixed: [`results/nav2_comparison.md`](results/nav2_comparison.md) and
+§4.1 of the report.
 
 ### Four findings
 

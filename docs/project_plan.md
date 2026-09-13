@@ -772,6 +772,88 @@ Planned order of work:
 in-distribution, four world-distribution shifts, and sensor noise. All actors
 see identical worlds in identical order, so rows are directly comparable.
 
+## Phase 5 — Nav2 as the baseline: the hand-written stack was the weak one
+
+> This log skips Phases 3d–3g (FOV sweep, RGB encoder, RGB compute sweep,
+> moving obstacles). Those are written up in
+> [`report.md`](report.md), which is the current record.
+
+The largest standing caveat was that `classical` is not Nav2 — structurally
+analogous, but a hand-written script. Nav2 1.3.12 on ROS 2 Jazzy now runs as
+one more actor through a ROS 2 bridge (`ros2_bridge/`): same worlds, same seed
+order, same success criterion, same metrics, same normalised action space.
+
+The expected outcome was a credibility upgrade with no new result. It was not.
+Over two passes Nav2 is ahead on `narrow` by more than its run-to-run spread,
+ahead on `dense` by less than it, and marginally behind on the four
+uncluttered conditions. The report's `narrow` gap was understated. Full
+numbers in §4.1 of the report.
+
+The mechanism replicates more cleanly than the outcome: collisions fall
+58–92% on `narrow` and 56–78% on `dense` in both passes, exactly as the
+failure-mode counts in Section 4 predicted, but on `dense` the recovered
+episodes become timeouts instead of successes. Fixing the diagnosed failure
+mode is not the same as fixing the outcome, and reading only the success
+column would have hidden that.
+
+### The bug that reversed the answer
+
+The first complete run said Nav2 was **worse** — by 0.130 on `dense`. That
+result was reproducible, internally consistent, and wrong, and it erred in the
+direction that flattered this project's own baseline.
+
+Nav2's costmaps are stateful. Obstacle marks are cleared only by ray-tracing
+from the robot's current pose, and between episodes the robot teleports into a
+new world, so the global costmap accumulated obstacles from every previous
+episode until NavFn could not find a route at all. Every other actor in the
+study is evaluated on independent episodes; Nav2 was not.
+
+What made it findable was a diagnostic that had nothing to do with the
+outcome: counting episodes in which Nav2 issued *zero* velocity commands.
+Those were 2% of `nominal`, 8% of `dense` and 12% of `large` — the arena with
+the most area to pollute. A robot that never moves is not a navigation
+failure, it is a harness failure, and success rate alone cannot tell them
+apart. Clearing both costmaps at each reset took `large` from 12%
+zero-command to 0/30 with 30/30 success.
+
+`zero_command_episodes` is now reported on every run.
+
+### A metric that measured the wrong thing
+
+The first fairness check was `mean_commands_per_step`, intended to detect
+Nav2's control loop being starved of wall-clock time by a simulator running
+faster than real time. It does not measure that. It falls whenever Nav2 runs a
+recovery behaviour, because `Wait` publishes no command at all, so it tracks
+how often Nav2 got *stuck* — a property of the condition, not the machine. The
+tell was a serial run on an idle box scoring *lower* than a contended parallel
+one. It is kept as a diagnostic and no longer used as a validity gate.
+
+### Nav2 is not deterministic
+
+Two passes over identical worlds in identical order do not agree: the stack is
+a set of asynchronous processes and timing jitter changes which trajectory DWB
+selects. Every other actor here is either deterministic or replicated over six
+training seeds. Nav2 is neither, so it is run repeatedly and reported as a
+range, with a winner declared only when every pass falls the same side of the
+noise band.
+
+### What this establishes, and what it does not
+
+Established: the hand-written baseline is not weak. It is competitive with a
+production stack everywhere and conservative in tight corridors, so the
+`narrow` gap in the report is a lower bound. The collision mechanism is the
+one the report had already diagnosed from failure-mode counts — the third time
+in this project that a measurement made for one purpose correctly predicted a
+later experiment.
+
+Not established: that Nav2 is better on `dense`. Both passes say so and the
+collision reduction there is real, but the success margin sits inside the
+run-to-run spread, and the rule that demotes it is the same rule Phase 2g
+exists to enforce. Also not established: anything about the `dynamic`
+conditions, which have not been run against Nav2 and are where a reactive
+local planner should have the most to offer. Two passes bound Nav2's spread
+rather than estimating it.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

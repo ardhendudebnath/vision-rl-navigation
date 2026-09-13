@@ -64,8 +64,9 @@ project-specific scores.
 
 **Classical stack.** The baseline mirrors the structure of ROS 2's Nav2: a
 global planner over an inflated costmap, followed by a local controller
-tracking that plan. This is deliberate — it means Nav2 itself can later replace
-the baseline without changing the comparison protocol.
+tracking that plan. That symmetry was deliberate, so that Nav2 itself could
+replace the baseline without changing the comparison protocol. Section 4.1
+does exactly that, using Nav2 1.3.12 on ROS 2 Jazzy (Macenski et al., 2020).
 
 **Learning.** PPO (Schulman et al., 2017) via Stable-Baselines3. Domain
 randomisation follows the standard recipe of widening the training distribution
@@ -164,6 +165,94 @@ classical planner has none. On shifted conditions this compares an
 in-distribution planner against an out-of-distribution policy. That asymmetry
 is inherent to comparing learned and non-learned systems and is most of the
 explanation for Result 1.
+
+### 4.1 Nav2 as the baseline
+
+The obvious objection is that `classical` is not Nav2. It is *structurally*
+Nav2 — a global plan over an inflated costmap, a local controller tracking it
+— but if the hand-written stack happened to be weak, "the learned policy loses
+to classical planning" would shrink to "the learned policy loses to one
+particular script".
+
+Nav2 1.3.12 (ROS 2 Jazzy) therefore runs as one more actor over a ROS 2
+bridge: same worlds, same seed order, same success criterion, same metrics,
+driving the same normalised action space. It is given the generous side of
+every choice — ground-truth pose, the static map, and a 360-beam scan, 3–22×
+denser than any learned policy receives.
+
+| Condition | Hand-written | Nav2 (2 passes) | Δ success |
+|---|---|---|---|
+| nominal | 1.000 / 0.985 | 0.970–0.980 / 0.955–0.963 | −0.030 to −0.020 |
+| sparse | 1.000 / 1.000 | 0.990 / 0.982–0.985 | −0.010 |
+| large | 1.000 / 0.990 | 0.990 / 0.983–0.985 | −0.010 |
+| noisy_lidar | 1.000 / 0.985 | 0.970–0.980 / 0.953–0.964 | −0.030 to −0.020 |
+| dense | 0.890 / 0.841 | 0.910–0.940 / 0.881–0.901 | +0.020 to +0.050 |
+| **narrow** | 0.850 / 0.795 | **0.910–0.930** / **0.878–0.898** | +0.060 to +0.080 |
+
+**The hand-written baseline understates classical planning in tight
+corridors.** On the four conditions where clutter is not the binding
+constraint the two agree to within 0.03 — Nav2 marginally behind, which is
+what a general-purpose stack against a baseline tuned for this exact task
+should look like. On `narrow` Nav2 is ahead in both passes by more than the
+run-to-run spread. On `dense` it is ahead in both passes too, but by
++0.020 to +0.050, which straddles the noise band; that one is suggestive, not
+established.
+
+This does not weaken Result 1 — it widens it, on `narrow`. The learned
+policies were losing to the weaker of the two classical stacks, so the
+published gap there is a lower bound.
+
+**The mechanism is the one this report already diagnosed, and it is cleaner
+than the success rates.** Section 4 measured that A\* never once fails to find
+a route, and that 9/11 (`dense`) and 12/15 (`narrow`) of the baseline's
+failures are the *controller* losing the plan while cornering. DWB re-scores
+obstacle-aware trajectories every control cycle instead of tracking a fixed
+path, and collisions fall accordingly:
+
+| Condition | Hand-written collisions | Nav2 collisions | Δ timeouts |
+|---|---|---|---|
+| nominal | 0.000 | 0.020 | +0.000 to +0.010 |
+| sparse | 0.000 | 0.000 | +0.010 |
+| large | 0.000 | 0.010 | +0.000 |
+| noisy_lidar | 0.000 | 0.020 | +0.000 to +0.010 |
+| dense | 0.090 | 0.020–0.040 | +0.020 to +0.030 |
+| narrow | 0.120 | 0.010–0.050 | +0.010 to +0.030 |
+
+Collisions drop by 58–92% on `narrow` and 56–78% on `dense`, in both passes,
+and are unchanged on the four conditions where the controller was not the
+binding constraint. That is the prediction the failure-mode counts licensed,
+and it holds on both cluttered conditions.
+
+What differs between them is where the recovered episodes go. On `narrow` they
+become successes. On `dense` they largely become timeouts instead — Nav2's
+timeout rate rises from 0.020 to 0.040–0.050 — so the collision fix does not
+convert into a success-rate gain that clears the noise. **Fixing the diagnosed
+failure mode is not the same as fixing the outcome**, and reading only the
+success column would have missed that.
+
+**Two caveats specific to this comparison.**
+
+- **Nav2 is not deterministic.** It is a set of asynchronous processes, so
+  timing jitter changes which trajectory DWB selects and two passes over
+  identical worlds in identical order do not agree. Measured spread was 0.000
+  to 0.030 success, largest on the cluttered conditions. Every other actor
+  here is either deterministic or replicated across six training seeds; Nav2
+  is neither, so its rows are reported as a range over independent passes and
+  a winner is declared only when every pass falls the same side of the noise
+  band. That rule is what demotes `dense` from a result to a suggestion.
+- **Nav2's costmaps are stateful, and that nearly produced a wrong result.**
+  Obstacle marks are cleared only by ray-tracing from the robot's current
+  pose, and the robot teleports between episodes, so the global costmap
+  silted up with geometry from previous worlds until the planner could not
+  find a route — visible as episodes where Nav2 issued zero velocity commands
+  and timed out (12% of `large`, 8% of `dense`). Episodes were not
+  independent, though every other actor's are. Before the costmaps were
+  cleared at each reset, the same experiment reported Nav2 as *worse* than
+  the hand-written baseline on `dense` by 0.130, the exact opposite of the
+  corrected result, and in the direction that flattered this project's own
+  baseline. One zero-command episode remains across the 1,200 scored here,
+  on a world that succeeds in the other pass, so it is a transient rather
+  than a planner limitation.
 
 ## 5. Results 2–4: eliminating the standard explanations
 
@@ -507,9 +596,17 @@ outright). Confidence of expression was identical in all four cases.
   64 remains unexplained.
 - **Reward is not exhaustively searched.** Three single-term changes, not the
   joint space.
-- **The classical baseline is not Nav2.** Structurally analogous and strong on
-  this task (1.000 nominal success), but a real Nav2 comparison would be more
-  convincing — and this is the single largest outstanding caveat.
+- **The hand-written baseline understates classical planning in tight
+  corridors.** Section 4.1 measures it against real Nav2: the two agree within
+  0.03 where clutter is not binding, but Nav2 is ahead on `narrow` in both
+  passes. The `narrow` gap quoted against `classical` is therefore a *lower
+  bound* on the gap to a production stack. The same is probably true of
+  `dense`, where both passes favour Nav2 but the margin does not clear the
+  noise band.
+- **Nav2 itself is measured over only two passes.** It is nondeterministic
+  (Section 4.1) and two passes bound its run-to-run spread rather than
+  estimating it. The comparison is read against that range, but a tighter
+  claim needs more passes.
 - **Single-seed findings are flagged as unreplicated** throughout, including
   the one significant reward-ablation result (`step_penalty` improving nominal
   SPL by +0.066).
@@ -518,9 +615,12 @@ outright). Confidence of expression was identical in all four cases.
 
 In order of expected information per GPU-hour:
 
-1. **Nav2 as the baseline**, over the same task via ROS 2. Removes the largest
-   caveat above without producing a new result — a credibility upgrade to
-   claims already made.
+1. **More Nav2 passes, and Nav2 on the dynamic conditions.** Section 4.1 rests
+   on two passes of a nondeterministic system, and the `dynamic` condition —
+   the one where the map is wrong and the learned policies reach parity — has
+   not been run against Nav2 at all. That is where a reactive local planner
+   should have the most to offer, and so where the comparison is most
+   informative.
 2. **Faster movers** (0.8–1.5 m/s against a 0.6 m/s robot). The cheapest test
    of why frame stacking was inert: if anticipation ever pays, it pays here.
 3. **Explicit velocity features or recurrence.** Distinguishes "the
@@ -535,11 +635,19 @@ In order of expected information per GPU-hour:
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 161 tests
+pytest                                        # 239 tests
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix
 python scripts/perception_audit.py            # §7, no training required
 python scripts/seed_analysis.py --arm ...     # §6.2, §7.1, §8
+```
+
+Section 4.1 needs ROS 2 Jazzy and Nav2, which live in a userspace conda
+environment rather than the project venv (`ros2_bridge/README.md`):
+
+```bash
+bash ros2_bridge/run_nav2.sh --condition narrow --episodes 100
+python scripts/nav2_comparison.py --nav2-runs results/nav2_runs/*
 ```
 
 Every training run writes its fully resolved config alongside its checkpoints,

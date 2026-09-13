@@ -1,0 +1,920 @@
+{
+  "actor": "nav2",
+  "condition": "dense",
+  "split": "test_ood",
+  "shift": "dense",
+  "lidar_noise_std": 0.0,
+  "mean_commands_per_step": 0.976202234881687,
+  "zero_command_episodes": 1,
+  "n_episodes": 100,
+  "success_rate": 0.91,
+  "spl": 0.8805672743245501,
+  "collision_rate": 0.04,
+  "timeout_rate": 0.05,
+  "mean_steps_to_goal": 171.1978021978022,
+  "mean_path_length": 9.28878943730657,
+  "mean_path_efficiency": 0.9676563454115936,
+  "mean_final_goal_distance": 0.8031880875465629,
+  "per_episode": [
+    {
+      "world_seed": 30000,
+      "success": true,
+      "collision": false,
+      "steps": 147,
+      "path_length": 8.604098760366426,
+      "shortest_path_length": 8.77847834806829,
+      "final_goal_distance": 0.34384189326200454
+    },
+    {
+      "world_seed": 30001,
+      "success": true,
+      "collision": false,
+      "steps": 249,
+      "path_length": 14.555644116336746,
+      "shortest_path_length": 14.365283202627072,
+      "final_goal_distance": 0.33147833530929016
+    },
+    {
+      "world_seed": 30002,
+      "success": true,
+      "collision": false,
+      "steps": 194,
+      "path_length": 7.670085237024505,
+      "shortest_path_length": 7.542488029363565,
+      "final_goal_distance": 0.33824275306504625
+    },
+    {
+      "world_seed": 30003,
+      "success": true,
+      "collision": false,
+      "steps": 185,
+      "path_length": 10.845981084845999,
+      "shortest_path_length": 10.548500707238572,
+      "final_goal_distance": 0.3242845723834149
+    },
+    {
+      "world_seed": 30004,
+      "success": true,
+      "collision": false,
+      "steps": 228,
+      "path_length": 12.389524185498637,
+      "shortest_path_length": 10.65196687036293,
+      "final_goal_distance": 0.3251820516327349
+    },
+    {
+      "world_seed": 30005,
+      "success": true,
+      "collision": false,
+      "steps": 207,
+      "path_length": 9.112754560043303,
+      "shortest_path_length": 8.444035019589164,
+      "final_goal_distance": 0.3129152885970802
+    },
+    {
+      "world_seed": 30006,
+      "success": true,
+      "collision": false,
+      "steps": 98,
+      "path_length": 5.587801722348139,
+      "shortest_path_length": 5.654182153345778,
+      "final_goal_distance": 0.338708260912236
+    },
+    {
+      "world_seed": 30007,
+      "success": true,
+      "collision": false,
+      "steps": 134,
+      "path_length": 7.430270673654755,
+      "shortest_path_length": 6.961610419075995,
+      "final_goal_distance": 0.3431829268795641
+    },
+    {
+      "world_seed": 30008,
+      "success": true,
+      "collision": false,
+      "steps": 106,
+      "path_length": 5.958883384114767,
+      "shortest_path_length": 6.151615821339109,
+      "final_goal_distance": 0.3490215052496815
+    },
+    {
+      "world_seed": 30009,
+      "success": true,
+      "collision": false,
+      "steps": 358,
+      "path_length": 20.631987181708183,
+      "shortest_path_length": 14.674547910672983,
+      "final_goal_distance": 0.3066239827707504
+    },
+    {
+      "world_seed": 30010,
+      "success": true,
+      "collision": false,
+      "steps": 243,
+      "path_length": 14.363480491845696,
+      "shortest_path_length": 14.163049499200262,
+      "final_goal_distance": 0.3227406017270589
+    },
+    {
+      "world_seed": 30011,
+      "success": true,
+      "collision": false,
+      "steps": 181,
+      "path_length": 10.032453056605124,
+      "shortest_path_length": 9.881304752844612,
+      "final_goal_distance": 0.31936826281546066
+    },
+    {
+      "world_seed": 30012,
+      "success": true,
+      "collision": false,
+      "steps": 114,
+      "path_length": 6.441514937312804,
+      "shortest_path_length": 6.679567036851582,
+      "final_goal_distance": 0.33890403574614225
+    },
+    {
+      "world_seed": 30013,
+      "success": true,
+      "collision": false,
+      "steps": 216,
+      "path_length": 12.055636304458307,
+      "shortest_path_length": 11.751207676016708,
+      "final_goal_distance": 0.3220085830448459
+    },
+    {
+      "world_seed": 30014,
+      "success": false,
+      "collision": false,
+      "steps": 501,
+      "path_length": 2.926823536027004,
+      "shortest_path_length": 7.190688704351001,
+      "final_goal_distance": 4.532656597612003
+    },
+    {
+      "world_seed": 30015,
+      "success": true,
+      "collision": false,
+      "steps": 114,
+      "path_length": 6.310267763063523,
+      "shortest_path_length": 6.132811487910949,
+      "final_goal_distance": 0.3304068842956627
+    },
+    {
+      "world_seed": 30016,
+      "success": true,
+      "collision": false,
+      "steps": 194,
+      "path_length": 10.353686958262992,
+      "shortest_path_length": 10.027585080454447,
+      "final_goal_distance": 0.32003418421634305
+    },
+    {
+      "world_seed": 30017,
+      "success": true,
+      "collision": false,
+      "steps": 188,
+      "path_length": 10.925150328762399,
+      "shortest_path_length": 10.807179076895226,
+      "final_goal_distance": 0.3485284818523049
+    },
+    {
+      "world_seed": 30018,
+      "success": true,
+      "collision": false,
+      "steps": 188,
+      "path_length": 10.446932137620065,
+      "shortest_path_length": 8.955723609666455,
+      "final_goal_distance": 0.34620321279426125
+    },
+    {
+      "world_seed": 30019,
+      "success": true,
+      "collision": false,
+      "steps": 182,
+      "path_length": 10.689327431928811,
+      "shortest_path_length": 10.665171750769355,
+      "final_goal_distance": 0.32981027624444953
+    },
+    {
+      "world_seed": 30020,
+      "success": true,
+      "collision": false,
+      "steps": 266,
+      "path_length": 8.956546336651463,
+      "shortest_path_length": 8.225994334235121,
+      "final_goal_distance": 0.322901683407857
+    },
+    {
+      "world_seed": 30021,
+      "success": true,
+      "collision": false,
+      "steps": 134,
+      "path_length": 7.650964165377081,
+      "shortest_path_length": 7.8178849688980705,
+      "final_goal_distance": 0.3317585782184694
+    },
+    {
+      "world_seed": 30022,
+      "success": true,
+      "collision": false,
+      "steps": 196,
+      "path_length": 11.420912865635858,
+      "shortest_path_length": 9.526986014287363,
+      "final_goal_distance": 0.34581434515887066
+    },
+    {
+      "world_seed": 30023,
+      "success": true,
+      "collision": false,
+      "steps": 130,
+      "path_length": 7.32837630930709,
+      "shortest_path_length": 7.201004236888087,
+      "final_goal_distance": 0.3460837216006308
+    },
+    {
+      "world_seed": 30024,
+      "success": true,
+      "collision": false,
+      "steps": 198,
+      "path_length": 11.469817371867872,
+      "shortest_path_length": 11.382876772790706,
+      "final_goal_distance": 0.330056595136584
+    },
+    {
+      "world_seed": 30025,
+      "success": true,
+      "collision": false,
+      "steps": 355,
+      "path_length": 20.419908971137065,
+      "shortest_path_length": 19.5743576485336,
+      "final_goal_distance": 0.31827502419860493
+    },
+    {
+      "world_seed": 30026,
+      "success": true,
+      "collision": false,
+      "steps": 231,
+      "path_length": 13.584554962160722,
+      "shortest_path_length": 13.105668083552926,
+      "final_goal_distance": 0.3209774045144003
+    },
+    {
+      "world_seed": 30027,
+      "success": true,
+      "collision": false,
+      "steps": 217,
+      "path_length": 10.47824917797073,
+      "shortest_path_length": 9.869725676366455,
+      "final_goal_distance": 0.34033894627571637
+    },
+    {
+      "world_seed": 30028,
+      "success": true,
+      "collision": false,
+      "steps": 159,
+      "path_length": 8.93592562329614,
+      "shortest_path_length": 7.996811042600429,
+      "final_goal_distance": 0.34208203101315005
+    },
+    {
+      "world_seed": 30029,
+      "success": true,
+      "collision": false,
+      "steps": 128,
+      "path_length": 6.887106899092202,
+      "shortest_path_length": 6.675144706773487,
+      "final_goal_distance": 0.34116026392392
+    },
+    {
+      "world_seed": 30030,
+      "success": true,
+      "collision": false,
+      "steps": 246,
+      "path_length": 11.2954832109805,
+      "shortest_path_length": 11.225278775078051,
+      "final_goal_distance": 0.32360622603621
+    },
+    {
+      "world_seed": 30031,
+      "success": true,
+      "collision": false,
+      "steps": 159,
+      "path_length": 5.216777019927489,
+      "shortest_path_length": 5.315072906367324,
+      "final_goal_distance": 0.32821299048453684
+    },
+    {
+      "world_seed": 30032,
+      "success": true,
+      "collision": false,
+      "steps": 235,
+      "path_length": 13.610339508038006,
+      "shortest_path_length": 13.374583494528835,
+      "final_goal_distance": 0.31627051819122604
+    },
+    {
+      "world_seed": 30033,
+      "success": true,
+      "collision": false,
+      "steps": 98,
+      "path_length": 5.616276992003486,
+      "shortest_path_length": 5.8274562336608895,
+      "final_goal_distance": 0.3451376441385638
+    },
+    {
+      "world_seed": 30034,
+      "success": true,
+      "collision": false,
+      "steps": 106,
+      "path_length": 5.670358871768839,
+      "shortest_path_length": 5.664306826506008,
+      "final_goal_distance": 0.34810294311770396
+    },
+    {
+      "world_seed": 30035,
+      "success": true,
+      "collision": false,
+      "steps": 111,
+      "path_length": 6.257385016093991,
+      "shortest_path_length": 6.306346010171025,
+      "final_goal_distance": 0.32869992223626265
+    },
+    {
+      "world_seed": 30036,
+      "success": true,
+      "collision": false,
+      "steps": 103,
+      "path_length": 5.7367140993724215,
+      "shortest_path_length": 6.0307702315585985,
+      "final_goal_distance": 0.3315363171607804
+    },
+    {
+      "world_seed": 30037,
+      "success": true,
+      "collision": false,
+      "steps": 135,
+      "path_length": 7.822258499181252,
+      "shortest_path_length": 7.9061103129900765,
+      "final_goal_distance": 0.3397274089602114
+    },
+    {
+      "world_seed": 30038,
+      "success": true,
+      "collision": false,
+      "steps": 126,
+      "path_length": 7.263810198240163,
+      "shortest_path_length": 7.281928547059421,
+      "final_goal_distance": 0.32918573721957606
+    },
+    {
+      "world_seed": 30039,
+      "success": false,
+      "collision": true,
+      "steps": 19,
+      "path_length": 0.6249123857377926,
+      "shortest_path_length": 14.402354175897923,
+      "final_goal_distance": 10.264670159936488
+    },
+    {
+      "world_seed": 30040,
+      "success": true,
+      "collision": false,
+      "steps": 115,
+      "path_length": 6.204155706092677,
+      "shortest_path_length": 6.232003552359925,
+      "final_goal_distance": 0.34439338772735334
+    },
+    {
+      "world_seed": 30041,
+      "success": true,
+      "collision": false,
+      "steps": 257,
+      "path_length": 14.4873690333476,
+      "shortest_path_length": 13.965254883570491,
+      "final_goal_distance": 0.34343187970169947
+    },
+    {
+      "world_seed": 30042,
+      "success": false,
+      "collision": false,
+      "steps": 500,
+      "path_length": 16.57765459084913,
+      "shortest_path_length": 14.225513483252357,
+      "final_goal_distance": 6.722167401415229
+    },
+    {
+      "world_seed": 30043,
+      "success": true,
+      "collision": false,
+      "steps": 160,
+      "path_length": 9.369339218741604,
+      "shortest_path_length": 9.545896995421867,
+      "final_goal_distance": 0.3211484931360279
+    },
+    {
+      "world_seed": 30044,
+      "success": true,
+      "collision": false,
+      "steps": 275,
+      "path_length": 11.5557700269729,
+      "shortest_path_length": 11.40476634595694,
+      "final_goal_distance": 0.3109459552529884
+    },
+    {
+      "world_seed": 30045,
+      "success": true,
+      "collision": false,
+      "steps": 171,
+      "path_length": 8.99622908758697,
+      "shortest_path_length": 8.954148993966133,
+      "final_goal_distance": 0.33734473990986413
+    },
+    {
+      "world_seed": 30046,
+      "success": false,
+      "collision": false,
+      "steps": 500,
+      "path_length": 9.469659451332324,
+      "shortest_path_length": 9.695972893405548,
+      "final_goal_distance": 1.4488602043169498
+    },
+    {
+      "world_seed": 30047,
+      "success": true,
+      "collision": false,
+      "steps": 238,
+      "path_length": 11.879137151158668,
+      "shortest_path_length": 11.343759632849235,
+      "final_goal_distance": 0.312235020298938
+    },
+    {
+      "world_seed": 30048,
+      "success": true,
+      "collision": false,
+      "steps": 149,
+      "path_length": 8.530103230522549,
+      "shortest_path_length": 8.458419987703738,
+      "final_goal_distance": 0.34854959677201025
+    },
+    {
+      "world_seed": 30049,
+      "success": false,
+      "collision": false,
+      "steps": 500,
+      "path_length": 12.889647982427876,
+      "shortest_path_length": 10.41836233934114,
+      "final_goal_distance": 1.803035163546822
+    },
+    {
+      "world_seed": 30050,
+      "success": true,
+      "collision": false,
+      "steps": 99,
+      "path_length": 5.651255640123137,
+      "shortest_path_length": 5.833231082882451,
+      "final_goal_distance": 0.33819939024541945
+    },
+    {
+      "world_seed": 30051,
+      "success": true,
+      "collision": false,
+      "steps": 174,
+      "path_length": 10.137953209929835,
+      "shortest_path_length": 10.088217152013428,
+      "final_goal_distance": 0.31655246477591714
+    },
+    {
+      "world_seed": 30052,
+      "success": false,
+      "collision": true,
+      "steps": 362,
+      "path_length": 7.702790754028445,
+      "shortest_path_length": 9.367310155852369,
+      "final_goal_distance": 3.591270552286194
+    },
+    {
+      "world_seed": 30053,
+      "success": false,
+      "collision": false,
+      "steps": 501,
+      "path_length": 1.1920924850998853e-09,
+      "shortest_path_length": 8.594026367143623,
+      "final_goal_distance": 8.56154191610235
+    },
+    {
+      "world_seed": 30054,
+      "success": true,
+      "collision": false,
+      "steps": 233,
+      "path_length": 13.417566085475807,
+      "shortest_path_length": 12.128661132966933,
+      "final_goal_distance": 0.3412592288992339
+    },
+    {
+      "world_seed": 30055,
+      "success": true,
+      "collision": false,
+      "steps": 219,
+      "path_length": 9.345082304682524,
+      "shortest_path_length": 8.387531666693814,
+      "final_goal_distance": 0.3441143563032139
+    },
+    {
+      "world_seed": 30056,
+      "success": true,
+      "collision": false,
+      "steps": 118,
+      "path_length": 6.122146540117683,
+      "shortest_path_length": 6.297997199162155,
+      "final_goal_distance": 0.33414340427158856
+    },
+    {
+      "world_seed": 30057,
+      "success": true,
+      "collision": false,
+      "steps": 115,
+      "path_length": 6.62602252409137,
+      "shortest_path_length": 6.700737232976049,
+      "final_goal_distance": 0.34411205156203145
+    },
+    {
+      "world_seed": 30058,
+      "success": true,
+      "collision": false,
+      "steps": 105,
+      "path_length": 5.818364221272777,
+      "shortest_path_length": 5.638642083660633,
+      "final_goal_distance": 0.3337434815514166
+    },
+    {
+      "world_seed": 30059,
+      "success": true,
+      "collision": false,
+      "steps": 101,
+      "path_length": 5.66583441123258,
+      "shortest_path_length": 5.742821606144493,
+      "final_goal_distance": 0.3414908038760042
+    },
+    {
+      "world_seed": 30060,
+      "success": true,
+      "collision": false,
+      "steps": 172,
+      "path_length": 10.108810442784419,
+      "shortest_path_length": 10.214800492268036,
+      "final_goal_distance": 0.3360320269414995
+    },
+    {
+      "world_seed": 30061,
+      "success": true,
+      "collision": false,
+      "steps": 156,
+      "path_length": 9.019905090175817,
+      "shortest_path_length": 9.289780678459621,
+      "final_goal_distance": 0.3387418394201967
+    },
+    {
+      "world_seed": 30062,
+      "success": true,
+      "collision": false,
+      "steps": 181,
+      "path_length": 10.391930923160261,
+      "shortest_path_length": 10.061348033023274,
+      "final_goal_distance": 0.32787984776727663
+    },
+    {
+      "world_seed": 30063,
+      "success": true,
+      "collision": false,
+      "steps": 194,
+      "path_length": 10.723745612615973,
+      "shortest_path_length": 10.186243882809073,
+      "final_goal_distance": 0.34763210536916567
+    },
+    {
+      "world_seed": 30064,
+      "success": true,
+      "collision": false,
+      "steps": 138,
+      "path_length": 7.8861618550435075,
+      "shortest_path_length": 7.683719837970309,
+      "final_goal_distance": 0.3265012226557186
+    },
+    {
+      "world_seed": 30065,
+      "success": true,
+      "collision": false,
+      "steps": 141,
+      "path_length": 8.117557337107694,
+      "shortest_path_length": 8.145077741181677,
+      "final_goal_distance": 0.33859632145941065
+    },
+    {
+      "world_seed": 30066,
+      "success": true,
+      "collision": false,
+      "steps": 147,
+      "path_length": 8.465162628987352,
+      "shortest_path_length": 8.000516264529427,
+      "final_goal_distance": 0.3318201138214445
+    },
+    {
+      "world_seed": 30067,
+      "success": false,
+      "collision": true,
+      "steps": 126,
+      "path_length": 5.984780012066669,
+      "shortest_path_length": 11.7879947430365,
+      "final_goal_distance": 6.388664699322114
+    },
+    {
+      "world_seed": 30068,
+      "success": true,
+      "collision": false,
+      "steps": 195,
+      "path_length": 11.396680441120937,
+      "shortest_path_length": 11.38228422066931,
+      "final_goal_distance": 0.33445588410662186
+    },
+    {
+      "world_seed": 30069,
+      "success": true,
+      "collision": false,
+      "steps": 214,
+      "path_length": 12.424045173727833,
+      "shortest_path_length": 12.393908526955572,
+      "final_goal_distance": 0.34527247471960015
+    },
+    {
+      "world_seed": 30070,
+      "success": true,
+      "collision": false,
+      "steps": 90,
+      "path_length": 4.991473903787171,
+      "shortest_path_length": 5.260988483448479,
+      "final_goal_distance": 0.33707211114694546
+    },
+    {
+      "world_seed": 30071,
+      "success": true,
+      "collision": false,
+      "steps": 180,
+      "path_length": 10.478822471526618,
+      "shortest_path_length": 10.650985308051652,
+      "final_goal_distance": 0.3400987099306148
+    },
+    {
+      "world_seed": 30072,
+      "success": true,
+      "collision": false,
+      "steps": 211,
+      "path_length": 12.35808652877757,
+      "shortest_path_length": 11.204771221824155,
+      "final_goal_distance": 0.3398165158725727
+    },
+    {
+      "world_seed": 30073,
+      "success": true,
+      "collision": false,
+      "steps": 133,
+      "path_length": 7.698784922454283,
+      "shortest_path_length": 7.895261949455596,
+      "final_goal_distance": 0.32627082723488127
+    },
+    {
+      "world_seed": 30074,
+      "success": true,
+      "collision": false,
+      "steps": 153,
+      "path_length": 8.830258820103575,
+      "shortest_path_length": 8.708433870079425,
+      "final_goal_distance": 0.3404232112495849
+    },
+    {
+      "world_seed": 30075,
+      "success": true,
+      "collision": false,
+      "steps": 131,
+      "path_length": 7.582096409964912,
+      "shortest_path_length": 7.4023057745336205,
+      "final_goal_distance": 0.33236465144120664
+    },
+    {
+      "world_seed": 30076,
+      "success": true,
+      "collision": false,
+      "steps": 238,
+      "path_length": 12.320056449541623,
+      "shortest_path_length": 11.65227493035255,
+      "final_goal_distance": 0.3449045105207599
+    },
+    {
+      "world_seed": 30077,
+      "success": true,
+      "collision": false,
+      "steps": 165,
+      "path_length": 9.677545844715686,
+      "shortest_path_length": 9.280097025170214,
+      "final_goal_distance": 0.33297181677658677
+    },
+    {
+      "world_seed": 30078,
+      "success": true,
+      "collision": false,
+      "steps": 121,
+      "path_length": 7.022882401523021,
+      "shortest_path_length": 7.0103934269535,
+      "final_goal_distance": 0.3483285453861189
+    },
+    {
+      "world_seed": 30079,
+      "success": true,
+      "collision": false,
+      "steps": 140,
+      "path_length": 7.466353883267434,
+      "shortest_path_length": 7.538754859155703,
+      "final_goal_distance": 0.34303299285871497
+    },
+    {
+      "world_seed": 30080,
+      "success": true,
+      "collision": false,
+      "steps": 131,
+      "path_length": 7.528328148704951,
+      "shortest_path_length": 7.400900863295385,
+      "final_goal_distance": 0.34539113280223704
+    },
+    {
+      "world_seed": 30081,
+      "success": true,
+      "collision": false,
+      "steps": 142,
+      "path_length": 8.23887138508675,
+      "shortest_path_length": 8.425310920797124,
+      "final_goal_distance": 0.32992540032409784
+    },
+    {
+      "world_seed": 30082,
+      "success": true,
+      "collision": false,
+      "steps": 108,
+      "path_length": 6.059255879463013,
+      "shortest_path_length": 6.160021470002755,
+      "final_goal_distance": 0.3386470722836077
+    },
+    {
+      "world_seed": 30083,
+      "success": true,
+      "collision": false,
+      "steps": 123,
+      "path_length": 6.713095368722353,
+      "shortest_path_length": 6.711826734582102,
+      "final_goal_distance": 0.3496774914865466
+    },
+    {
+      "world_seed": 30084,
+      "success": true,
+      "collision": false,
+      "steps": 199,
+      "path_length": 10.430060270087624,
+      "shortest_path_length": 9.671456574897281,
+      "final_goal_distance": 0.3164145270382588
+    },
+    {
+      "world_seed": 30085,
+      "success": true,
+      "collision": false,
+      "steps": 88,
+      "path_length": 5.057833898033915,
+      "shortest_path_length": 5.385164807134504,
+      "final_goal_distance": 0.3455246389060462
+    },
+    {
+      "world_seed": 30086,
+      "success": true,
+      "collision": false,
+      "steps": 106,
+      "path_length": 6.046824074626253,
+      "shortest_path_length": 6.037383539249433,
+      "final_goal_distance": 0.32885596855379257
+    },
+    {
+      "world_seed": 30087,
+      "success": true,
+      "collision": false,
+      "steps": 176,
+      "path_length": 10.261794049273124,
+      "shortest_path_length": 8.678036935181364,
+      "final_goal_distance": 0.3435185876556078
+    },
+    {
+      "world_seed": 30088,
+      "success": true,
+      "collision": false,
+      "steps": 185,
+      "path_length": 10.704926624566996,
+      "shortest_path_length": 10.236916448545664,
+      "final_goal_distance": 0.3398921715404405
+    },
+    {
+      "world_seed": 30089,
+      "success": true,
+      "collision": false,
+      "steps": 237,
+      "path_length": 14.096617083730617,
+      "shortest_path_length": 14.116402168809692,
+      "final_goal_distance": 0.34139079133403777
+    },
+    {
+      "world_seed": 30090,
+      "success": true,
+      "collision": false,
+      "steps": 166,
+      "path_length": 9.635736482356192,
+      "shortest_path_length": 9.581377429214065,
+      "final_goal_distance": 0.32115849139632985
+    },
+    {
+      "world_seed": 30091,
+      "success": false,
+      "collision": true,
+      "steps": 423,
+      "path_length": 15.56120428900622,
+      "shortest_path_length": 11.87014254328151,
+      "final_goal_distance": 6.603917585082359
+    },
+    {
+      "world_seed": 30092,
+      "success": true,
+      "collision": false,
+      "steps": 110,
+      "path_length": 6.143636096917861,
+      "shortest_path_length": 6.111386748030773,
+      "final_goal_distance": 0.3444888335239027
+    },
+    {
+      "world_seed": 30093,
+      "success": true,
+      "collision": false,
+      "steps": 136,
+      "path_length": 7.907249573980568,
+      "shortest_path_length": 8.020876834488178,
+      "final_goal_distance": 0.3356644117566495
+    },
+    {
+      "world_seed": 30094,
+      "success": true,
+      "collision": false,
+      "steps": 148,
+      "path_length": 8.683294678183481,
+      "shortest_path_length": 8.609727164224962,
+      "final_goal_distance": 0.31979055744776896
+    },
+    {
+      "world_seed": 30095,
+      "success": true,
+      "collision": false,
+      "steps": 272,
+      "path_length": 15.016097857005146,
+      "shortest_path_length": 10.333800079820799,
+      "final_goal_distance": 0.321862717965518
+    },
+    {
+      "world_seed": 30096,
+      "success": true,
+      "collision": false,
+      "steps": 102,
+      "path_length": 5.3014835764975015,
+      "shortest_path_length": 5.263078946776306,
+      "final_goal_distance": 0.3300909903335923
+    },
+    {
+      "world_seed": 30097,
+      "success": true,
+      "collision": false,
+      "steps": 140,
+      "path_length": 7.721400652133247,
+      "shortest_path_length": 7.6268877705003435,
+      "final_goal_distance": 0.3466312741255672
+    },
+    {
+      "world_seed": 30098,
+      "success": true,
+      "collision": false,
+      "steps": 244,
+      "path_length": 14.420138529370591,
+      "shortest_path_length": 13.33411997866786,
+      "final_goal_distance": 0.3444262823012386
+    },
+    {
+      "world_seed": 30099,
+      "success": true,
+      "collision": false,
+      "steps": 278,
+      "path_length": 16.380890553611035,
+      "shortest_path_length": 15.851154591266038,
+      "final_goal_distance": 0.31337875750631106
+    }
+  ]
+}
