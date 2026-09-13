@@ -51,6 +51,13 @@ SHIFTS: dict[str, dict] = {
     "sparse": {"n_circles": (1, 4), "n_boxes": (0, 2)},
     "large": {"width": 16.0, "height": 16.0, "min_start_goal_dist": 8.0},
     "narrow": {"circle_radius": (0.5, 1.4), "n_circles": (10, 16)},
+    #: Moving obstacles absent from the map. The one condition in the suite
+    #: where the classical planner's central privilege — a perfect, current
+    #: map — stops being true, and therefore the one place a reactive policy
+    #: has a structural reason to win.
+    "dynamic": {"n_circles": (4, 8), "n_boxes": (1, 4), "n_dynamic": (3, 6)},
+    #: Dynamic obstacles on top of clutter: both pressures at once.
+    "dynamic_dense": {"n_circles": (10, 16), "n_boxes": (4, 8), "n_dynamic": (3, 6)},
 }
 
 

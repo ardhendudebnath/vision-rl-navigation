@@ -192,6 +192,7 @@ class ProceduralNavEnv(gym.Env):
         self._distance_field = dist_field
         self._shortest_path = l_star
 
+        world.set_time(0.0)
         self.robot.reset(world.start)
         self._steps = 0
         self._path_length = 0.0
@@ -208,6 +209,9 @@ class ProceduralNavEnv(gym.Env):
 
         prev_pos = self.robot.position.copy()
         self.robot.step(action)
+        # Advance the movers before collision checking and sensing, so both
+        # see the world at the same instant the robot arrives in it.
+        self._world.set_time((self._steps + 1) * self.config.robot.dt)
         new_pos = self.robot.position
         self._last_action = action
         self._steps += 1

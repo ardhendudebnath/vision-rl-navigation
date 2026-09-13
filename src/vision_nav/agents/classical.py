@@ -48,6 +48,17 @@ class PursuitConfig:
     #: Floor on the reactive speed scale, so the robot never fully stalls.
     min_speed_scale: float = 0.25
 
+    #: Replan every N control steps against a costmap that includes currently
+    #: observed moving obstacles. ``0`` disables it, preserving the static
+    #: behaviour exactly.
+    #:
+    #: This is what makes the dynamic-obstacle comparison fair. Nav2 does not
+    #: plan once and drive blind; it maintains a local costmap from live
+    #: sensor data and replans continuously. A baseline without this would be
+    #: a strawman, and beating a strawman would prove nothing about learned
+    #: control.
+    replan_every: int = 0
+
 
 class AStarPursuitAgent:
     """Map-based planner with a pure-pursuit local controller.
@@ -71,12 +82,14 @@ class AStarPursuitAgent:
         self._track: np.ndarray | None = None
         self._world = None
         self._cursor = 0
+        self._since_replan = 0
 
     # ------------------------------------------------------------------
-    def reset(self, world, pose: np.ndarray) -> bool:
+    def reset(self, world, pose: np.ndarray, include_dynamic: bool = False) -> bool:
         """Plan for a new episode. Returns ``False`` if no plan was found."""
         self._world = world
         self._cursor = 0
+        self._since_replan = 0
         self.path = None
         self._track = None
 
@@ -90,7 +103,7 @@ class AStarPursuitAgent:
             world.config.robot_radius + margin * 0.5,
             world.config.robot_radius,
         ):
-            occ = world.occupancy_at(radius)
+            occ = world.occupancy_at(radius, include_dynamic=include_dynamic)
             start = tuple(int(v) for v in world.world_to_grid(pose[:2]))
             goal = tuple(int(v) for v in world.world_to_grid(world.goal))
             if occ[start] or occ[goal]:
@@ -116,6 +129,16 @@ class AStarPursuitAgent:
         assert self._world is not None, "reset() must be called before act()"
         if self._track is None:
             return np.zeros(2, dtype=np.float32)
+
+        self._since_replan += 1
+        if cfg.replan_every and self._since_replan >= cfg.replan_every:
+            self._since_replan = 0
+            # Replan against a costmap containing the movers where they are
+            # right now. If that fails (a mover is sitting on the goal, say)
+            # the previous plan is kept rather than the robot being stranded.
+            saved = (self.path, self._track, self._cursor)
+            if not self.reset(self._world, pose, include_dynamic=True):
+                self.path, self._track, self._cursor = saved
 
         position = np.asarray(pose[:2], dtype=np.float64)
         target = self._lookahead_point(position)

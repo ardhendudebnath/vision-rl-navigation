@@ -81,8 +81,11 @@ class Lidar2D:
 
         t = np.full(cfg.n_beams, np.inf)
         t = np.minimum(t, self._walls(world, origin, dirs))
-        if len(world.circles):
-            t = np.minimum(t, self._circles(world.circles, origin, dirs))
+        # Movers are opaque: a sensor that saw through them would hand the
+        # learned policy an advantage it has not earned.
+        discs = world.sensed_circles
+        if len(discs):
+            t = np.minimum(t, self._circles(discs, origin, dirs))
         if len(world.boxes):
             t = np.minimum(t, self._boxes(world.boxes, origin, dirs))
 
@@ -118,8 +121,9 @@ class Lidar2D:
 
         candidates = [self._walls(world, origin, dirs)]
         kinds = [0]
-        if len(world.circles):
-            candidates.append(self._circles(world.circles, origin, dirs))
+        discs = world.sensed_circles
+        if len(discs):
+            candidates.append(self._circles(discs, origin, dirs))
             kinds.append(1)
         if len(world.boxes):
             candidates.append(self._boxes(world.boxes, origin, dirs))

@@ -38,6 +38,17 @@ class WorldConfig:
     n_boxes: tuple[int, int] = (2, 6)
     box_size: tuple[float, float] = (0.5, 1.8)
 
+    #: Moving obstacles. Zero by default, so every earlier experiment is
+    #: unaffected. These are deliberately **absent from the occupancy grid**:
+    #: they are the hazard a map-based planner cannot know about in advance,
+    #: which is the whole point of the condition.
+    n_dynamic: tuple[int, int] = (0, 0)
+    dynamic_radius: tuple[float, float] = (0.25, 0.45)
+    #: Peak-to-centre travel of each mover, in metres.
+    dynamic_amplitude: tuple[float, float] = (1.0, 2.5)
+    #: Speed in m/s at the midpoint of the sweep.
+    dynamic_speed: tuple[float, float] = (0.15, 0.45)
+
     robot_radius: float = 0.22
     goal_tolerance: float = 0.35
 
@@ -87,18 +98,71 @@ class World:
     goal: np.ndarray
     seed: int = 0
 
+    #: ``(M, 7)`` array of moving obstacles:
+    #: ``(cx, cy, radius, dir_x, dir_y, amplitude, omega)``. Position at time
+    #: ``t`` is ``centre + dir * amplitude * sin(omega * t)`` — smooth,
+    #: bounded, periodic and fully determined by the world seed.
+    dynamic: np.ndarray = field(default_factory=lambda: np.zeros((0, 7)))
+
     _occupancy: np.ndarray | None = field(default=None, repr=False, compare=False)
+    #: Current positions of the movers, ``(M, 3)`` as ``(x, y, radius)``.
+    _dyn_now: np.ndarray = field(
+        default_factory=lambda: np.zeros((0, 3)), repr=False, compare=False
+    )
+
+    # ------------------------------------------------------------------
+    # Time
+    # ------------------------------------------------------------------
+    def set_time(self, t: float) -> None:
+        """Advance the moving obstacles to simulation time ``t`` seconds.
+
+        Static worlds ignore this. The env calls it every step, so
+        :meth:`clearance` and the range sensors automatically see the movers
+        where they currently are without every call site having to thread a
+        timestamp through.
+        """
+        if not len(self.dynamic):
+            return
+        d = self.dynamic
+        offset = (d[:, 5] * np.sin(d[:, 6] * float(t)))[:, None]
+        self._dyn_now = np.concatenate(
+            [d[:, :2] + d[:, 3:5] * offset, d[:, 2:3]], axis=1
+        )
+
+    @property
+    def has_dynamic(self) -> bool:
+        return bool(len(self.dynamic))
+
+    @property
+    def sensed_circles(self) -> np.ndarray:
+        """Discs a range sensor can see: static obstacles plus current movers.
+
+        Distinct from :attr:`circles`, which is the static layout the map and
+        the planner are built from. Keeping the two separate is what makes the
+        dynamic condition meaningful.
+        """
+        if not len(self._dyn_now):
+            return self.circles
+        if not len(self.circles):
+            return self._dyn_now
+        return np.concatenate([self.circles, self._dyn_now], axis=0)
 
     # ------------------------------------------------------------------
     # Geometry queries
     # ------------------------------------------------------------------
-    def clearance(self, points: np.ndarray) -> np.ndarray:
+    def clearance(self, points: np.ndarray, include_dynamic: bool = True) -> np.ndarray:
         """Signed distance from ``points`` to the nearest obstacle or wall.
 
         Parameters
         ----------
         points:
             ``(..., 2)`` array of query positions.
+        include_dynamic:
+            Whether moving obstacles count. ``True`` for physics and sensing —
+            a mover you drive into is a collision like any other. ``False``
+            for the occupancy grid, because the grid is the *map*, and the
+            premise of the dynamic condition is that the map does not contain
+            them.
 
         Returns
         -------
@@ -123,9 +187,13 @@ class World:
         )
         dist = d_wall
 
-        if len(self.circles):
-            delta = pts[:, None, :] - self.circles[None, :, :2]
-            d_circ = np.linalg.norm(delta, axis=-1) - self.circles[None, :, 2]
+        discs = self.circles
+        if include_dynamic and len(self._dyn_now):
+            discs = np.concatenate([discs, self._dyn_now], axis=0) if len(discs) else self._dyn_now
+
+        if len(discs):
+            delta = pts[:, None, :] - discs[None, :, :2]
+            d_circ = np.linalg.norm(delta, axis=-1) - discs[None, :, 2]
             dist = np.minimum(dist, d_circ.min(axis=1))
 
         if len(self.boxes):
@@ -141,10 +209,15 @@ class World:
 
         return dist.reshape(leading_shape)
 
-    def is_free(self, points: np.ndarray, radius: float | None = None) -> np.ndarray:
+    def is_free(
+        self,
+        points: np.ndarray,
+        radius: float | None = None,
+        include_dynamic: bool = True,
+    ) -> np.ndarray:
         """Whether a disc of ``radius`` centred at ``points`` is collision-free."""
         r = self.config.robot_radius if radius is None else radius
-        return self.clearance(points) > r
+        return self.clearance(points, include_dynamic=include_dynamic) > r
 
     # ------------------------------------------------------------------
     # Occupancy grid
@@ -167,18 +240,19 @@ class World:
             ys = (np.arange(n_y) + 0.5) * res
             gx, gy = np.meshgrid(xs, ys, indexing="xy")
             pts = np.stack([gx.ravel(), gy.ravel()], axis=-1)
-            free = self.is_free(pts).reshape(n_y, n_x)
+            # Static only: the grid is the map, and movers are not in it.
+            free = self.is_free(pts, include_dynamic=False).reshape(n_y, n_x)
             self._occupancy = ~free
         return self._occupancy
 
-    def occupancy_at(self, radius: float) -> np.ndarray:
+    def occupancy_at(self, radius: float, include_dynamic: bool = False) -> np.ndarray:
         """Occupancy grid inflated by an arbitrary ``radius``.
 
         The classical baseline plans at ``robot_radius + safety_margin`` so
         its path has tracking margin, mirroring how Nav2's inflation layer
         keeps the global plan away from obstacle edges.
         """
-        if np.isclose(radius, self.config.robot_radius):
+        if np.isclose(radius, self.config.robot_radius) and not include_dynamic:
             return self.occupancy
         res = self.config.grid_resolution
         n_x = int(np.ceil(self.config.width / res))
@@ -187,7 +261,8 @@ class World:
         ys = (np.arange(n_y) + 0.5) * res
         gx, gy = np.meshgrid(xs, ys, indexing="xy")
         pts = np.stack([gx.ravel(), gy.ravel()], axis=-1)
-        return (self.clearance(pts) <= radius).reshape(n_y, n_x)
+        occupied = self.clearance(pts, include_dynamic=include_dynamic) <= radius
+        return occupied.reshape(n_y, n_x)
 
     def world_to_grid(self, points: np.ndarray) -> np.ndarray:
         """Convert world coordinates to ``(row, col)`` grid indices."""
@@ -231,6 +306,50 @@ def _sample_obstacles(rng: np.random.Generator, cfg: WorldConfig) -> tuple[np.nd
         boxes = np.zeros((0, 4))
 
     return circles, boxes
+
+
+def _sample_dynamic(rng: np.random.Generator, cfg: WorldConfig, world: World) -> np.ndarray:
+    """Place moving obstacles on free ground, sweeping along a clear line.
+
+    Each mover's whole sweep is checked against the *static* layout, so it
+    never oscillates through a wall. It may of course cross the robot's route
+    — that is the entire point.
+    """
+    lo, hi = cfg.n_dynamic
+    n = int(rng.integers(lo, hi + 1)) if hi >= lo else 0
+    if n <= 0:
+        return np.zeros((0, 7))
+
+    movers = []
+    for _ in range(n * 40):
+        if len(movers) >= n:
+            break
+        radius = float(rng.uniform(*cfg.dynamic_radius))
+        amplitude = float(rng.uniform(*cfg.dynamic_amplitude))
+        speed = float(rng.uniform(*cfg.dynamic_speed))
+        angle = float(rng.uniform(-np.pi, np.pi))
+        direction = np.array([np.cos(angle), np.sin(angle)])
+        centre = np.array(
+            [rng.uniform(0.5, cfg.width - 0.5), rng.uniform(0.5, cfg.height - 0.5)]
+        )
+
+        # The mover must not clip static geometry anywhere along its sweep,
+        # and must not start on top of the robot or the goal.
+        ts = np.linspace(-1.0, 1.0, 9)[:, None]
+        sweep = centre[None, :] + direction[None, :] * amplitude * ts
+        if np.any(world.clearance(sweep, include_dynamic=False) <= radius + 0.05):
+            continue
+        endpoints = np.array([world.start[:2], world.goal])
+        if np.min(np.linalg.norm(sweep[:, None, :] - endpoints[None, :, :], axis=-1)) < (
+            radius + cfg.robot_radius + 0.6
+        ):
+            continue
+
+        # omega chosen so peak speed (amplitude * omega) matches the target.
+        omega = speed / max(amplitude, 1e-6)
+        movers.append([centre[0], centre[1], radius, direction[0], direction[1], amplitude, omega])
+
+    return np.asarray(movers, dtype=np.float64) if movers else np.zeros((0, 7))
 
 
 def generate_world(seed: int, config: WorldConfig | None = None) -> World:
@@ -291,6 +410,10 @@ def generate_world(seed: int, config: WorldConfig | None = None) -> World:
             theta = rng.uniform(-np.pi, np.pi)
             world.start = np.array([start_xy[0], start_xy[1], theta])
             world.goal = np.asarray(goal_xy, dtype=np.float64)
+            # Movers are placed last: their sweeps are validated against the
+            # finished static layout and the chosen start/goal.
+            world.dynamic = _sample_dynamic(rng, cfg, world)
+            world.set_time(0.0)
             return world
 
     raise RuntimeError(

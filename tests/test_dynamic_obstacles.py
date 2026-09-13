@@ -1,0 +1,181 @@
+"""Tests for moving obstacles and the map/sensor asymmetry they depend on.
+
+The whole point of this condition is that the movers are **visible to sensors
+but absent from the map**. If that asymmetry leaked either way the experiment
+would be meaningless: movers in the map would give the planner clairvoyance,
+movers invisible to the lidar would give the policy a free pass.
+"""
+
+from __future__ import annotations
+
+import sys
+from math import comb
+from pathlib import Path
+
+import numpy as np
+import pytest
+
+from vision_nav.envs.nav_env import NavEnvConfig, ProceduralNavEnv
+from vision_nav.envs.sensors import Lidar2D, LidarConfig
+from vision_nav.envs.splits import SHIFTS, shifted_config
+from vision_nav.envs.world import WorldConfig, generate_world
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+from dynamic_experiment import sign_test  # noqa: E402
+
+DYN = shifted_config(WorldConfig(), "dynamic")
+
+
+# ----------------------------------------------------------------------
+# Generation and motion
+# ----------------------------------------------------------------------
+def test_static_worlds_have_no_movers_by_default():
+    """Every earlier experiment must be untouched."""
+    w = generate_world(0)
+    assert not w.has_dynamic
+    assert len(w.dynamic) == 0
+
+
+@pytest.mark.parametrize("seed", range(6))
+def test_dynamic_worlds_generate_movers(seed):
+    w = generate_world(seed, DYN)
+    assert w.has_dynamic
+    lo, hi = DYN.n_dynamic
+    assert lo <= len(w.dynamic) <= hi
+
+
+def test_movers_actually_move_and_are_periodic():
+    w = generate_world(1, DYN)
+    w.set_time(0.0)
+    p0 = w._dyn_now[:, :2].copy()
+    w.set_time(2.5)
+    assert not np.allclose(p0, w._dyn_now[:, :2]), "movers did not move"
+    # sin-driven, so returning to t=0 restores the original positions exactly.
+    w.set_time(0.0)
+    assert np.allclose(p0, w._dyn_now[:, :2])
+
+
+def test_motion_is_deterministic_in_the_seed():
+    a, b = generate_world(3, DYN), generate_world(3, DYN)
+    assert np.array_equal(a.dynamic, b.dynamic)
+    a.set_time(1.7)
+    b.set_time(1.7)
+    assert np.allclose(a._dyn_now, b._dyn_now)
+
+
+def test_movers_never_sweep_through_static_geometry():
+    """A mover embedded in a wall would be an unavoidable phantom collision."""
+    for seed in range(8):
+        w = generate_world(seed, DYN)
+        for t in np.linspace(0, 20, 40):
+            w.set_time(float(t))
+            for x, y, r in w._dyn_now:
+                clear = float(w.clearance(np.array([x, y]), include_dynamic=False))
+                assert clear > r - 1e-6, f"mover clips static geometry at t={t}"
+
+
+# ----------------------------------------------------------------------
+# The map / sensor asymmetry
+# ----------------------------------------------------------------------
+def test_movers_are_absent_from_the_map():
+    w = generate_world(2, DYN)
+    w.set_time(0.0)
+    static = w.occupancy_at(w.config.robot_radius, include_dynamic=False)
+    with_dyn = w.occupancy_at(w.config.robot_radius, include_dynamic=True)
+    assert with_dyn.sum() > static.sum(), "movers should block cells when included"
+    # The default grid -- what the planner reads -- must be the static one.
+    assert np.array_equal(w.occupancy, static)
+
+
+def test_movers_are_visible_to_the_sensor():
+    w = generate_world(2, DYN)
+    w.set_time(0.0)
+    assert len(w.sensed_circles) == len(w.circles) + len(w.dynamic)
+
+
+def test_a_mover_placed_ahead_shortens_the_beam():
+    """End-to-end: the range sensor must actually return the mover."""
+    w = generate_world(4, DYN)
+    w.set_time(0.0)
+    lidar = Lidar2D(LidarConfig(n_beams=180, max_range=8.0))
+    pose = w.start
+    with_movers = lidar.scan(w, pose)
+    saved = w._dyn_now
+    w._dyn_now = np.zeros((0, 3))
+    without = lidar.scan(w, pose)
+    w._dyn_now = saved
+    assert np.any(with_movers < without - 1e-6), "movers did not occlude any beam"
+    assert np.all(with_movers <= without + 1e-6), "movers cannot lengthen a beam"
+
+
+def test_clearance_includes_movers_by_default():
+    w = generate_world(5, DYN)
+    w.set_time(0.0)
+    x, y, r = w._dyn_now[0]
+    at_centre = np.array([x, y])
+    assert float(w.clearance(at_centre, include_dynamic=True)) < 0.0
+    assert float(w.clearance(at_centre, include_dynamic=False)) > 0.0
+
+
+# ----------------------------------------------------------------------
+# Environment
+# ----------------------------------------------------------------------
+def test_env_advances_movers_each_step():
+    cfg = NavEnvConfig(world_seeds=[0], world=DYN)
+    env = ProceduralNavEnv(cfg)
+    env.reset(options={"world_seed": 0})
+    start = env.world._dyn_now[:, :2].copy()
+    for _ in range(30):
+        env.step(np.array([0.0, 0.0]))
+    assert not np.allclose(start, env.world._dyn_now[:, :2])
+
+
+def test_reset_rewinds_the_movers():
+    """A cached world reused across episodes must not carry stale positions."""
+    cfg = NavEnvConfig(world_seeds=[0], world=DYN)
+    env = ProceduralNavEnv(cfg)
+    env.reset(options={"world_seed": 0})
+    first = env.world._dyn_now.copy()
+    for _ in range(40):
+        env.step(np.array([1.0, 0.2]))
+    env.reset(options={"world_seed": 0})
+    assert np.allclose(first, env.world._dyn_now)
+
+
+def test_dynamic_shifts_are_registered():
+    assert "dynamic" in SHIFTS and "dynamic_dense" in SHIFTS
+    assert shifted_config(WorldConfig(), "dynamic").n_dynamic == (3, 6)
+
+
+# ----------------------------------------------------------------------
+# Sign test
+# ----------------------------------------------------------------------
+def test_all_seeds_above_reference_hits_the_floor():
+    """Six seeds cannot produce a p below 2/64, whatever the margin."""
+    k, p = sign_test(np.array([0.9] * 6), 0.5)
+    assert k == 6
+    assert p == pytest.approx(2 / 64)
+
+
+def test_even_split_is_not_significant():
+    k, p = sign_test(np.array([0.6, 0.6, 0.6, 0.4, 0.4, 0.4]), 0.5)
+    assert k == 3 and p == pytest.approx(1.0)
+
+
+def test_ties_are_dropped_conservatively():
+    """A seed equal to the reference is evidence for neither side."""
+    k, p = sign_test(np.array([0.5, 0.5, 0.9, 0.9]), 0.5)
+    assert k == 2
+    # Only two non-tied values remain, so the floor is 2/4.
+    assert p == pytest.approx(2 * comb(2, 0) / 4)
+
+
+def test_all_ties_gives_p_of_one():
+    k, p = sign_test(np.array([0.5, 0.5, 0.5]), 0.5)
+    assert k == 0 and p == 1.0
+
+
+def test_sign_test_is_symmetric():
+    above = sign_test(np.array([0.7, 0.8, 0.9, 0.75, 0.85, 0.95]), 0.5)
+    below = sign_test(np.array([0.3, 0.2, 0.1, 0.25, 0.15, 0.05]), 0.5)
+    assert above[1] == pytest.approx(below[1])
