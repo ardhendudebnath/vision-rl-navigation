@@ -52,7 +52,8 @@ phase-by-phase record, including every prediction that failed, is in
 **Technical report: [`docs/report.md`](docs/report.md)** — the full study written
 up as a short paper, including the false positive this project caught in its
 own results and how. Phase-by-phase detail and rationale:
-[`docs/project_plan.md`](docs/project_plan.md).
+[`docs/project_plan.md`](docs/project_plan.md). In a hurry:
+[`docs/one_page_summary.md`](docs/one_page_summary.md).
 
 ## Results
 

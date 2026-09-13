@@ -1,0 +1,114 @@
+# Learning Vision-Conditioned Navigation Policies — one-page summary
+
+*A comparative study against classical planning.*
+Repository: <https://github.com/ardhendudebnath/vision-rl-navigation> ·
+Full report: [`docs/report.md`](report.md)
+
+## The question
+
+Learning-based navigation is usually evaluated against weak baselines, on the
+distribution it trained on, with a single training seed. Each choice flatters
+the learned method. This project asks the unflattering version instead:
+**where does a learned navigation policy actually beat a strong classical
+planner, where does it lose, and how does each degrade when the world stops
+looking like the training set?**
+
+## Setup
+
+A procedurally generated point-goal task with a differential-drive robot,
+guaranteed-solvable worlds, and disjoint train / validation / test / OOD seed
+bands. Actors are compared on **identical worlds in identical order**, asserted
+at evaluation time rather than assumed, and scored with SPL (Anderson et al.,
+2018) so the numbers are comparable to the embodied-navigation literature.
+
+Three actors: PPO from sensor observations; a classical A\* + pure-pursuit
+stack given the full obstacle map and exact pose; and **real ROS 2 Nav2**
+driven over a bridge into the same simulator. The classical stack is
+deliberately over-privileged — a baseline that loses through handicap proves
+nothing.
+
+## Findings
+
+1. **The planner wins on every condition**, by margins that grow with clutter
+   (1.000 vs 0.960 success nominally, 0.850 vs 0.682 in tight corridors). Four
+   standard explanations — insufficient data, wrong training distribution,
+   insufficient compute (tested twice, to 2.7× budget), reward
+   mis-specification — were each tested and rejected. The cause is
+   behavioural: the reward makes a collision cost four times a timeout, so the
+   policy correctly learns to stall rather than crash.
+2. **A training-free audit of the sensor** quantified a geometric limit, then
+   forecast two later training experiments to within 0.021 and 0.001. It
+   separates coverage (causal: +0.095, p = 0.024) from angular resolution
+   (inert: ±0.003 against a pre-registered ±0.01 bound).
+3. **Representation, not information, is the cost of vision.** Rendering the
+   same geometry as pixels for a CNN rather than a vector for an MLP costs
+   0.16–0.24 success on every condition, and survives giving the CNN 2.7× the
+   compute.
+4. **Nav2 corrected the baseline rather than confirming it.** The hand-written
+   stack matches a production one to within 0.03 where clutter is not binding,
+   but is 0.06–0.08 worse in tight corridors — so the published gap there was
+   a lower bound. The mechanism was predicted in advance from failure-mode
+   counts: replacing pure pursuit with a sampling local planner removed 58–92%
+   of collisions, and only where the controller was the binding constraint.
+
+## The part that matters most
+
+**A correctly computed significance test produced a confident, reproducible,
+and wrong conclusion.** An early result looked significant on one seed per arm
+(+0.070, 95% CI [+0.006, +0.134]); across four seeds it vanished (+0.042,
+p = 0.457). The interval was not miscalculated — it paired over *episodes*
+when the unit of analysis is the *training seed*, and was silent on the
+dominant source of variance. A correct answer to the wrong question is much
+harder to notice than an error.
+
+Everything afterwards uses seed-level analysis, exact permutation tests, and
+pre-registered endpoints. Of four advance predictions, the two derived from
+measurements held to within 0.021; the two derived from intuition failed. Both
+the false positive and a later harness bug that inverted a result are
+documented in the report rather than quietly corrected.
+
+## What it demonstrates
+
+Classical robotics (A\*, costmaps, pure pursuit, ROS 2 / Nav2) and modern
+robot learning (PPO, domain randomisation, CNN encoders) in one controlled
+comparison — plus the experimental discipline to catch a false positive in
+one's own favour and publish it.
+
+---
+
+## Short forms
+
+These are the project half of an application document. The personal half — why
+this field, why this lab, where you want to go — is yours to write, and a
+committee can tell the difference.
+
+**~150 words, for a statement of purpose.**
+
+> I built a controlled comparison between reinforcement-learning and
+> search-based navigation, designed so the result could embarrass me. A PPO
+> policy is scored against a classical A\* and pure-pursuit stack — and
+> against real ROS 2 Nav2 — on identical procedurally generated worlds, under
+> four distribution shifts, with the planner given the full map and exact
+> pose. The planner wins everywhere, and I spent most of the project
+> eliminating the comfortable explanations for that: insufficient data, wrong
+> training distribution, insufficient compute, reward mis-specification. The
+> cause turned out to be behavioural rather than any of them. Along the way a
+> correctly computed confidence interval produced a confident and wrong
+> conclusion, because it treated episodes rather than training seeds as the
+> unit of analysis; I found it by replication, documented it in full, and
+> reran every subsequent experiment with seed-level statistics and
+> pre-registered endpoints.
+
+**~60 words, for a CV entry or the opening of an email.**
+
+> Vision + RL autonomous navigation (Python, PyTorch, Stable-Baselines3,
+> ROS 2 / Nav2): a fifteen-experiment controlled study of learned versus
+> classical navigation under distribution shift, with seed-level significance
+> testing, pre-registered predictions, a real Nav2 baseline over a ROS 2
+> bridge, and a 239-test suite. Includes a documented false positive I caught
+> in my own results.
+
+**One line, for a subject line or an introduction.**
+
+> A controlled study of where learned navigation loses to classical planning —
+> including the false positive I caught in my own results.
