@@ -701,7 +701,7 @@ Planned order of work, all of which was subsequently done:
 Two later bug classes trace back to this seam and are worth recording here:
 evaluation configs that did not carry `obs_mode` through, and a camera
 mis-labelled as a lidar in the benchmark. Both were silent. They are why
-`training/run_spec.py` exists, and why the benchmark now reports the sensor
+`src/vision_nav/training/run_spec.py` exists, and why the benchmark now reports the sensor
 each policy actually reads rather than the one its row is named after.
 
 ## Phase 3b — Depth camera vs lidar: field of view beats resolution

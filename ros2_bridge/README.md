@@ -91,7 +91,7 @@ installed system-wide; deleting `~/mamba` removes the whole stack.
 bash ros2_bridge/run_nav2.sh --condition nominal --episodes 100
 ```
 
-Conditions come from `BENCHMARK_CONDITIONS` in `vision_nav/envs/splits.py` —
+Conditions come from `BENCHMARK_CONDITIONS` in `src/vision_nav/envs/splits.py` —
 the same table `scripts/run_benchmark.py` scores every other actor against, so
 the two cannot drift apart. Results are written as
 `results/<condition>__nav2.json`, matching the benchmark's filename
