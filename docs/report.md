@@ -29,8 +29,10 @@ is inert: doubling sample count at fixed field of view changes nothing
 identical resolution produces the whole effect (+0.095, p = 0.024). Holding
 information constant and changing only the *representation* — the same
 geometry as pixels for a CNN rather than a vector for an MLP — costs 0.16–0.24
-success. Finally, where the map is wrong the gap closes to statistical parity
-(−0.010, p = 0.625) but never reverses.
+success. Where the map is wrong the gap closes to statistical parity (−0.010,
+p = 0.625) but never reverses — and only with sparse movers: adding clutter to
+them puts real Nav2 0.150–0.170 ahead of every training seed, so half of that
+parity was a property of our own baseline rather than of learned navigation.
 
 **The most transferable contribution is methodological.** A correctly computed
 significance test produced a confident, reproducible, and wrong conclusion,
@@ -516,7 +518,8 @@ Frame stacking versus its own control: −0.008 (p = 0.784) and +0.013
 **What is real is a regime change, not a reversal.** Where the map is wrong
 the learned policy becomes statistically indistinguishable from a strong
 replanning planner; where the map is right it stays clearly worse. Across the
-whole study that is the closest RL comes to winning.
+whole study that is the closest RL comes to winning — **on `dynamic`. Section
+9.3 shows it does not extend to `dynamic_dense`.**
 
 ### 9.1 A near-miss in the baseline
 
@@ -541,6 +544,48 @@ raw stacked scans without an explicit difference feature or recurrence; and
 the reward's 4:1 preference for stalling may suppress commitment even when
 anticipation is possible. Faster movers is the cheapest test.
 
+### 9.3 Half of the parity was the baseline
+
+Section 4.1 established that the hand-written stack is conservative under
+clutter. `dynamic_dense` is clutter *and* movers, so the parity claim above is
+exactly the kind that bias could manufacture. Running Nav2 on both dynamic
+conditions, two passes each:
+
+| Condition | Hand-written | Learned (best) | Nav2 | Nav2 − learned |
+|---|---|---|---|---|
+| dynamic | 0.870 | 0.860 ± 0.033 | 0.840–0.870 | −0.020 to +0.010 |
+| **dynamic_dense** | 0.750 | 0.710 ± 0.042 | **0.860–0.880** | **+0.150 to +0.170** |
+
+**On `dynamic` the parity finding survives contact with a production stack**
+and is stronger for it: the learned policy is indistinguishable from *both*
+classical stacks, not just the one written for this project.
+
+**On `dynamic_dense` it does not survive.** Against the hand-written baseline
+the learned policy was 0.040 behind and not significantly so; against Nav2 it
+is 0.150–0.170 behind, and **all six training seeds fall below both Nav2
+passes**. The apparent regime change there was substantially an artefact of
+the baseline's controller, not a property of learned navigation.
+
+This is the second time in this section that a parity claim turned out to be
+about the baseline rather than about the policy. Section 9.1 caught the first
+before publication, by sweeping the replan interval instead of assuming it.
+This one survived to publication and needed a different baseline to expose.
+
+**A prediction, recorded in advance, that failed instructively.** From the
+collision reductions in Section 4.1 — 58–92% on `narrow`, 56–78% on `dense` —
+the pre-registered prediction was Nav2 ≥ 0.92 on `dynamic`. It reached 0.840
+to 0.870. The pre-registered counter-hypothesis is what actually happened:
+DWB's 1.5 s sampling horizon does not anticipate a crossing mover, so the
+collision mechanism that repairs *clutter* does not transfer to *motion*.
+The collision rates say it plainly — on `dynamic`, Nav2 collides at
+0.130–0.160 against the baseline's 0.130, no better at all. On
+`dynamic_dense` it collides at 0.110–0.140 against 0.250, because there most
+of the collisions come from the clutter, which is the part DWB does fix.
+
+So the win on `dynamic_dense` is not evidence that Nav2 handles moving
+obstacles well. It handles the *static* obstacles around them well, and the
+movers defeat every actor here about equally.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -562,11 +607,14 @@ Two asymmetries in the comparison **favour** the learned side, and it still
 lost: the classical planner has no training distribution, so the shifts are
 not shifts for it; and two learned arms received 2.7× the compute.
 
-**Where the learned side does earn its keep** is narrow but real. It is
-statistically indistinguishable from the planner once the map stops being
-correct, ~6% faster on successful nominal episodes, and indifferent to sensor
-noise — the one axis the classical baseline cannot be compared on at all,
-since it never reads the sensor.
+**Where the learned side does earn its keep** is narrower than it first
+appeared. It is statistically indistinguishable from *both* classical stacks
+on `dynamic`, ~6% faster on successful nominal episodes, and indifferent to
+sensor noise — the one axis the hand-written baseline cannot be compared on at
+all, since it never reads the sensor. But the same claim on `dynamic_dense`
+did not survive a production baseline: Nav2 is 0.150–0.170 ahead there, above
+every training seed (Section 9.3). Sparse movers, not moving obstacles in
+general, is the regime where this policy competes.
 
 **The transferable lesson is methodological.** A correctly computed
 significance test produced a confident, reproducible, wrong conclusion because
@@ -575,10 +623,29 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-A calibration note worth recording: of four quantitative predictions made in
+A calibration note worth recording: of five quantitative predictions made in
 advance, **the two derived from a measurement held** (within 0.021 and 0.001)
-and **the two derived from intuition failed** (one by 2–3×, one falsified
-outright). Confidence of expression was identical in all four cases.
+and **three derived from extrapolation or intuition failed** (one by 2–3×, one
+falsified outright, and the Section 9.3 prediction of Nav2 ≥ 0.92 on
+`dynamic`, which came in at 0.840–0.870). Confidence of expression was
+identical in all five cases.
+
+The fifth is the most useful of them, because it failed in a way that was
+written down in advance. The prediction extrapolated a *measured* collision
+reduction, which by the rule above should have made it reliable — but it
+extrapolated across a change of mechanism, from static clutter to moving
+obstacles, and the pre-registered counter-hypothesis named exactly that. The
+refinement to the rule: predictions from measurement hold **within** the
+regime measured, and become intuition again the moment they cross a boundary
+the measurement never spanned.
+
+**And one more parity claim turned out to be about the baseline.** The
+project's most RL-favourable result — indistinguishability once the map is
+wrong — holds on `dynamic` and fails on `dynamic_dense`, where a production
+stack beats every training seed. Section 9.1 caught one such artefact before
+publication by sweeping a parameter instead of assuming it; this one needed a
+different baseline entirely. Both point the same way: **when a result favours
+the thing you are studying, the baseline is the first place to look.**
 
 ## 11. Limitations
 
@@ -606,7 +673,10 @@ outright). Confidence of expression was identical in all four cases.
 - **Nav2 itself is measured over only two passes.** It is nondeterministic
   (Section 4.1) and two passes bound its run-to-run spread rather than
   estimating it. The comparison is read against that range, but a tighter
-  claim needs more passes.
+  claim needs more passes. This applies to Section 9.3 as well, where the
+  `dynamic_dense` margin (+0.150 to +0.170) is far outside that spread but the
+  `dynamic` result (−0.020 to +0.010) sits inside it and is read as parity
+  rather than as a measured equality.
 - **Single-seed findings are flagged as unreplicated** throughout, including
   the one significant reward-ablation result (`step_penalty` improving nominal
   SPL by +0.066).
@@ -615,12 +685,12 @@ outright). Confidence of expression was identical in all four cases.
 
 In order of expected information per GPU-hour:
 
-1. **More Nav2 passes, and Nav2 on the dynamic conditions.** Section 4.1 rests
-   on two passes of a nondeterministic system, and the `dynamic` condition —
-   the one where the map is wrong and the learned policies reach parity — has
-   not been run against Nav2 at all. That is where a reactive local planner
-   should have the most to offer, and so where the comparison is most
-   informative.
+1. **Why `dynamic_dense` and not `dynamic`.** Section 9.3 leaves the learned
+   policy at parity with a production stack on sparse movers and 0.150–0.170
+   behind once clutter is added. Whether that is the clutter alone or an
+   interaction between clutter and motion is answerable by running the static
+   `dense` policies against dense worlds with the movers frozen — a controlled
+   subtraction that needs no new training.
 2. **Faster movers** (0.8–1.5 m/s against a 0.6 m/s robot). The cheapest test
    of why frame stacking was inert: if anticipation ever pays, it pays here.
 3. **Explicit velocity features or recurrence.** Distinguishes "the

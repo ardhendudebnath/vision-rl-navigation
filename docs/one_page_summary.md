@@ -50,6 +50,12 @@ nothing.
    a lower bound. The mechanism was predicted in advance from failure-mode
    counts: replacing pure pursuit with a sampling local planner removed 58–92%
    of collisions, and only where the controller was the binding constraint.
+5. **And it overturned this project's most favourable result.** Where the map
+   is wrong, the learned policy had looked statistically indistinguishable
+   from the planner. Against Nav2 that holds with sparse movers and fails once
+   clutter is added, where Nav2 is 0.150–0.170 ahead of every training seed.
+   Half of the parity was a property of the baseline, not of the policy —
+   found by deliberately re-testing the claim that most flattered the work.
 
 ## The part that matters most
 

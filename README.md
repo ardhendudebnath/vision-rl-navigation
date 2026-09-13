@@ -126,12 +126,19 @@ geometry as images for a CNN, rather than reading it as a vector, costs
 0.16–0.24 success on every condition — every depth seed beats every RGB seed.
 The gap survives giving RGB 2.7× the compute.
 
-**4. Where the map is wrong, the gap closes to parity — but never reverses.**
-With obstacles that move and are absent from the map, the learned policy
-becomes statistically indistinguishable from the planner (−0.010, p = 0.625),
-while staying clearly worse where the map is right (−0.168, p = 0.031). Frame
-stacking, the one setup giving the policy information the planner structurally
-lacks, changed nothing (−0.008, p = 0.784).
+**4. Where the map is wrong, the gap closes to parity — with sparse movers
+only.** With obstacles that move and are absent from the map, the learned
+policy is statistically indistinguishable from the planner (−0.010,
+p = 0.625), while staying clearly worse where the map is right (−0.168,
+p = 0.031). Frame stacking, the one setup giving the policy information the
+planner structurally lacks, changed nothing (−0.008, p = 0.784).
+
+But that parity does not survive adding clutter to the movers. On
+`dynamic_dense`, real Nav2 is **0.150–0.170 ahead of the learned policy and
+above all six training seeds**, where the hand-written baseline had been only
+0.040 ahead. Half of the project's most RL-favourable claim was a property of
+its own baseline. Nav2 gets there by removing *clutter* collisions, not by
+handling movers — against movers it is no better than pure pursuit.
 
 ### The part worth reading
 

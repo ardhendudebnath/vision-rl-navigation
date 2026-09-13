@@ -849,10 +849,43 @@ later experiment.
 Not established: that Nav2 is better on `dense`. Both passes say so and the
 collision reduction there is real, but the success margin sits inside the
 run-to-run spread, and the rule that demotes it is the same rule Phase 2g
-exists to enforce. Also not established: anything about the `dynamic`
-conditions, which have not been run against Nav2 and are where a reactive
-local planner should have the most to offer. Two passes bound Nav2's spread
-rather than estimating it.
+exists to enforce. Two passes bound Nav2's spread rather than estimating it.
+
+### Phase 5b — the dynamic conditions, and half a retraction
+
+The parity finding of Phase 3g/3h — the learned policy indistinguishable from
+the planner once the map is wrong — is the project's most RL-favourable claim
+and rests on the baseline Phase 5 just showed is conservative under clutter.
+`dynamic_dense` is clutter *and* movers, so it was the claim most exposed.
+
+Pre-registered prediction, extrapolating the measured collision reductions of
+Phase 5: **Nav2 >= 0.92 on `dynamic`**. It reached 0.840-0.870. The prediction
+failed and the pre-registered counter-hypothesis is what happened — DWB's
+1.5 s horizon does not anticipate a crossing mover, so a mechanism that
+repairs clutter does not transfer to motion. Nav2's collision rate on
+`dynamic` is 0.130-0.160 against the baseline's 0.130: no better at all.
+
+| Condition | hand-written | learned (best) | Nav2 | Nav2 - learned |
+|---|---|---|---|---|
+| dynamic | 0.870 | 0.860 +/- 0.033 | 0.840-0.870 | -0.020 to +0.010 |
+| dynamic_dense | 0.750 | 0.710 +/- 0.042 | 0.860-0.880 | +0.150 to +0.170 |
+
+On `dynamic` parity survives and is stronger for it: the policy matches *both*
+classical stacks. On `dynamic_dense` it does not — Nav2 beats all six training
+seeds. Nav2 wins there by removing the *clutter* collisions (0.250 to
+0.110-0.140), not by handling the movers.
+
+This is the second parity claim in the project to turn out to be about the
+baseline. Phase 3g caught the first before publication by sweeping the replan
+interval rather than assuming it; this one was published and needed a
+different baseline to expose. The lesson generalises: **when a result favours
+the thing being studied, the baseline is the first place to look.**
+
+It also refines the calibration rule. Predictions from measurement had held
+twice and intuition had failed twice; this one came from a measurement and
+still failed, because it extrapolated across a change of mechanism the
+measurement never spanned. Measurement-derived predictions hold *within* the
+regime measured and revert to intuition outside it.
 
 ## Hardware notes
 
