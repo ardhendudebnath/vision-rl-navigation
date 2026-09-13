@@ -264,31 +264,18 @@ trend. The compute sweep tested and rejected it.
 ### 5.3 The failure mode is caution, and it is rational
 
 What *did* change across randomisation and compute was the **composition** of
-failures. On `narrow`, 100 episodes:
+failures. On `narrow`, collisions fall from 27 per 100 episodes to 2 as the
+policy is given randomisation and 2.7× the compute — it has all but learned
+not to crash. But of the 25 episodes that left the collision bucket, **21
+became timeouts and only 4 became successes**, and the stalled ones crawl at
+0.14 m/s against a 0.6 m/s cap.
 
-| Policy | Successes | Collisions | Timeouts | Timeout progress |
-|---|---|---|---|---|
-| nominal, 1.5M | 60 | 27 | 13 | 4.4 m of 10.6 m, 0.09 m/s |
-| DR, 1.5M | 63 | 11 | 26 | 7.5 m of 11.7 m, 0.15 m/s |
-| DR, 4.0M | 64 | **2** | **34** | 7.1 m of 11.8 m, 0.14 m/s |
-
-Collisions fall to 2 in 100: the policy has all but learned not to crash. But
-of the 25 episodes that left the collision bucket, **21 became timeouts and
-only 4 became successes**. The stalled episodes crawl at 0.14 m/s against a
-0.6 m/s cap. The policy converges on caution: it learns not to crash, not how
-to get through.
-
-Measuring episode returns explains why. On `narrow` with the 4.0M policy:
-
-| Outcome | Mean return |
-|---|---|
-| success | +41.20 |
-| timeout | −2.06 |
-| collision | −24.91 |
-
-A collision costs a flat −20; timing out for all 500 steps costs −5. **Crashing
-is four times worse than stalling forever.** The policy is not malfunctioning —
-it found the optimum of the reward it was given.
+Measured episode returns explain why: success +41.20, timeout −2.06, collision
+−24.91. A collision costs a flat −20; timing out for all 500 steps costs −5.
+**Crashing is four times worse than stalling forever.** The policy is not
+malfunctioning — it found the optimum of the reward it was given, and that
+reward asks it to learn not to crash rather than how to get through. Full
+failure-composition and return tables are in [Phase 2e](project_plan.md).
 
 ### 5.4 It is not the reward balance either
 
@@ -395,31 +382,25 @@ roughly how much.
 
 ### 7.1 The audit designs and predicts the powered experiment
 
-16 vs 64 beams spans 0.778 → 0.949 in detection: a 17-point contrast, nearly
-three times the 6.4 points of 32 vs 64. Scaling the +0.042 observed at 6.4
-points implies roughly +0.11 success.
+16 vs 64 beams spans 0.778 → 0.949 in detection — a 17-point contrast against
+the 6.4 points of 32 vs 64 — so scaling the +0.042 observed at 6.4 points
+implies roughly **+0.11 success**. `narrow` success was pre-registered as the
+single primary endpoint, six seeds per arm, exact permutation test, before the
+runs completed.
 
-We pre-registered `narrow` success as the single primary endpoint, six seeds
-per arm, exact permutation test, before the runs completed.
+Observed: **+0.085 on `narrow` (p = 0.035)** and +0.115 on `dense`
+(p = 0.002), against that predicted +0.11. **A training-free measurement
+forecast the outcome of a twelve-run training experiment** — a prediction
+rather than a fit, and stronger evidence for the mechanism than the effect
+size alone. It also settles §6: the beam-count effect is real, and §6.1 was
+underpowered rather than wrong about where to look.
 
-| Condition | 16 beams | 64 beams | Δ | p (exact) |
-|---|---|---|---|---|
-| **narrow** (primary) | 0.597 ± 0.054 | 0.682 ± 0.060 | **+0.085** | **0.035** |
-| dense | 0.580 ± 0.035 | 0.695 ± 0.040 | **+0.115** | **0.002** |
-| nominal | 0.898 ± 0.041 | 0.937 ± 0.021 | +0.038 | 0.056 |
-
-Observed +0.085 to +0.115, against a predicted ~+0.11. **A training-free
-measurement forecast the outcome of a twelve-run training experiment** — a
-prediction rather than a fit, and stronger evidence for the mechanism than the
-effect size alone.
-
-**On multiplicity:** `narrow` success was pre-registered as the single primary
-endpoint, so p = 0.035 stands uncorrected — that is what pre-registration buys.
-The eight secondary tests do need correction; at Bonferroni (0.05/8 = 0.006)
-only `dense` success and `dense` SPL survive. Stated plainly because p = 0.035
-would *not* survive correction if `narrow` were treated as one of nine
-exploratory tests, and the only thing separating those readings is having fixed
-the endpoint in advance.
+**On multiplicity:** the primary endpoint was fixed in advance, so p = 0.035
+stands uncorrected — that is what pre-registration buys. The eight secondary
+tests do need it, and at Bonferroni only `dense` success and SPL survive.
+Stated plainly because p = 0.035 would *not* survive correction if `narrow`
+were treated as one of nine exploratory tests. Per-seed values and the full
+table are in [Phase 2i](project_plan.md).
 
 ## 8. Results 7–10: what the sensor and its representation cost
 
