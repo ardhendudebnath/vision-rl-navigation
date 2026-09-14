@@ -395,3 +395,60 @@ def test_fast_movers_actually_reach_their_target_speed():
     assert peaks.max() <= 1.5 + 1e-9
     # And they genuinely outrun the robot, which is the point of the condition.
     assert peaks.mean() > 0.6
+
+
+# ----------------------------------------------------------------------
+# Explicit velocity channel
+# ----------------------------------------------------------------------
+def test_obs_velocity_is_off_by_default():
+    """Every earlier result must be unaffected."""
+    assert NavEnvConfig().obs_velocity is False
+    env = ProceduralNavEnv(NavEnvConfig(world_seeds=[0]))
+    obs, _ = env.reset(options={"world_seed": 0})
+    assert obs.shape[0] == env.lidar.config.n_beams + 5
+
+
+def test_obs_velocity_appends_one_delta_per_beam():
+    cfg = NavEnvConfig(world_seeds=[0], obs_velocity=True)
+    env = ProceduralNavEnv(cfg)
+    obs, _ = env.reset(options={"world_seed": 0})
+    n = env.lidar.config.n_beams
+    assert obs.shape[0] == n + 5 + n
+    assert env.observation_space.shape == obs.shape
+
+
+def test_delta_is_zero_on_the_first_step_then_tracks_motion():
+    """Opening frame must imply no motion, matching how stacking initialises."""
+    dyn = shifted_config(WorldConfig(), "dynamic_fast")
+    env = ProceduralNavEnv(NavEnvConfig(world_seeds=[30000], world=dyn,
+                                        obs_velocity=True))
+    obs, _ = env.reset(options={"world_seed": 30000})
+    n = env.lidar.config.n_beams
+    assert np.allclose(obs[n + 5:], 0.0), "first step must imply zero motion"
+
+    # Standing still in a world with fast movers still produces range changes.
+    moved = False
+    for _ in range(12):
+        obs, _, term, trunc, _ = env.step(np.array([0.0, 0.0]))
+        if np.any(np.abs(obs[n + 5:]) > 1e-6):
+            moved = True
+        if term or trunc:
+            break
+    assert moved, "movers should change ranges even from a stationary robot"
+
+
+def test_reset_clears_the_delta_history():
+    dyn = shifted_config(WorldConfig(), "dynamic_fast")
+    env = ProceduralNavEnv(NavEnvConfig(world_seeds=[30000], world=dyn,
+                                        obs_velocity=True))
+    env.reset(options={"world_seed": 30000})
+    for _ in range(8):
+        env.step(np.array([0.5, 0.1]))
+    obs, _ = env.reset(options={"world_seed": 30000})
+    n = env.lidar.config.n_beams
+    assert np.allclose(obs[n + 5:], 0.0), "stale delta leaked across episodes"
+
+
+def test_obs_velocity_and_frame_stack_are_mutually_exclusive():
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        ProceduralNavEnv(NavEnvConfig(obs_velocity=True, frame_stack=2))

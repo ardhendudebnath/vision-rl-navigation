@@ -108,6 +108,21 @@ class NavEnvConfig:
     #: the motion removed. See FROZEN_CONDITIONS in envs.splits.
     freeze_dynamic: bool = False
 
+    #: Append the per-beam change in range since the last step to the
+    #: observation, so radial velocity is handed to the policy rather than
+    #: left implicit in a stack of frames.
+    #:
+    #: Frame stacking was inert at both mover speeds tested, which admits two
+    #: readings: the velocity information is useless, or it is present but
+    #: hard for an MLP to extract from raw stacked scans. This isolates the
+    #: second. Compared against ``frame_stack=2``, which carries the same
+    #: information at nearly the same width, the only difference is whether
+    #: the subtraction is done for the policy or by it.
+    #:
+    #: Mutually exclusive with frame stacking: combining them would confound
+    #: the comparison the flag exists to make.
+    obs_velocity: bool = False
+
     #: Explicit pool of world seeds to draw episodes from.  Passing an
     #: explicit list is how train / val / test splits are kept disjoint; see
     #: :mod:`vision_nav.envs.splits`.
@@ -144,6 +159,14 @@ class ProceduralNavEnv(gym.Env):
             )
         if self.config.frame_stack < 1:
             raise ValueError(f"frame_stack must be >= 1, got {self.config.frame_stack}")
+        if self.config.obs_velocity and self.config.frame_stack > 1:
+            raise ValueError(
+                "obs_velocity and frame_stack>1 are mutually exclusive: they "
+                "supply the same information two different ways, and the "
+                "experiment they exist for compares them against each other."
+            )
+        if self.config.obs_velocity and self.config.obs_mode == "rgb":
+            raise ValueError("obs_velocity is not supported for obs_mode='rgb'")
         if self.config.frame_stack > 1 and self.config.obs_mode == "rgb":
             raise NotImplementedError(
                 "frame_stack is not supported for obs_mode='rgb'; stacking "
@@ -180,7 +203,8 @@ class ProceduralNavEnv(gym.Env):
                 }
             )
         else:
-            self._frame_dim = self._n_range + 5
+            self._frame_dim = self._n_range + 5 + (
+                self._n_range if self.config.obs_velocity else 0)
             self.observation_space = spaces.Box(
                 low=-1.0,
                 high=1.0,
@@ -199,6 +223,8 @@ class ProceduralNavEnv(gym.Env):
         self._distance_field: np.ndarray | None = None
         self._last_action = np.zeros(2, dtype=np.float64)
         self._frames: deque[np.ndarray] = deque(maxlen=self.config.frame_stack)
+        #: Previous normalised scan, for the obs_velocity delta channel.
+        self._prev_scan: np.ndarray | None = None
 
     # ------------------------------------------------------------------
     # Gymnasium API
@@ -222,6 +248,7 @@ class ProceduralNavEnv(gym.Env):
 
         world.set_time(0.0)
         self._frames.clear()
+        self._prev_scan = None
         self.robot.reset(world.start)
         self._steps = 0
         self._path_length = 0.0
@@ -339,7 +366,17 @@ class ProceduralNavEnv(gym.Env):
         else:
             scan = self.camera.normalized_depth(self._world, pose, self.np_random)
 
-        obs = np.concatenate([scan, to_goal_vec])
+        if cfg.obs_velocity:
+            # Change in range since the last step. Zero on the first step of an
+            # episode, matching how frame stacking fills its history with
+            # copies of the opening frame rather than implying motion that
+            # never happened.
+            prev = self._prev_scan
+            delta = scan - prev if prev is not None else np.zeros_like(scan)
+            self._prev_scan = scan.copy()
+            obs = np.concatenate([scan, to_goal_vec, delta])
+        else:
+            obs = np.concatenate([scan, to_goal_vec])
         return np.clip(obs, -1.0, 1.0).astype(np.float32)
 
     def _observation(self):
