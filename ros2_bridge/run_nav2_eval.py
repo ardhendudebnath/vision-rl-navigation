@@ -17,19 +17,18 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from pathlib import Path
-
 import time
+from pathlib import Path
 
 import rclpy
 from geometry_msgs.msg import PoseStamped
 from lifecycle_msgs.msg import State
 from lifecycle_msgs.srv import GetState
+from nav2_bridge import CMD_VEL_TYPE, Nav2Bridge, yaw_to_quaternion
 from nav2_msgs.srv import ClearEntireCostmap
 from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 from rclpy.executors import SingleThreadedExecutor
 
-from nav2_bridge import CMD_VEL_TYPE, Nav2Bridge, yaw_to_quaternion
 from vision_nav.envs.splits import (
     BENCHMARK_CONDITIONS,
     DYNAMIC_CONDITIONS,
@@ -229,7 +228,7 @@ def main(argv=None) -> int:
 
     clear_clients = [bridge.create_client(ClearEntireCostmap, s)
                      for s in CLEAR_SERVICES]
-    for client, name in zip(clear_clients, CLEAR_SERVICES):
+    for client, name in zip(clear_clients, CLEAR_SERVICES, strict=False):
         while not client.service_is_ready():
             pump(bridge, executor)
             if time.monotonic() - started > 240:

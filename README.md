@@ -1,5 +1,7 @@
 # Learning Vision-Conditioned Navigation Policies
 
+[![CI](https://github.com/ardhendudebnath/vision-rl-navigation/actions/workflows/ci.yml/badge.svg)](https://github.com/ardhendudebnath/vision-rl-navigation/actions/workflows/ci.yml)
+
 ### A comparative study against classical planning
 
 ![Classical planner vs learned policy, side by side](results/demo_comparison.gif)

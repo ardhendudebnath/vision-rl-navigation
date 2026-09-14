@@ -67,7 +67,7 @@ def spearman(xs, ys) -> float:
     rx, ry = rank(xs), rank(ys)
     n = len(xs)
     mx, my = sum(rx) / n, sum(ry) / n
-    num = sum((a - mx) * (b - my) for a, b in zip(rx, ry))
+    num = sum((a - mx) * (b - my) for a, b in zip(rx, ry, strict=False))
     dx = sum((a - mx) ** 2 for a in rx) ** 0.5
     dy = sum((b - my) ** 2 for b in ry) ** 0.5
     return num / (dx * dy) if dx and dy else 0.0
@@ -81,7 +81,7 @@ def main(argv=None) -> int:
 
     data = load(args.results)
     if not data:
-        print("no results in {}/".format(args.results))
+        print(f"no results in {args.results}/")
         return 1
 
     hzs = sorted(data)
@@ -99,8 +99,7 @@ def main(argv=None) -> int:
         moving.append(m)
         frozen.append(f)
         cost.append(m - f)
-        lines.append("| {:.1f} s | {:.3f} | {:.3f} | **{:+.3f}** |".format(
-            hz, m, f, m - f))
+        lines.append(f"| {hz:.1f} s | {m:.3f} | {f:.3f} | **{m - f:+.3f}** |")
 
     table = "\n".join(lines)
     print(table)
@@ -115,10 +114,8 @@ def main(argv=None) -> int:
     spread_frozen = max(frozen) - min(frozen)
 
     print()
-    print("cost of motion vs horizon : rho = {:+.3f}, range {:.3f}".format(
-        rho_cost, spread_cost))
-    print("frozen success vs horizon : rho = {:+.3f}, range {:.3f}".format(
-        rho_frozen, spread_frozen))
+    print(f"cost of motion vs horizon : rho = {rho_cost:+.3f}, range {spread_cost:.3f}")
+    print(f"frozen success vs horizon : rho = {rho_frozen:+.3f}, range {spread_frozen:.3f}")
 
     # Pre-registered: cost of motion rises with horizon (rho <= -0.8 on the
     # signed cost, which is negative and grows more negative), by at least
@@ -132,13 +129,13 @@ def main(argv=None) -> int:
               "not. The Section 9.2 hypothesis is supported.")
     elif grew and not control_flat:
         print("PARTIAL, AND THE CONTROL SAYS NO. The cost grows with horizon, "
-              "but the frozen arm moves by {:.3f} too, so longer horizons are "
+              f"but the frozen arm moves by {spread_frozen:.3f} too, so longer horizons are "
               "simply worse here and motion is incidental. Same shape of "
-              "failure as the churn experiment.".format(spread_frozen))
+              "failure as the churn experiment.")
     else:
         print("PREDICTION FAILED. The cost of motion is flat in the horizon "
-              "(range {:.3f}), so commitment length is not the mechanism and "
-              "the motion cost stays unexplained.".format(spread_cost))
+              f"(range {spread_cost:.3f}), so commitment length is not the mechanism and "
+              "the motion cost stays unexplained.")
 
     if args.out:
         with open(args.out, "w", encoding="utf-8", newline="\n") as fh:

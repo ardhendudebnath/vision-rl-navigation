@@ -142,7 +142,7 @@ PREDICTION = (
 
 
 def arm(name: str, config: PursuitConfig, episodes: int) -> dict:
-    print("\n=== {} ===".format(name))
+    print(f"\n=== {name} ===")
     print("{:16s} {:>8s} {:>7s} {:>9s} {:>9s} {:>10s}".format(
         "cell", "success", "coll", "churn(m)", "replans", "coll-gap"))
     cells = {}
@@ -163,7 +163,7 @@ def main(argv=None) -> int:
               "prediction": PREDICTION, "arms": {}}
 
     report["arms"]["timer"] = arm(
-        "timed replanning (replan_every={})".format(args.replan_every),
+        f"timed replanning (replan_every={args.replan_every})",
         PursuitConfig(replan_every=args.replan_every), args.episodes)
     report["arms"]["on_block"] = arm(
         "block-triggered replanning",

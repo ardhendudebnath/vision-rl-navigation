@@ -170,7 +170,7 @@ def main(argv=None) -> int:
         else:
             print("\n  Predicted vs observed level means:")
             errs = []
-            for (value, _), pv in zip(levels, pred):
+            for (value, _), pv in zip(levels, pred, strict=False):
                 obs = float(np.mean(per_level[value]))
                 errs.append(obs - pv)
                 print(f"    {value:>6.0f}: predicted {pv:.3f}  observed {obs:.3f}  "

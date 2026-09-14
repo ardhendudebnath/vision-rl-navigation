@@ -73,7 +73,7 @@ def main(argv=None) -> int:
 
     for label, mov_cond, frz_cond in PAIRS:
         if mov_cond not in conditions or frz_cond not in conditions:
-            notes.append("no paired results for {}".format(label))
+            notes.append(f"no paired results for {label}")
             continue
         mov, frz = conditions[mov_cond], conditions[frz_cond]
 
@@ -81,7 +81,7 @@ def main(argv=None) -> int:
                  frz["classical"]["success_rate"], mov["classical"]["success_rate"])]
 
         arm, frz_seeds = _best_arm(frz)
-        rows.append(("learned ({})".format(arm),
+        rows.append((f"learned ({arm})",
                      st.mean(frz_seeds), st.mean(mov["arms"][arm]["success"])))
 
         nf, nm = _nav2(frz_cond), _nav2(mov_cond)
@@ -90,7 +90,7 @@ def main(argv=None) -> int:
                          st.mean(n["success_rate"] for n in nf),
                          st.mean(n["success_rate"] for n in nm)))
         else:
-            notes.append("no Nav2 results for {}".format(label))
+            notes.append(f"no Nav2 results for {label}")
 
         for i, (actor, f, m) in enumerate(rows):
             lines.append("| {} | {} | {:.3f} | {:.3f} | **{:+.3f}** |".format(

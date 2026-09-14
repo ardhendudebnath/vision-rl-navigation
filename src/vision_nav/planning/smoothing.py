@@ -83,7 +83,7 @@ def densify_path(path: np.ndarray, spacing: float = 0.05) -> np.ndarray:
         return path
 
     segments = [path[0][None, :]]
-    for a, b in zip(path[:-1], path[1:]):
+    for a, b in zip(path[:-1], path[1:], strict=False):
         dist = float(np.linalg.norm(b - a))
         n = max(int(np.ceil(dist / spacing)), 1)
         ts = np.linspace(0.0, 1.0, n + 1)[1:, None]

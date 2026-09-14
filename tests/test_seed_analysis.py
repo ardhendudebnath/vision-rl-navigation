@@ -16,11 +16,12 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from omegaconf import OmegaConf  # noqa: E402
-
 from seed_analysis import load_arms, permutation_p  # noqa: E402
 
 from vision_nav.training.run_spec import (  # noqa: E402
     describe_run_sensor as describe_sensor,
+)
+from vision_nav.training.run_spec import (
     env_overrides_for_run as run_sensor,
 )
 

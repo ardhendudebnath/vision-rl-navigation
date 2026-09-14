@@ -34,14 +34,13 @@ from dataclasses import replace
 
 import numpy as np
 import rclpy
-from geometry_msgs.msg import Quaternion, Twist, TwistStamped
+from geometry_msgs.msg import Quaternion, TransformStamped, Twist, TwistStamped
 from nav_msgs.msg import OccupancyGrid, Odometry
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile, QoSReliabilityPolicy
 from rosgraph_msgs.msg import Clock
 from sensor_msgs.msg import LaserScan
-from tf2_ros import TransformBroadcaster, StaticTransformBroadcaster
-from geometry_msgs.msg import TransformStamped
+from tf2_ros import StaticTransformBroadcaster, TransformBroadcaster
 
 from vision_nav.envs import NavEnvConfig, ProceduralNavEnv
 from vision_nav.envs.sensors import Lidar2D

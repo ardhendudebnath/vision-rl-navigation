@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import argparse
 import glob
-import io
 import os
 import re
 import sys
@@ -46,7 +45,7 @@ def main(argv=None) -> int:
     broken, checked = [], 0
     for doc in docs():
         base = os.path.dirname(doc)
-        text = io.open(doc, encoding="utf-8").read()
+        text = open(doc, encoding="utf-8").read()
 
         for label, target in MD_LINK.findall(text):
             if target.startswith(("http://", "https://", "#", "mailto:")):
@@ -65,12 +64,12 @@ def main(argv=None) -> int:
                 broken.append((doc, "path", target, ""))
 
     if not args.quiet:
-        print("checked {} references across {} docs".format(checked, len(docs())))
+        print(f"checked {checked} references across {len(docs())} docs")
     for doc, kind, target, label in broken:
-        print("  BROKEN {:5s} {:36s} in {}  {}".format(kind, target, doc, label),
+        print(f"  BROKEN {kind:5s} {target:36s} in {doc}  {label}",
               file=sys.stderr)
     if broken:
-        print("\n{} broken reference(s)".format(len(broken)), file=sys.stderr)
+        print(f"\n{len(broken)} broken reference(s)", file=sys.stderr)
         return 1
     if not args.quiet:
         print("all resolve")

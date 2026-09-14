@@ -13,7 +13,8 @@ without installing a deep-learning framework it never uses.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
 import gymnasium as gym
 import numpy as np

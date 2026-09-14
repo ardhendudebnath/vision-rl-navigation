@@ -139,7 +139,7 @@ def main(argv=None) -> int:
                 acc = per_beam[label]
                 acc["gaps"] += stats.n_gaps
                 acc["detected"] += stats.n_detected
-                for width, hit in zip(stats.widths, stats.detected):
+                for width, hit in zip(stats.widths, stats.detected, strict=False):
                     deg = np.degrees(width)
                     for lo, hi in bins:
                         if lo <= deg < hi:

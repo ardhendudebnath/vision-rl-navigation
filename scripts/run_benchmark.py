@@ -30,7 +30,6 @@ from pathlib import Path
 import numpy as np
 
 from vision_nav.envs.splits import BENCHMARK_CONDITIONS, SHIFTS
-from vision_nav.metrics.navigation import NavigationMetrics
 from vision_nav.training.actors import build_actor
 from vision_nav.training.env_factory import build_env_config
 from vision_nav.training.evaluate import evaluate

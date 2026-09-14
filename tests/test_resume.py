@@ -82,15 +82,14 @@ def test_run_spec_covers_every_env_field():
 
     unclassified = actual - declared
     assert not unclassified, (
-        "NavEnvConfig field(s) {} are classified in neither OBSERVATION_FIELDS "
+        f"NavEnvConfig field(s) {sorted(unclassified)} are classified in neither OBSERVATION_FIELDS "
         "nor CONDITION_FIELDS in run_spec.py. If the field changes what the "
         "policy sees it must be carried by env_overrides_for_run; if it "
         "belongs to the evaluation condition, say so explicitly."
-        .format(sorted(unclassified))
+        
     )
     stale = declared - actual
-    assert not stale, "run_spec classifies fields that no longer exist: {}".format(
-        sorted(stale))
+    assert not stale, f"run_spec classifies fields that no longer exist: {sorted(stale)}"
 
 
 def test_run_spec_carries_every_observation_field(tmp_path):

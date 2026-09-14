@@ -23,8 +23,9 @@ comparison in the final report an apples-to-apples one.
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Sequence
+from typing import Any
 
 import gymnasium as gym
 import numpy as np

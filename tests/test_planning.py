@@ -77,7 +77,7 @@ def test_distance_field_agrees_with_astar():
     else:
         cost = sum(
             1.0 if (a[0] == b[0] or a[1] == b[1]) else math.sqrt(2.0)
-            for a, b in zip(path[:-1], path[1:])
+            for a, b in zip(path[:-1], path[1:], strict=False)
         )
         assert field[0, 0] == pytest.approx(cost, rel=1e-9)
 

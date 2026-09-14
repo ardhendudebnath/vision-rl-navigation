@@ -12,9 +12,9 @@ Agents" (2018), arXiv:1807.06757.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
 
 import numpy as np
 
@@ -49,7 +49,7 @@ class EpisodeResult:
         return float(l_star / max(self.path_length, l_star))
 
     @classmethod
-    def from_info(cls, info: dict) -> "EpisodeResult":
+    def from_info(cls, info: dict) -> EpisodeResult:
         """Build from a terminal ``info`` dict emitted by the environment."""
         return cls(
             world_seed=int(info["world_seed"]),

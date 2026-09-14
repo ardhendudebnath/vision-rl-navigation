@@ -7,7 +7,7 @@ Phases are numbered as in the roadmap's Section 3.
 
 | Phase | Description | Status |
 |---|---|---|
-| 0 | Repo, environment, task definition, metrics, CI-able test suite | **Done** |
+| 0 | Repo, environment, task definition, metrics, test suite in CI | **Done** |
 | 1 | Classical baseline (A* + pure pursuit) with full map access | **Done** |
 | 2 | Privileged RL (PPO on exact pose + ground-truth ranges) | **Done** — 1.5M steps, val SPL 0.894 |
 | 2b | Robustness suite across held-out and shifted environments | **Done** — hypothesis falsified, see below |

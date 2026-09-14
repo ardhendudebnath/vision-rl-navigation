@@ -83,7 +83,6 @@ def test_episode_truncates_at_the_step_limit():
 
 
 def test_success_terminates_and_is_reported():
-    w = generate_world(0)
     cfg = NavEnvConfig(world_seeds=[0], max_episode_steps=1000)
     env = ProceduralNavEnv(cfg)
     env.reset(seed=0, options={"world_seed": 0})

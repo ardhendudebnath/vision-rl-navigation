@@ -21,7 +21,6 @@ from __future__ import annotations
 import argparse
 import json
 from itertools import combinations
-from math import comb
 from pathlib import Path
 
 import numpy as np
@@ -74,12 +73,12 @@ def main(argv=None) -> int:
         runs = [Path(d) for d in dirs.split(",")]
         for r in runs:
             if not (r / "best_model.zip").exists():
-                raise FileNotFoundError("no best_model.zip in {}".format(r))
+                raise FileNotFoundError(f"no best_model.zip in {r}")
         arms[name] = runs
 
     report = {"episodes": args.episodes, "conditions": {}}
     for label, split, shift in CONDITIONS:
-        print("\n=== {} : {} ===".format(label, shift))
+        print(f"\n=== {label} : {shift} ===")
         per_arm: dict[str, list[float]] = {}
         for name, runs in arms.items():
             succ = []
@@ -91,10 +90,8 @@ def main(argv=None) -> int:
                 m, _ = evaluate(actor, cfg)
                 succ.append(m.success_rate)
             per_arm[name] = succ
-            print("  {:8s} per-seed {}".format(
-                name, [round(v, 3) for v in succ]))
-            print("           mean {:.3f} +/- {:.3f}".format(
-                float(np.mean(succ)), float(np.std(succ, ddof=1))))
+            print(f"  {name:8s} per-seed {[round(v, 3) for v in succ]}")
+            print(f"           mean {float(np.mean(succ)):.3f} +/- {float(np.std(succ, ddof=1)):.3f}")
 
         names = list(per_arm)
         entry = {n: per_arm[n] for n in names}
@@ -102,10 +99,14 @@ def main(argv=None) -> int:
             a, b = np.array(per_arm[names[0]]), np.array(per_arm[names[1]])
             delta = float(b.mean() - a.mean())
             p = permutation_p(a, b)
-            above = int((b[:, None] > a[None, :]).mean() * len(a))
-            entry.update({"delta": delta, "p": p})
-            print("  {} - {} = {:+.3f}   p = {:.3f} (exact, seed as unit)".format(
-                names[1], names[0], delta, p))
+            # Both arms use training seeds 0-5, so index-pairing compares the
+            # same seed under the two treatments. A clean 6/6 is worth seeing
+            # next to the mean, since a small delta carried by every seed says
+            # something different from one carried by two outliers.
+            paired = sum(1 for x, y in zip(a, b, strict=True) if y > x)
+            entry.update({"delta": delta, "p": p, "seeds_higher": paired})
+            print(f"  {names[1]} - {names[0]} = {delta:+.3f}   p = {p:.3f} "
+                  f"(exact, seed as unit)   {paired}/{len(a)} seeds higher")
         report["conditions"][shift] = entry
 
     out = Path(args.out)
@@ -120,7 +121,7 @@ def main(argv=None) -> int:
         # mover speed underneath a table about observation encoding.
         names = [n for n in fast if n not in ("delta", "p")]
         pair = " - ".join(reversed(names)) if len(names) == 2 else "treated - control"
-        print("\n=== verdict ({}) ===".format(pair))
+        print(f"\n=== verdict ({pair}) ===")
         helped = fast["delta"] >= 0.05 and fast["p"] < 0.05
         control_moved = abs(slow["delta"]) > 0.03
         if helped and not control_moved:
@@ -137,7 +138,7 @@ def main(argv=None) -> int:
             print("NO EFFECT ON THE PRIMARY ENDPOINT: {:+.3f} (p = {:.3f}) on "
                   "fast, {:+.3f} (p = {:.3f}) on the slow control.".format(
                       fast["delta"], fast["p"], slow["delta"], slow["p"]))
-    print("\nWrote {}".format(out))
+    print(f"\nWrote {out}")
     return 0
 
 

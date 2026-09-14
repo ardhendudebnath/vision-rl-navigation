@@ -28,7 +28,6 @@ from itertools import combinations
 from pathlib import Path
 
 import numpy as np
-from omegaconf import OmegaConf
 
 from vision_nav.training.actors import build_actor
 from vision_nav.training.env_factory import build_env_config
