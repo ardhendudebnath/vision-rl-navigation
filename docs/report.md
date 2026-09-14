@@ -36,6 +36,13 @@ returns in full (−0.100, −0.202, both p = 0.031), so the parity is motion
 degrading the planner (−0.120 to −0.160) rather than the policy handling it
 (−0.048 to −0.068).
 
+A reward ablation sharpens what "behavioural" means: the same 4:1 ratio also
+sets what *extra information* is worth. Frame stacking cuts collisions under
+either reward, but at 4:1 the saving is spent on timeouts and net success
+falls, while at a 1:1 reward it becomes successes (+0.033, p = 0.019, 6/6
+seeds). An observation channel is worth only what the objective lets the
+policy do with it.
+
 **The most transferable contribution is methodological.** A correctly computed
 significance test produced a confident, reproducible, and wrong conclusion,
 because it measured episode variance rather than training-seed variance. We
@@ -294,6 +301,13 @@ success stays pinned in a 0.56–0.66 band. **The caution terms control which
 failure occurs, not how many.** Paired tests confirmed no arm significantly
 improves success under clutter.
 
+That is the whole story on a static task. It is not the whole story about the
+reward: §9.3 finds the same ratio decides whether *extra information* is worth
+anything, converting a frame-stacking collision saving into timeouts at 4:1
+and into successes at 1:1. The reward does not close the gap to the planner —
+that is what this section rules out — but it does set the exchange rate
+between information and performance.
+
 ## 6. Result 5: a false positive, and how it was caught
 
 This section is the methodological core of the report.
@@ -484,8 +498,9 @@ they read 0.870 and 0.750, and `dynamic_dense` looked like parity (−0.040,
 p = 0.125). It is not.
 
 Frame stacking versus its own control: −0.008 (p = 0.784) and +0.013
-(p = 0.703). The one structural advantage available produced nothing, and
-§9.3 shows that is not because the movers were too slow.
+(p = 0.703). The one structural advantage available produced nothing *under
+this reward* — §9.3 shows it produces something under a different one, which
+is the more interesting result.
 
 **What is real is a regime change, not a reversal**, and only on `dynamic`.
 §9.2 shows the parity is the planner degrading rather than the policy coping.
