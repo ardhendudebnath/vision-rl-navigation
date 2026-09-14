@@ -606,8 +606,9 @@ candidate mechanisms explains.
 
 ### 9.3 Faster movers: the speed explanation, tested and dead
 
-Section 9 offered three untested reasons why frame stacking did nothing, and
-the leading one was that the movers are too slow to be worth anticipating:
+Three explanations were offered for frame stacking doing nothing
+([Phase 3h](project_plan.md)), and the leading one was that the movers are too
+slow to be worth anticipating:
 0.15-0.45 m/s against a 0.6 m/s robot. dynamic_fast raises them to
 0.8-1.5 m/s, which **outruns the robot**, on worlds that are geometrically
 identical seed for seed -- speed is drawn after the placement test and only
@@ -789,11 +790,20 @@ In order of expected information per GPU-hour:
    carrying per-cell velocity would separate "the world changed" from "the
    world is unknowable", and unlike the four already tested it predicts an
    asymmetry between head-on and crossing movers that is directly checkable.
-2. **Faster movers** (0.8–1.5 m/s against a 0.6 m/s robot). The cheapest test
-   of why frame stacking was inert: if anticipation ever pays, it pays here.
-3. **Explicit velocity features or recurrence.** Distinguishes "the
-   information was absent" from "the information was present but hard to
-   extract from raw stacked scans".
+2. **The last standing explanation for the frame-stacking null.** Three were
+   offered; §9.3 killed two (the movers are not too slow, and the information
+   is not merely hard to extract). The third is that the reward's 4:1
+   preference for stalling over crashing suppresses commitment even when
+   anticipation is possible — a policy that will not act on a prediction has
+   no use for one. The test is cheap and the machinery exists: retrain the
+   stacked and unstacked arms on fast movers under the `abl_lowcoll` reward
+   from §5.4. If stacking suddenly pays, the reward was masking it all along;
+   if it stays inert under a reward that rewards commitment, the
+   absence-of-commitment account stops being the *surviving* explanation and
+   becomes a supported one.
+3. **Recurrence.** The other half of the original item 3, still untested.
+   Explicit velocity features are now known to be inert, but a recurrent
+   policy could integrate over a longer history than any fixed stack.
 4. **Harder perception** — texture, lighting variation, sensor artefacts — to
    turn the encoder-cost lower bound into an estimate.
 5. **Sim-to-real** on a TurtleBot-class base. The action space is already
