@@ -1,0 +1,125 @@
+# Fast movers under an INDIFFERENCE reward: crashing and stalling cost the
+# same.
+#
+# A collision costs collision_penalty; timing out for all 500 steps costs
+# step_penalty * 500 = 5. The project default of 20 makes crashing four times
+# worse than stalling, and Section 5.3 showed the policy correctly optimises
+# that by learning to stop rather than to get through. Setting the penalty to
+# 5 makes the two exactly equal.
+#
+# This is the last standing explanation for frame stacking being inert
+# (Phases 5f and 5g killed the other two): a policy that will not act on a
+# prediction has no use for one. Everything else matches nav_dyn_fast, so the
+# reward is the only difference.
+#
+#   python -m vision_nav.training.train env=nav_dyn_fast_indiff train.run_name=indiff1_s0
+#
+# Training task with FAST moving obstacles (0.8-1.5 m/s against a 0.6 m/s
+# robot, so they outrun it).
+#
+# Report Section 9 offered mover speed as the leading explanation for frame
+# stacking having been inert: at 0.15-0.45 m/s there may simply be nothing to
+# anticipate. This is the same task as nav_dyn with only dynamic_speed raised,
+# so a stacking advantage that appears here and not there is attributable to
+# speed alone.
+#
+#   python -m vision_nav.training.train env=nav_dyn_fast train.run_name=dynfast1_s0
+#
+# Domain-randomised training task WITH moving obstacles.
+#
+# Identical to nav_dr except that the training worlds now contain movers that
+# are absent from the map. Paired with frame_stack > 1 this is the only setup
+# in the project where the learned policy has information the classical stack
+# structurally lacks: a single scan gives obstacle positions, two give
+# velocities, and the planner treats every mover as static wherever it
+# currently sits.
+#
+#   python -m vision_nav.training.train env=nav_dyn train.run_name=dyn_s0
+#
+# (original nav_dr header follows)
+# Domain-randomised training task.
+#
+# Identical to nav_default except that each world's configuration is sampled
+# per seed from ranges chosen to CONTAIN the evaluation shift space:
+#
+#   shift    | n_circles | circle_radius | n_boxes | arena | start-goal
+#   ---------|-----------|---------------|---------|-------|-----------
+#   sparse   | 1-4       | 0.3-0.9       | 0-2     | 12    | 5.0
+#   nominal  | 6-12      | 0.3-0.9       | 2-6     | 12    | 5.0
+#   narrow   | 10-16     | 0.5-1.4       | 2-6     | 12    | 5.0
+#   dense    | 14-22     | 0.3-0.9       | 6-10    | 12    | 5.0
+#   large    | 6-12      | 0.3-0.9       | 2-6     | 16    | 8.0
+#   ---------|-----------|---------------|---------|-------|-----------
+#   DR range | 1-22      | 0.25-1.4      | 0-10    | 10-16 | 0.40-0.58x
+#
+# READ THIS BEFORE INTERPRETING THE RESULT. These ranges were chosen to cover
+# the conditions the policy is then evaluated on. That makes this a test of
+# "does widening the training distribution recover the lost performance?" --
+# NOT a test of generalisation to unseen kinds of shift. The evaluation worlds
+# are still held-out *seeds* the policy never trained on, so it is not leakage
+# in the memorisation sense, but the distribution is deliberately matched and
+# the report must say so plainly.
+#
+#   python -m vision_nav.training.train env=nav_dr train.run_name=ppo_dr
+
+max_episode_steps: 500
+obs_mode: privileged
+# Held at nav_default's value on purpose: changing it would rescale the goal
+# -distance observation and make this policy incomparable to the nominal one.
+max_goal_distance: 20.0
+world_cache_size: 1024
+
+world:
+  width: 12.0
+  height: 12.0
+  n_circles: [6, 12]
+  circle_radius: [0.3, 0.9]
+  n_boxes: [2, 6]
+  box_size: [0.5, 1.8]
+  n_dynamic: [3, 6]
+  dynamic_radius: [0.25, 0.45]
+  dynamic_amplitude: [1.0, 2.5]
+  dynamic_speed: [0.8, 1.5]
+  robot_radius: 0.22
+  goal_tolerance: 0.35
+  min_start_goal_dist: 5.0
+  spawn_clearance: 0.35
+  grid_resolution: 0.1
+
+domain_randomization:
+  enabled: true
+  arena: [10.0, 16.0]
+  # Fraction of the arena's smaller side, so a small arena is never paired
+  # with an unsatisfiable start-goal separation.
+  start_goal_fraction: [0.40, 0.58]
+  n_circles: [1, 22]
+  circle_radius: [0.25, 1.4]
+  n_boxes: [0, 10]
+  box_size: [0.4, 2.0]
+
+robot:
+  max_linear_vel: 0.6
+  min_linear_vel: -0.1
+  max_angular_vel: 1.6
+  max_linear_accel: 2.0
+  max_angular_accel: 6.0
+  dt: 0.1
+
+lidar:
+  n_beams: 64
+  max_range: 6.0
+  noise_std: 0.0
+  dropout_prob: 0.0
+
+reward:
+  progress: 3.0
+  goal_bonus: 20.0
+  collision_penalty: 5.0
+  step_penalty: 0.01
+  proximity_penalty: 0.15
+  proximity_threshold: 0.4
+  spin_penalty: 0.005
+  use_geodesic_progress: true
+
+# Overridden on the command line for the stacked arm.
+frame_stack: 1
