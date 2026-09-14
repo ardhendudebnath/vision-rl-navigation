@@ -654,11 +654,54 @@ implicit at two frames, implicit at four, explicit as a difference channel,
 at either speed. Both readings of the Phase 3h null have now been tested and
 both are dead.
 
-That leaves Section 9.2''s reading as the one that survives. If the policy''s
-robustness under motion is *absence of commitment* rather than anticipation,
-then velocity should buy nothing in any encoding at any speed, which is what
-four arms across a 3× speed ratio now show. The frame-stacking null is a
-finding rather than a caveat.
+**But the reward was hiding it.** Phase 3h's third explanation was that the
+reward suppresses commitment: a collision costs 20 and a full 500-step timeout
+costs 0.01 x 500 = 5, so crashing is four times worse than stalling, and
+Section 5.3 already showed the policy optimising that by learning to stop. A
+policy that will not act on a prediction has no use for one. Setting the
+collision penalty to 5 makes the two costs *exactly equal* — indifference, not
+a thumb on the scale — and changes nothing else.
+
+| Reward | stack1 | stack4 | Δ | p (exact) |
+|---|---|---|---|---|
+| 4:1 (collision 20) | 0.652 ± 0.052 | 0.625 ± 0.058 | −0.027 | 0.442 |
+| **1:1 (collision 5)** | 0.660 ± 0.019 | **0.693 ± 0.020** | **+0.033** | **0.019** |
+| 1:1, slow control | 0.808 ± 0.021 | 0.807 ± 0.048 | −0.002 | 1.000 |
+
+**Frame stacking works once the reward stops punishing commitment** — 6 of 6
+seeds, significant, and absent on the slow control where there is less to
+anticipate. The swing between rewards is +0.060.
+
+The outcome breakdown says what actually changed, and it is not that the
+policy suddenly learned to anticipate:
+
+| Arm | Success | Collisions | Timeouts |
+|---|---|---|---|
+| 4:1 stack1 | 0.652 | 0.300 | 0.048 |
+| 4:1 stack4 | 0.625 | **0.282** | **0.093** |
+| 1:1 stack1 | 0.660 | 0.333 | 0.007 |
+| 1:1 stack4 | **0.693** | **0.302** | 0.005 |
+
+Stacking cuts collisions under **both** rewards — by 0.018 at 4:1 and 0.031 at
+1:1. The information was being used all along. What differs is what it is
+spent on: at 4:1 the collision saving is more than swallowed by timeouts
+nearly doubling and net success *falls*; under indifference the same saving
+flows straight into successes. **The reward does not decide whether the policy
+can anticipate. It decides what anticipation is for.**
+
+That is Result 2 one level up. Section 5.3 found the reward makes the policy
+stall rather than get through; this finds it also converts *additional
+information* into additional stalling. An observation channel is worth only
+what the objective lets the policy do with it.
+
+So Section 9.2's account needs correcting rather than confirming. Absence of
+commitment is real, but it is **caused by the reward rather than intrinsic to
+the policy** — and across two rewards, three encodings and a 3× speed ratio,
+that is now supported rather than merely last standing.
+
+The pre-registered magnitude was +0.05 and the effect is +0.033, so the
+prediction failed on size while getting the mechanism and its specificity
+right. That is a different kind of miss from the previous six.
 
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
@@ -692,6 +735,15 @@ Two asymmetries in the comparison **favour** the learned side, and it still
 lost: the classical planner has no training distribution, so the shifts are
 not shifts for it; and two learned arms received 2.7× the compute.
 
+**The reward decides what information is worth.** Section 5.3 found the
+4:1 collision-to-timeout ratio makes the policy stall rather than get through.
+Section 9.3 finds the same ratio also decides what *extra* information buys:
+frame stacking cuts collisions under either reward, but at 4:1 the saving is
+swallowed by timeouts and net success falls, while at indifference it becomes
+successes. An observation channel is worth only what the objective lets the
+policy do with it — which is worth knowing before concluding that a sensor or
+a representation is useless.
+
 **Where the learned side earns its keep** is narrow and different in kind from
 what it first appeared. It is indistinguishable from *both* classical stacks
 on `dynamic`, ~6% faster on successful nominal episodes, and indifferent to
@@ -709,11 +761,13 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of eight quantitative predictions made in advance, the two
-derived from a *measurement* held, to within 0.021 and 0.001; **all six**
-derived from extrapolation or intuition failed. Confidence of expression was
-identical in all eight, and the base rate was known and stated before the last
-of them was run. Two of the failures sharpened the rule rather than just breaking
+**Calibration.** Of nine quantitative predictions made in advance, the two
+derived from a *measurement* held, to within 0.021 and 0.001. Six derived from
+extrapolation or intuition failed outright. The ninth — that frame stacking
+would pay once the reward stopped punishing commitment — got the mechanism and
+its specificity right and the magnitude wrong, predicting +0.05 against an
+observed +0.033. Confidence of expression was identical throughout, and the
+base rate was stated in the pre-registration before that last one was run. Two of the failures sharpened the rule rather than just breaking
 it:
 
 - Predicting Nav2 ≥ 0.92 on `dynamic` extrapolated a measured collision

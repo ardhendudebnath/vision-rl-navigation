@@ -61,7 +61,15 @@ nothing.
    found the baseline a better replanning policy, which removed the last of
    the parity on cluttered dynamic worlds (−0.110, p = 0.031). All three came
    from deliberately re-testing the claim that most flattered the work.
-6. **A causal test that failed usefully.** The explanation offered for the
+6. **The reward decides what information is worth.** Frame stacking looked
+   useless across three encodings and a 3× mover-speed range. It is not: the
+   reward priced a collision at four times a timeout, and making the two equal
+   turns stacking into a significant gain (+0.033, p = 0.019, 6 of 6 seeds)
+   that is absent on a slow control. Stacking cuts collisions under either
+   reward — the information was always used — but at 4:1 the saving becomes
+   timeouts and at 1:1 it becomes successes. An observation channel is worth
+   only what the objective lets the policy do with it.
+7. **A causal test that failed usefully.** The explanation offered for the
    above — that replanning churn was the culprit — was pre-registered with a
    treated cell and a control. The treated cell moved exactly as predicted
    (+0.070) and the control moved by the same amount, which refutes the
@@ -79,9 +87,10 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of eight advance predictions, the two derived from
-*measurements* held to within 0.021 and 0.001; all six derived from intuition
-failed, with identical confidence of expression. Both the false positive and a
+pre-registered endpoints. Of nine advance predictions, the two derived from
+*measurements* held to within 0.021 and 0.001; six derived from intuition failed
+outright and a seventh got the mechanism right and the magnitude wrong, with
+identical confidence of expression throughout. Both the false positive and a
 later harness bug that inverted a result are documented in the report rather
 than quietly corrected.
 
@@ -120,7 +129,7 @@ committee can tell the difference.
 **~60 words, for a CV entry or the opening of an email.**
 
 > Vision + RL autonomous navigation (Python, PyTorch, Stable-Baselines3,
-> ROS 2 / Nav2): a twenty-two-experiment controlled study of learned versus
+> ROS 2 / Nav2): a twenty-three-experiment controlled study of learned versus
 > classical navigation under distribution shift, with seed-level significance
 > testing, pre-registered predictions, a real Nav2 baseline over a ROS 2
 > bridge, and a 260-test suite. Includes a documented false positive I caught

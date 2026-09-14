@@ -34,6 +34,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5e | DWB rollout horizon sweep with frozen control | **Done** — commitment length ruled out; motion cost still unexplained |
 | 5f | Faster movers (0.8-1.5 m/s), 2 arms x 6 seeds, pre-registered | **Done** — **stacking inert at 3x speed**; the 3h speed explanation is dead |
 | 5g | Explicit velocity channel vs frame_stack=2, 6 seeds/arm | **Done** — velocity inert in every encoding; extraction explanation dead too |
+| 5h | Indifference reward (collision 5 == timeout 5), 2 arms x 6 seeds | **Done** — **stacking works at 1:1 (+0.033, p = 0.019, 6/6)**; the reward was hiding it |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -1378,6 +1379,68 @@ field appears in neither. `max_goal_distance` was found unclassified in the
 process: it scales the goal-distance observation, so a policy trained at one
 value misreads another. Every config to date uses 20.0, so carrying it changes
 nothing today and stops it mattering silently later.
+
+## Phase 5h — The reward was hiding it: frame stacking works at 1:1
+
+Phases 5f and 5g killed two of Phase 3h's three explanations for frame
+stacking being inert. The third: the reward suppresses commitment. A collision
+costs 20; a full 500-step timeout costs 0.01 x 500 = 5. Crashing is four times
+worse than stalling and Phase 2e showed the policy optimising exactly that.
+A policy that will not act on a prediction has no use for one.
+
+`collision_penalty: 5` makes the two costs **exactly equal** -- indifference,
+derived from the timeout cost rather than picked. Everything else matches
+nav_dyn_fast. Two arms, frame_stack 1 and 4, six seeds each.
+
+Pre-registered: stack4 - stack1 >= +0.05 under indifference against -0.027 at
+4:1. Intuition-derived, with the 0-for-6 base rate stated at the time.
+
+### Result
+
+| reward | stack1 | stack4 | delta | p (exact) |
+|---|---|---|---|---|
+| 4:1 (collision 20) | 0.652 +/- 0.052 | 0.625 +/- 0.058 | -0.027 | 0.442 |
+| **1:1 (collision 5)** | 0.660 +/- 0.019 | **0.693 +/- 0.020** | **+0.033** | **0.019** |
+| 1:1, slow control | 0.808 +/- 0.021 | 0.807 +/- 0.048 | -0.002 | 1.000 |
+
+**Frame stacking works once the reward stops punishing commitment.** Six of
+six seeds, significant, and absent on the slow control. Swing between rewards
++0.060. The magnitude prediction failed (+0.033 against +0.05) while the
+mechanism and its specificity held -- a different kind of miss from the
+previous six.
+
+### What actually changed
+
+| arm | success | collisions | timeouts |
+|---|---|---|---|
+| 4:1 stack1 | 0.652 | 0.300 | 0.048 |
+| 4:1 stack4 | 0.625 | **0.282** | **0.093** |
+| 1:1 stack1 | 0.660 | 0.333 | 0.007 |
+| 1:1 stack4 | **0.693** | **0.302** | 0.005 |
+
+Stacking cuts collisions under *both* rewards, by 0.018 at 4:1 and 0.031 at
+1:1. The velocity information was being used all along. What differs is what
+it is spent on: at 4:1 the collision saving is more than swallowed by timeouts
+nearly doubling and net success falls; at indifference the same saving becomes
+successes.
+
+**The reward does not decide whether the policy can anticipate. It decides
+what anticipation is for.** That is Phase 2e one level up: the reward makes
+the policy stall rather than get through, and it also converts additional
+information into additional stalling. An observation channel is worth only
+what the objective lets the policy do with it.
+
+### Consequences
+
+Phase 5c's absence-of-commitment account needed correcting rather than
+confirming. It is real, but **caused by the reward rather than intrinsic to
+the policy**. Across two rewards, three encodings and a 3x speed ratio that is
+now supported rather than merely last standing.
+
+It also revises how the Phase 3h null should be read: not "velocity
+information is useless to this policy" but "this reward makes velocity
+information useless", which is a claim about experimental design rather than
+about learned navigation.
 
 ## Hardware notes
 

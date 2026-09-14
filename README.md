@@ -47,7 +47,7 @@ decision below follows from wanting that comparison to be trustworthy.
 | Faster movers and an explicit velocity channel: both inert | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Twenty-two experiments, each pre-registered where it tests a hypothesis. The
+Twenty-three experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).
@@ -136,11 +136,17 @@ absent from the map, the learned policy is statistically indistinguishable
 from the planner on `dynamic` (−0.020, p = 0.219) while staying clearly worse
 where the map is right (−0.168, p = 0.031). Frame stacking, the one setup
 giving the policy information the planner structurally lacks, changed nothing
-(−0.008, p = 0.784); still changes nothing when the movers are made three
-times faster so they outrun the robot (−0.027, p = 0.442); and still changes
-nothing when the velocity is handed over explicitly as a per-beam range delta
-rather than left implicit in stacked frames. Velocity information does not
-help this policy in any encoding at any speed tested.
+(−0.008, p = 0.784), still nothing when the movers are made three times faster
+so they outrun the robot (−0.027), and still nothing when the velocity is
+handed over explicitly as a per-beam range delta.
+
+**The reward was hiding it.** A collision costs 20 and a full timeout costs 5,
+so crashing is 4× worse than stalling. Make them exactly equal and frame
+stacking works: **+0.033, p = 0.019, 6 of 6 seeds**, and nothing on the slow
+control. Stacking cuts collisions under *both* rewards — the information was
+always being used. At 4:1 the saving is swallowed by timeouts nearly doubling;
+at indifference it becomes successes. The reward does not decide whether the
+policy can anticipate, it decides what anticipation is *for*.
 
 Three follow-ups cut that claim down, each pushing the same way. Adding
 clutter to the movers removes it: on `dynamic_dense` real Nav2 is **0.150–
