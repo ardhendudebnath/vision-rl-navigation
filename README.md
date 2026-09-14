@@ -56,7 +56,10 @@ successive corrections to the same claim, is in
 up as a short paper, including the false positive this project caught in its
 own results and how. Phase-by-phase detail and rationale:
 [`docs/project_plan.md`](docs/project_plan.md). In a hurry:
-[`docs/one_page_summary.md`](docs/one_page_summary.md).
+[`docs/one_page_summary.md`](docs/one_page_summary.md). The moving-obstacle
+thread — eight phases and three successive corrections to the same claim — is
+written up separately in
+[`docs/dynamic_obstacles.md`](docs/dynamic_obstacles.md).
 
 ## Results
 

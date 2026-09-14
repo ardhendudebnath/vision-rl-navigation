@@ -302,7 +302,7 @@ failure occurs, not how many.** Paired tests confirmed no arm significantly
 improves success under clutter.
 
 That is the whole story on a static task. It is not the whole story about the
-reward: §9.3 finds the same ratio decides whether *extra information* is worth
+reward: §9.1 finds the same ratio decides whether *extra information* is worth
 anything, converting a frame-stacking collision saving into timeouts at 4:1
 and into successes at 1:1. The reward does not close the gap to the planner —
 that is what this section rules out — but it does set the exchange rate
@@ -493,241 +493,53 @@ have — would tip it.
 | dynamic_dense | **0.820** | 0.710 ± 0.042 | −0.110 | **yes**, p = 0.031 |
 
 The classical rows use block-triggered replanning, its best configuration on
-every dynamic condition (§9.2). Against the timed baseline published earlier
+every dynamic condition ([`dynamic_obstacles.md`](dynamic_obstacles.md)). Against the timed baseline published earlier
 they read 0.870 and 0.750, and `dynamic_dense` looked like parity (−0.040,
 p = 0.125). It is not.
 
 Frame stacking versus its own control: −0.008 (p = 0.784) and +0.013
 (p = 0.703). The one structural advantage available produced nothing *under
-this reward* — §9.3 shows it produces something under a different one, which
-is the more interesting result.
+this reward* — §9.1 shows it produces something under a different one,
+which is the more interesting result.
 
 **What is real is a regime change, not a reversal**, and only on `dynamic`.
-§9.2 shows the parity is the planner degrading rather than the policy coping.
+§9.1 shows the parity is the planner degrading rather than the policy coping.
 
-### 9.1 A near-miss in the baseline
+### 9.1 What the parity is, in one page
 
-The planner replans against a costmap containing the movers, because a
-baseline that drove blind into them would prove nothing. Sweeping that
-interval showed replanning helps where movers exist (+0.06 to +0.07) and
-*hurts* where they do not, dropping `narrow` from 0.850 to 0.690 through path
-churn in tight corridors.
+Chasing that parity took eight phases and produced three successive
+corrections to the same claim. The argument is in
+[`dynamic_obstacles.md`](dynamic_obstacles.md); the conclusions are these.
 
-With one global setting, `narrow` would have read classical 0.690 against the
-policy's 0.682 — 4 of 6 seeds above the baseline, a clean "parity in tight
-corridors" claim that was **purely an artefact of a handicap introduced in the
-name of fairness**. It survived only because the interval was swept rather
-than assumed. The comparison gives the planner its best configuration on every
-condition.
+**The parity is the planner degrading, not the policy coping.** Re-running
+each condition with the movers *parked* — identical worlds and seeds, movers
+still absent from the map, only the motion removed — restores the classical
+advantage in full: −0.100 on sparse and −0.202 on dense, 0 of 6 seeds above
+the baseline in both (p = 0.031). Motion costs the planner 0.120–0.160 and the
+learned policy only 0.048–0.068. The policy is behind in every regime; it is
+simply harder to disrupt, because one that never commits to a path has no plan
+to invalidate.
 
-Section 9.2 later found a better setting still — replanning when the path is
-actually blocked rather than on a timer — which dominates both on every
-dynamic condition and reduces to `replan_every=0` on the static ones. The
-dynamic rows in this report use it.
+**The motion cost itself is unexplained.** Four candidate mechanisms were
+tested and eliminated: replanning churn (real, but a clutter pathology that
+leaves the cost unchanged), planning failure (A\* never fails to find a
+route), sensing (the movers are fully visible), and commitment length (a 6×
+sweep of the controller's rollout horizon moves the cost by 0.040, inside
+noise, while moving absolute performance by 0.220).
 
-### 9.2 What the parity actually is
+**The reward sets what information is worth.** Frame stacking looked inert
+across two mover speeds and three encodings. It is not: the reward prices a
+collision at 20 and a full timeout at 5, and making the two equal turns
+stacking into a significant gain (+0.033, p = 0.019, 6 of 6 seeds) that is
+absent on a slow control. Stacking cuts collisions under *either* reward — the
+information was always being used — but at 4:1 the saving is spent on timeouts
+and net success falls, while at 1:1 it becomes successes.
 
-The parity above is the most RL-favourable result in this report, so it got
-the most adversarial follow-up: a production baseline, a controlled
-subtraction, and a causal test of the explanation. It survives on `dynamic`
-and nowhere else, and it does not mean what it first appeared to.
-
-**Against a production stack it holds on sparse movers only.** Nav2 over two
-passes reaches 0.840–0.870 on `dynamic` — indistinguishable from the learned
-policy, which is a stronger statement than the original, since the policy now
-matches *both* classical stacks. On `dynamic_dense` Nav2 reaches 0.860–0.880
-against the policy's 0.710, with all six training seeds below both passes.
-
-**Freezing the movers says why.** Each dynamic condition was re-run with the
-movers parked at the positions they already occupy at t = 0 — identical worlds
-and seeds, movers still absent from the map, so the map is exactly as wrong as
-before and only the motion is gone.
-
-| Clutter | Actor | Frozen | Moving | Cost of motion |
-|---|---|---|---|---|
-| sparse | classical | 1.000 | 0.880 | −0.120 |
-| | Nav2 | 0.985 | 0.855 | −0.130 |
-| | learned (best) | 0.900 | 0.852 | **−0.048** |
-| dense | classical | 0.980 | 0.820 | −0.160 |
-| | Nav2 | 0.945 | 0.870 | −0.075 |
-| | learned (best) | 0.778 | 0.710 | **−0.068** |
-
-With the movers frozen the classical advantage returns and widens — −0.100 on
-sparse and −0.202 on dense, 0 of 6 seeds above the baseline in both
-(p = 0.031), against −0.020 and −0.110 with them running. **The parity is the
-planner degrading, not the policy coping.** The learned policy is behind in
-every regime; it simply degrades less, costing 0.048–0.068 to motion where the
-planner costs 0.120–0.160. A policy that never commits to a path has no plan
-to invalidate. That is robustness by *absence of commitment*, not competence
-at anticipation — which is exactly what predicts frame stacking buying
-nothing.
-
-Freezing had to be done after world generation rather than by zeroing the
-amplitude in the config: mover placement validates the swept path, so a zero
-sweep accepts positions the moving config rejects and the worlds end up with
-different obstacles. A test asserts frozen and moving worlds are identical per
-seed, `l*` included, so SPL stays comparable.
-
-**The obvious explanation is wrong, and the control cell is how we know.**
-Path churn — the baseline re-committing to a fresh plan every second, the
-pathology §9.1 measured costing `narrow` 0.160 — fits everything: churn is
-0.058 m in dense+moving against 0.026–0.038 elsewhere, it is not merely a
-function of replan count, and within every cell the episodes that collided
-churned more. Removing it tests it. Block-triggered replanning, which rebuilds
-only when a mover actually obstructs the path, cuts replans from ~17 per
-episode to ~1. Pre-registered: `dynamic_dense` recovers by ≥ +0.05, the frozen
-cells stay within ±0.03.
-
-| Cell | Timed | Block-triggered | Δ |
-|---|---|---|---|
-| sparse moving | 0.870 | 0.880 | +0.010 |
-| sparse frozen | 0.980 | 1.000 | +0.020 |
-| dense moving | 0.750 | **0.820** | **+0.070** |
-| dense frozen | 0.910 | **0.980** | **+0.070** |
-
-The treated cell moved exactly as predicted and **the control cell moved by
-the same amount**, leaving the cost of motion unchanged. Churn is real and is
-caused by timed replanning, but it is a *clutter* pathology with nothing to do
-with whether obstacles move. Without the control, +0.070 on `dynamic_dense`
-would have read as clean confirmation of a mechanism the data refutes.
-
-The obvious remaining candidate was that **committing to any plan is itself
-the cost** — a trajectory is computed against a snapshot and goes stale the
-moment the world moves, so a longer commitment should be worse. DWB's rollout
-horizon is exactly that commitment length, and sweeping it over a 6× range
-tests it directly, again with the frozen arm as control:
-
-| DWB horizon | Moving | Frozen (control) | Cost of motion |
-|---|---|---|---|
-| 0.5 s | 0.780 | 0.830 | −0.050 |
-| 1.0 s | 0.910 | 0.960 | −0.050 |
-| 1.5 s | 0.870 | 0.960 | −0.090 |
-| 3.0 s | 0.690 | 0.740 | −0.050 |
-
-**The cost of motion does not move**: −0.050 at every horizon but one, a range
-of 0.040 that sits inside the noise band. Meanwhile the control swings by
-0.220 — an inverted U with its optimum near 1.0–1.5 s, driven by collisions
-that rise to 0.280 (moving) and 0.220 (frozen) at 3.0 s. Horizon length is a
-strong determinant of navigation competence and **no determinant at all of
-robustness to motion**. Read alone, the moving row would have supported an
-optimum-horizon story; the control shows that is ordinary controller tuning.
-
-So the motion cost stands unexplained, with a third mechanism eliminated.
-Ruled out: churn, planning failure (A\* never fails to find a route), sensing
-(the movers are fully visible to the baseline's costmap), and commitment
-length. What survives is only the observation that Nav2's local layer halves
-the cost under clutter (−0.075 against −0.160) for a reason none of the four
-candidate mechanisms explains.
-
-### 9.3 Faster movers: the speed explanation, tested and dead
-
-Three explanations were offered for frame stacking doing nothing
-([Phase 3h](project_plan.md)), and the leading one was that the movers are too
-slow to be worth anticipating:
-0.15-0.45 m/s against a 0.6 m/s robot. dynamic_fast raises them to
-0.8-1.5 m/s, which **outruns the robot**, on worlds that are geometrically
-identical seed for seed -- speed is drawn after the placement test and only
-feeds the angular rate, so nothing else changes. Two arms trained from scratch
-on fast movers, rame_stack 1 and 4, six seeds each, with the slow condition
-kept as a control.
-
-| Condition | stack1 | stack4 | Delta | p (exact) |
-|---|---|---|---|---|
-| **fast** (primary) | 0.652 +/- 0.052 | 0.625 +/- 0.058 | **-0.027** | 0.442 |
-| slow (control) | 0.802 +/- 0.027 | 0.778 +/- 0.059 | -0.023 | 0.502 |
-
-**Inert at three times the speed**, and inert by almost exactly the same
-amount as on the slow condition. The speed explanation is dead.
-
-This is not a ceiling or floor artefact: tripling mover speed costs every
-actor real performance -- 0.880 to 0.750 for the classical planner (collisions
-0.110 to 0.250) and about 0.150 for both learned arms. The condition bites
-hard; velocity information simply does not help against it.
-
-**Nor is it an extraction problem.** Stacked scans contain velocity only
-implicitly, so the remaining reading was that an MLP cannot recover it from
-raw ranges. obs_velocity hands the policy the per-beam range delta directly,
-against rame_stack=2 carrying the same information at nearly the same width
-(133 against 138 dimensions):
-
-| Arm | fast | slow (control) |
-|---|---|---|
-| no velocity (rame_stack=1) | 0.652 ± 0.052 | 0.802 ± 0.027 |
-| implicit (rame_stack=2) | 0.637 ± 0.043 | 0.785 ± 0.060 |
-| implicit (rame_stack=4) | 0.625 ± 0.058 | 0.778 ± 0.059 |
-| **explicit delta channel** | **0.678 ± 0.034** | **0.820 ± 0.028** |
-
-The explicit channel beats frame stacking by +0.042 on fast (p = 0.108) — and
-by +0.035 on the slow control (p = 0.249). Neither is significant, and more to
-the point the two are the same size, so this is a mild preference for the
-encoding rather than anything being *used* for anticipation. Against having no
-velocity information at all it is worth +0.026. Every arm sits within 0.053 of
-every other, against per-arm seed spreads of 0.03–0.06.
-
-So velocity information does not help this policy however it is supplied:
-implicit at two frames, implicit at four, explicit as a difference channel,
-at either speed. Both readings of the Phase 3h null have now been tested and
-both are dead.
-
-**But the reward was hiding it.** Phase 3h's third explanation was that the
-reward suppresses commitment: a collision costs 20 and a full 500-step timeout
-costs 0.01 x 500 = 5, so crashing is four times worse than stalling, and
-Section 5.3 already showed the policy optimising that by learning to stop. A
-policy that will not act on a prediction has no use for one. Setting the
-collision penalty to 5 makes the two costs *exactly equal* — indifference, not
-a thumb on the scale — and changes nothing else.
-
-| Reward | stack1 | stack4 | Δ | p (exact) |
-|---|---|---|---|---|
-| 4:1 (collision 20) | 0.652 ± 0.052 | 0.625 ± 0.058 | −0.027 | 0.442 |
-| **1:1 (collision 5)** | 0.660 ± 0.019 | **0.693 ± 0.020** | **+0.033** | **0.019** |
-| 1:1, slow control | 0.808 ± 0.021 | 0.807 ± 0.048 | −0.002 | 1.000 |
-
-**Frame stacking works once the reward stops punishing commitment** — 6 of 6
-seeds, significant, and absent on the slow control where there is less to
-anticipate. The swing between rewards is +0.060.
-
-The outcome breakdown says what actually changed, and it is not that the
-policy suddenly learned to anticipate:
-
-| Arm | Success | Collisions | Timeouts |
-|---|---|---|---|
-| 4:1 stack1 | 0.652 | 0.300 | 0.048 |
-| 4:1 stack4 | 0.625 | **0.282** | **0.093** |
-| 1:1 stack1 | 0.660 | 0.333 | 0.007 |
-| 1:1 stack4 | **0.693** | **0.302** | 0.005 |
-
-Stacking cuts collisions under **both** rewards — by 0.018 at 4:1 and 0.031 at
-1:1. The information was being used all along. What differs is what it is
-spent on: at 4:1 the collision saving is more than swallowed by timeouts
-nearly doubling and net success *falls*; under indifference the same saving
-flows straight into successes. **The reward does not decide whether the policy
-can anticipate. It decides what anticipation is for.**
-
-That is Result 2 one level up. Section 5.3 found the reward makes the policy
-stall rather than get through; this finds it also converts *additional
-information* into additional stalling. An observation channel is worth only
-what the objective lets the policy do with it.
-
-So Section 9.2's account needs correcting rather than confirming. Absence of
-commitment is real, but it is **caused by the reward rather than intrinsic to
-the policy** — and across two rewards, three encodings and a 3× speed ratio,
-that is now supported rather than merely last standing.
-
-The pre-registered magnitude was +0.05 and the effect is +0.033, so the
-prediction failed on size while getting the mechanism and its specificity
-right. That is a different kind of miss from the previous six.
-
-**All dynamic numbers here use block-triggered replanning**, which wins on all
-four dynamic cells and is identical to the previous best on the six static
-ones, where a correct map means the path is never blocked and it never fires.
-That moves the published comparison against the learned policy: `dynamic_dense`
-was −0.040 and not significant against the timed baseline, and is −0.110 at
-p = 0.031 against this one.
-
-Three narrowings, each from improving the baseline rather than from new
-evidence about the policy. The full chronology is in
-[`project_plan.md`](project_plan.md); §10 draws the lesson.
+**And the baseline needed correcting twice.** Real Nav2 beats the hand-written
+stack under clutter (§4.1), and the hand-written stack beats the learned
+policy on `dynamic_dense` once given its best replanning policy. Every
+narrowing of the headline came from improving the baseline; none came from new
+evidence about the policy.
 
 ## 10. Discussion
 
@@ -752,7 +564,7 @@ not shifts for it; and two learned arms received 2.7× the compute.
 
 **The reward decides what information is worth.** Section 5.3 found the
 4:1 collision-to-timeout ratio makes the policy stall rather than get through.
-Section 9.3 finds the same ratio also decides what *extra* information buys:
+Section 9.1 finds the same ratio also decides what *extra* information buys:
 frame stacking cuts collisions under either reward, but at 4:1 the saving is
 swallowed by timeouts and net success falls, while at indifference it becomes
 successes. An observation channel is worth only what the objective lets the
@@ -763,7 +575,7 @@ a representation is useless.
 what it first appeared. It is indistinguishable from *both* classical stacks
 on `dynamic`, ~6% faster on successful nominal episodes, and indifferent to
 sensor noise — the one axis the hand-written baseline cannot be compared on at
-all, since it never reads the sensor. But §9.2 shows the parity is the planner
+all, since it never reads the sensor. But §9.1 shows the parity is the planner
 degrading under motion, not the policy handling it: the policy is behind in
 every regime and merely harder to disrupt, because one that never commits to a
 path has no plan to invalidate. **Robustness by absence of commitment is a
@@ -809,7 +621,7 @@ evidence until one exists.
 most RL-favourable result now holds on `dynamic` alone, having been reduced
 three times — by a production stack, by freezing the movers, and by giving the
 original baseline a better replanning policy. Not once by new evidence about
-the policy. §9.1 caught a fourth such artefact before publication by sweeping
+the policy. A fourth such artefact was caught before publication by sweeping
 a parameter instead of assuming it. **When a result favours the thing you are
 studying, the baseline is the first place to look — and one pass at it is not
 enough.**
@@ -840,7 +652,7 @@ enough.**
 - **Nav2 itself is measured over only two passes.** It is nondeterministic
   (Section 4.1) and two passes bound its run-to-run spread rather than
   estimating it. The comparison is read against that range, but a tighter
-  claim needs more passes. This applies to Section 9.2 as well, where the
+  claim needs more passes. This applies to the dynamic conditions as well, where the
   `dynamic_dense` margin (+0.150 to +0.170) is far outside that spread but the
   `dynamic` result (−0.020 to +0.010) sits inside it and is read as parity
   rather than as a measured equality.
@@ -853,14 +665,14 @@ enough.**
 In order of expected information per GPU-hour:
 
 1. **Explain the motion cost**, now that four mechanisms are eliminated
-   (§9.2). The next candidate worth a controlled test is *velocity in the
+   (§9.1). The next candidate worth a controlled test is *velocity in the
    costmap*: every actor here treats each scan as a static snapshot, so none
    can distinguish a mover approaching from one receding. A costmap layer
    carrying per-cell velocity would separate "the world changed" from "the
    world is unknowable", and unlike the four already tested it predicts an
    asymmetry between head-on and crossing movers that is directly checkable.
 2. **The last standing explanation for the frame-stacking null.** Three were
-   offered; §9.3 killed two (the movers are not too slow, and the information
+   offered; §9.1 killed two (the movers are not too slow, and the information
    is not merely hard to extract). The third is that the reward's 4:1
    preference for stalling over crashing suppresses commitment even when
    anticipation is possible — a policy that will not act on a prediction has
