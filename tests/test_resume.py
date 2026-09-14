@@ -58,3 +58,62 @@ def test_error_message_names_the_offending_values():
 def test_missing_checkpoint_fails_clearly():
     with pytest.raises(FileNotFoundError, match="resume_from checkpoint not found"):
         _load_for_resume("does/not/exist.zip", None, "cpu")
+
+
+# ----------------------------------------------------------------------
+# run_spec must keep up with NavEnvConfig
+# ----------------------------------------------------------------------
+def test_run_spec_covers_every_env_field():
+    """Every env field must be classified as observation-shaping or not.
+
+    Four separate times a field was added to NavEnvConfig and not carried by
+    env_overrides_for_run: obs_mode, the RGB camera, frame_stack, and
+    obs_velocity. Three failed silently -- a policy scored against the wrong
+    sensor -- and only the fourth crashed. A docstring asking the next person
+    to remember is not a mechanism; this is.
+    """
+    from dataclasses import fields
+
+    from vision_nav.envs.nav_env import NavEnvConfig
+    from vision_nav.training.run_spec import CONDITION_FIELDS, OBSERVATION_FIELDS
+
+    declared = OBSERVATION_FIELDS | CONDITION_FIELDS
+    actual = {f.name for f in fields(NavEnvConfig)}
+
+    unclassified = actual - declared
+    assert not unclassified, (
+        "NavEnvConfig field(s) {} are classified in neither OBSERVATION_FIELDS "
+        "nor CONDITION_FIELDS in run_spec.py. If the field changes what the "
+        "policy sees it must be carried by env_overrides_for_run; if it "
+        "belongs to the evaluation condition, say so explicitly."
+        .format(sorted(unclassified))
+    )
+    stale = declared - actual
+    assert not stale, "run_spec classifies fields that no longer exist: {}".format(
+        sorted(stale))
+
+
+def test_run_spec_carries_every_observation_field(tmp_path):
+    """A run using an observation-shaping field must get it back."""
+    from omegaconf import OmegaConf
+
+    from vision_nav.training.run_spec import env_overrides_for_run
+
+    run = tmp_path / "r"
+    run.mkdir()
+    OmegaConf.save(
+        OmegaConf.create({
+            "env": {
+                "obs_mode": "privileged",
+                "obs_velocity": True,
+                "max_goal_distance": 20.0,
+                "lidar": {"n_beams": 64, "fov": 6.28, "max_range": 6.0},
+            },
+            "train": {"seed": 0},
+        }),
+        run / "config.yaml",
+    )
+    spec = env_overrides_for_run(run)
+    assert spec["obs_velocity"] is True
+    assert spec["lidar"]["n_beams"] == 64
+    assert spec["max_goal_distance"] == 20.0

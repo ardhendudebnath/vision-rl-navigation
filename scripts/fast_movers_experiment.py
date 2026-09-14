@@ -115,22 +115,28 @@ def main(argv=None) -> int:
     fast = report["conditions"].get("dynamic_fast", {})
     slow = report["conditions"].get("dynamic", {})
     if "delta" in fast and "delta" in slow:
-        print("\n=== verdict ===")
+        # Deliberately generic: this script runs more than one comparison, and
+        # a verdict hard-coded to the first one printed a conclusion about
+        # mover speed underneath a table about observation encoding.
+        names = [n for n in fast if n not in ("delta", "p")]
+        pair = " - ".join(reversed(names)) if len(names) == 2 else "treated - control"
+        print("\n=== verdict ({}) ===".format(pair))
         helped = fast["delta"] >= 0.05 and fast["p"] < 0.05
-        control_flat = abs(slow["delta"]) <= 0.03
-        if helped and control_flat:
-            print("PREDICTION HELD. Stacking pays once the movers outrun the "
-                  "robot and stays inert when they do not, so mover speed was "
-                  "why Phase 3h saw nothing.")
-        elif helped and not control_flat:
-            print("AMBIGUOUS. Stacking helps on fast, but the slow control "
-                  "moved by {:+.3f} too, so this may be the arms rather than "
-                  "the speed.".format(slow["delta"]))
+        control_moved = abs(slow["delta"]) > 0.03
+        if helped and not control_moved:
+            print("EFFECT IS SPECIFIC TO FAST MOVERS: {:+.3f} (p = {:.3f}) on "
+                  "fast, {:+.3f} on the slow control. Whatever the treatment "
+                  "supplies, it is used for motion.".format(
+                      fast["delta"], fast["p"], slow["delta"]))
+        elif helped and control_moved:
+            print("EFFECT IS NOT SPECIFIC: {:+.3f} on fast but {:+.3f} on the "
+                  "slow control too, so it is a general property of the arm "
+                  "rather than anything to do with mover speed.".format(
+                      fast["delta"], slow["delta"]))
         else:
-            print("PREDICTION FAILED. Stacking is inert at {:+.3f} "
-                  "(p = {:.3f}) even against movers that outrun the robot. "
-                  "The speed explanation for Phase 3h is dead.".format(
-                      fast["delta"], fast["p"]))
+            print("NO EFFECT ON THE PRIMARY ENDPOINT: {:+.3f} (p = {:.3f}) on "
+                  "fast, {:+.3f} (p = {:.3f}) on the slow control.".format(
+                      fast["delta"], fast["p"], slow["delta"], slow["p"]))
     print("\nWrote {}".format(out))
     return 0
 

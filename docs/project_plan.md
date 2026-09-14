@@ -33,6 +33,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5d | Replanning churn: measured, then causally tested | **Done** — churn real but **not** the explanation; better baseline adopted |
 | 5e | DWB rollout horizon sweep with frozen control | **Done** — commitment length ruled out; motion cost still unexplained |
 | 5f | Faster movers (0.8-1.5 m/s), 2 arms x 6 seeds, pre-registered | **Done** — **stacking inert at 3x speed**; the 3h speed explanation is dead |
+| 5g | Explicit velocity channel vs frame_stack=2, 6 seeds/arm | **Done** — velocity inert in every encoding; extraction explanation dead too |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -1320,6 +1321,63 @@ a caveat and becomes a finding.
 
 Calibration after this phase: 2 of 2 measurement-derived predictions held, 0
 of 6 intuition-derived ones did.
+
+## Phase 5g — Explicit velocity: the extraction explanation, also dead
+
+Phase 5f killed the speed explanation for the frame-stacking null but left one
+reading standing: stacked scans carry velocity only *implicitly*, so perhaps
+an MLP simply cannot recover it from raw ranges. `obs_velocity` hands the
+policy the per-beam range delta directly. The comparison arm is
+`frame_stack=2`, the same information at nearly the same width (133 against
+138 dimensions at 64 beams, a 3.8% difference stated rather than engineered
+away). The only substantive difference is who does the subtraction.
+
+Six seeds per arm, slow condition kept as the control. This was a directional
+expectation rather than a numbered pre-registration, and is not counted in the
+calibration tally for that reason.
+
+### Result
+
+| arm | fast | slow (control) |
+|---|---|---|
+| no velocity (`frame_stack=1`) | 0.652 +/- 0.052 | 0.802 +/- 0.027 |
+| implicit (`frame_stack=2`) | 0.637 +/- 0.043 | 0.785 +/- 0.060 |
+| implicit (`frame_stack=4`) | 0.625 +/- 0.058 | 0.778 +/- 0.059 |
+| **explicit delta channel** | **0.678 +/- 0.034** | **0.820 +/- 0.028** |
+
+The explicit channel beats frame stacking by +0.042 on fast (p = 0.108) and
++0.035 on the slow control (p = 0.249). Neither is significant and the two are
+the same size, so it is a mild preference for the encoding rather than
+anything being used for anticipation. Against no velocity information at all
+it is worth +0.026. All four arms sit within 0.053 of each other, against
+per-arm seed spreads of 0.03-0.06.
+
+**Velocity does not help this policy in any encoding at any speed tested.**
+Both readings of the Phase 3h null are now dead, and Phase 5c's
+absence-of-commitment account is the one left standing.
+
+A weak secondary observation, offered as such: frame stacking is mildly
+*monotonically worse* -- 0.652 > 0.637 > 0.625 on fast and 0.802 > 0.785 >
+0.778 on slow, the same ordering both times. Consistent with the extra width
+being a small net cost, but every gap is inside the seed spread and this is
+not a result.
+
+### The fourth recurrence, and a mechanism instead of a docstring
+
+Scoring the velocity arms crashed: the env produced 69 dimensions where the
+policy expected 133, because `env_overrides_for_run` did not carry
+`obs_velocity`. That is the fourth time a field was added to `NavEnvConfig`
+and not carried -- after `obs_mode`, the RGB camera and `frame_stack`, all
+three of which run_spec.py's own docstring already listed. Three of the four
+failed silently; only this one and `frame_stack` crashed.
+
+A docstring asking the next person to remember is not a mechanism.
+`OBSERVATION_FIELDS` and `CONDITION_FIELDS` now classify every field of
+`NavEnvConfig`, and `test_run_spec_covers_every_env_field` fails if a new
+field appears in neither. `max_goal_distance` was found unclassified in the
+process: it scales the goal-distance observation, so a policy trained at one
+value misreads another. Every config to date uses 20.0, so carrying it changes
+nothing today and stops it mattering silently later.
 
 ## Hardware notes
 

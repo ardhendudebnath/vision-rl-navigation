@@ -79,10 +79,11 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of four advance predictions, the two derived from
-measurements held to within 0.021; the two derived from intuition failed. Both
-the false positive and a later harness bug that inverted a result are
-documented in the report rather than quietly corrected.
+pre-registered endpoints. Of eight advance predictions, the two derived from
+*measurements* held to within 0.021 and 0.001; all six derived from intuition
+failed, with identical confidence of expression. Both the false positive and a
+later harness bug that inverted a result are documented in the report rather
+than quietly corrected.
 
 ## What it demonstrates
 
@@ -119,10 +120,10 @@ committee can tell the difference.
 **~60 words, for a CV entry or the opening of an email.**
 
 > Vision + RL autonomous navigation (Python, PyTorch, Stable-Baselines3,
-> ROS 2 / Nav2): a fifteen-experiment controlled study of learned versus
+> ROS 2 / Nav2): a twenty-two-experiment controlled study of learned versus
 > classical navigation under distribution shift, with seed-level significance
 > testing, pre-registered predictions, a real Nav2 baseline over a ROS 2
-> bridge, and a 251-test suite. Includes a documented false positive I caught
+> bridge, and a 260-test suite. Includes a documented false positive I caught
 > in my own results.
 
 **One line, for a subject line or an introduction.**

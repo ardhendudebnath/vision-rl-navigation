@@ -628,11 +628,36 @@ actor real performance -- 0.880 to 0.750 for the classical planner (collisions
 0.110 to 0.250) and about 0.150 for both learned arms. The condition bites
 hard; velocity information simply does not help against it.
 
-That leaves Section 9.2's reading as the one that survives. If the policy's
+**Nor is it an extraction problem.** Stacked scans contain velocity only
+implicitly, so the remaining reading was that an MLP cannot recover it from
+raw ranges. obs_velocity hands the policy the per-beam range delta directly,
+against rame_stack=2 carrying the same information at nearly the same width
+(133 against 138 dimensions):
+
+| Arm | fast | slow (control) |
+|---|---|---|
+| no velocity (rame_stack=1) | 0.652 ± 0.052 | 0.802 ± 0.027 |
+| implicit (rame_stack=2) | 0.637 ± 0.043 | 0.785 ± 0.060 |
+| implicit (rame_stack=4) | 0.625 ± 0.058 | 0.778 ± 0.059 |
+| **explicit delta channel** | **0.678 ± 0.034** | **0.820 ± 0.028** |
+
+The explicit channel beats frame stacking by +0.042 on fast (p = 0.108) — and
+by +0.035 on the slow control (p = 0.249). Neither is significant, and more to
+the point the two are the same size, so this is a mild preference for the
+encoding rather than anything being *used* for anticipation. Against having no
+velocity information at all it is worth +0.026. Every arm sits within 0.053 of
+every other, against per-arm seed spreads of 0.03–0.06.
+
+So velocity information does not help this policy however it is supplied:
+implicit at two frames, implicit at four, explicit as a difference channel,
+at either speed. Both readings of the Phase 3h null have now been tested and
+both are dead.
+
+That leaves Section 9.2''s reading as the one that survives. If the policy''s
 robustness under motion is *absence of commitment* rather than anticipation,
-then extra velocity information should buy nothing at any speed, which is
-what two independent experiments at a 3x speed ratio now show. The
-frame-stacking null is a finding rather than a caveat.
+then velocity should buy nothing in any encoding at any speed, which is what
+four arms across a 3× speed ratio now show. The frame-stacking null is a
+finding rather than a caveat.
 
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
@@ -778,7 +803,7 @@ In order of expected information per GPU-hour:
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 251 tests
+pytest                                        # 260 tests
 python scripts/check_docs.py                  # every doc link resolves
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix

@@ -22,7 +22,32 @@ from pathlib import Path
 import numpy as np
 from omegaconf import OmegaConf
 
-__all__ = ["env_overrides_for_run", "describe_run_sensor", "run_seed"]
+__all__ = [
+    "env_overrides_for_run",
+    "describe_run_sensor",
+    "run_seed",
+    "OBSERVATION_FIELDS",
+    "CONDITION_FIELDS",
+]
+
+#: Every ``NavEnvConfig`` field that changes what the policy sees, and so must
+#: travel with it. ``test_run_spec_covers_every_env_field`` fails if a field is
+#: added to the config and classified in neither this set nor
+#: :data:`CONDITION_FIELDS`, which is what turns the fourth recurrence of this
+#: bug into the last one.
+OBSERVATION_FIELDS = frozenset({
+    "obs_mode", "lidar", "camera", "rgb_camera", "frame_stack",
+    "obs_velocity", "max_goal_distance",
+})
+
+#: Fields belonging to the *evaluation condition* rather than the policy.
+#: Carrying these would let a policy drag its training task along and score
+#: itself on the wrong worlds.
+CONDITION_FIELDS = frozenset({
+    "world", "robot", "reward", "domain_randomization", "max_episode_steps",
+    "freeze_dynamic", "world_seeds", "seed_range", "deterministic_seed_order",
+    "world_cache_size",
+})
 
 #: Per-mode sensor geometry that must travel with the policy. Sensor
 #: *corruption* (noise, dropout) deliberately does not: that belongs to the
@@ -63,6 +88,16 @@ def env_overrides_for_run(run: Path | str) -> dict:
     stack = OmegaConf.select(env, "frame_stack")
     if stack and int(stack) > 1:
         spec["frame_stack"] = int(stack)
+
+    if bool(OmegaConf.select(env, "obs_velocity")):
+        spec["obs_velocity"] = True
+
+    # Scales the goal-distance component, so a policy trained at one value
+    # reads a different number at another. Every config to date uses 20.0, so
+    # carrying it changes nothing today and stops it from mattering silently.
+    max_goal = OmegaConf.select(env, "max_goal_distance")
+    if max_goal is not None:
+        spec["max_goal_distance"] = float(max_goal)
     return spec
 
 
