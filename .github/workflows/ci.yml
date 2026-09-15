@@ -50,5 +50,8 @@ jobs:
       - name: Documentation references resolve
         run: python scripts/check_docs.py
 
+      - name: Documented numbers match the result files
+        run: python scripts/check_numbers.py
+
       - name: Tests
         run: pytest -q
