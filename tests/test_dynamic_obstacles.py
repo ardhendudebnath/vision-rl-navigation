@@ -1,4 +1,4 @@
-"""Tests for moving obstacles and the map/sensor asymmetry they depend on.
+﻿"""Tests for moving obstacles and the map/sensor asymmetry they depend on.
 
 The whole point of this condition is that the movers are **visible to sensors
 but absent from the map**. If that asymmetry leaked either way the experiment
@@ -8,6 +8,7 @@ movers invisible to the lidar would give the policy a free pass.
 
 from __future__ import annotations
 
+import json
 import sys
 from math import comb
 from pathlib import Path
@@ -22,6 +23,7 @@ from vision_nav.envs.world import WorldConfig, generate_world
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from dynamic_experiment import sign_test  # noqa: E402
+from fast_movers_experiment import tail_gain  # noqa: E402
 
 DYN = shifted_config(WorldConfig(), "dynamic")
 
@@ -452,3 +454,42 @@ def test_reset_clears_the_delta_history():
 def test_obs_velocity_and_frame_stack_are_mutually_exclusive():
     with pytest.raises(ValueError, match="mutually exclusive"):
         ProceduralNavEnv(NavEnvConfig(obs_velocity=True, frame_stack=2))
+
+
+def _history_run(tmp_path, name, rates):
+    run = tmp_path / name
+    run.mkdir()
+    (run / "validation_history.json").write_text(
+        json.dumps([{"timesteps": 50_000 * (i + 1), "success_rate": r}
+                    for i, r in enumerate(rates)]),
+        encoding="utf-8",
+    )
+    return run
+
+
+def test_tail_gain_separates_a_converged_arm_from_a_climbing_one(tmp_path):
+    """A null result and an under-trained arm produce the same endpoint.
+
+    This is the only thing standing between "recurrence does not help" and
+    "the recurrent arm had not finished training", so it has to actually
+    distinguish the two rather than merely return a number.
+    """
+    flat = _history_run(tmp_path, "flat", [0.1, 0.2, 0.3] + [0.40, 0.41, 0.39] * 4)
+    climbing = _history_run(tmp_path, "climbing", [0.05 * i for i in range(15)])
+
+    assert abs(np.mean(tail_gain([flat]))) <= 0.03
+    assert np.mean(tail_gain([climbing])) > 0.03
+
+
+def test_tail_gain_reads_the_finished_arms_as_converged():
+    """The threshold is calibrated against arms that ran the full budget.
+
+    dynfast1 is the baseline of the recurrence comparison itself: a threshold
+    that called it under-trained would invalidate the comparison rather than
+    protect it. Skipped when the runs are absent, since runs/ is not in git.
+    """
+    runs = sorted(Path(__file__).resolve().parents[1].glob("runs/dynfast1_s*"))
+    runs = [r for r in runs if (r / "validation_history.json").exists()]
+    if len(runs) < 6:
+        pytest.skip("training runs not present in this checkout")
+    assert abs(float(np.mean(tail_gain(runs)))) <= 0.03

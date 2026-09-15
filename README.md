@@ -36,7 +36,7 @@ decision below follows from wanting that comparison to be trustworthy.
 
 | Stage | State |
 |---|---|
-| Task, metrics, splits, 260-test suite | Done |
+| Task, metrics, splits, 265-test suite | Done |
 | Classical baseline (A* + pure pursuit, full map) | Done |
 | Privileged RL, robustness suite, distribution shifts | Done |
 | Four explanations for the gap, each tested and rejected | Done |

@@ -65,6 +65,36 @@ def permutation_p(a: np.ndarray, b: np.ndarray) -> float:
     return hits / total
 
 
+def tail_gain(runs: list[Path]) -> list[float]:
+    """Per-seed change in validation success over the last third of training.
+
+    A null result and an under-trained arm predict the same number, and the
+    two are not distinguishable from the endpoint alone. This is the cheapest
+    way to tell them apart: if an arm is still climbing when its budget runs
+    out, "it did not help" has not yet been shown -- what has been shown is
+    that it had not finished. Near zero means the comparison is between two
+    converged arms and the endpoint means what it says.
+
+    Compares the mean of the final third of validation evaluations against the
+    third before it, so it is robust to the noise in any single evaluation.
+
+    What counts as "near zero" is measured, not guessed. The four arms that
+    have run this budget to completion read +0.026 (dynfast1), +0.001
+    (dynfast4), +0.016 (dyn1) and +0.010 (dynvel), on 50-episode validations
+    whose per-seed noise is itself around +/-0.1. So a mean tail gain inside
+    +/-0.03 is indistinguishable from an arm everyone already treats as
+    converged, and a threshold tighter than that would flag dynfast1 -- the
+    baseline of this very comparison -- as under-trained.
+    """
+    gains = []
+    for run in runs:
+        history = json.loads((run / "validation_history.json").read_text(encoding="utf-8"))
+        rates = [h["success_rate"] for h in history]
+        third = max(len(rates) // 3, 1)
+        gains.append(float(np.mean(rates[-third:]) - np.mean(rates[-2 * third : -third])))
+    return gains
+
+
 def main(argv=None) -> int:
     args = parse_args(argv)
     arms: dict[str, list[Path]] = {}
@@ -77,6 +107,18 @@ def main(argv=None) -> int:
         arms[name] = runs
 
     report = {"episodes": args.episodes, "conditions": {}}
+
+    # Reported before the endpoints, so a rising tail is seen while reading
+    # the result rather than after having believed it.
+    print("=== still improving at the end of the budget? ===")
+    report["tail_gain"] = {}
+    for name, runs in arms.items():
+        gains = tail_gain(runs)
+        report["tail_gain"][name] = gains
+        mean = float(np.mean(gains))
+        verdict = "converged" if abs(mean) <= 0.03 else "STILL MOVING"
+        print(f"  {name:8s} final-third minus previous-third success: "
+              f"{mean:+.3f}  ({verdict})")
     for label, split, shift in CONDITIONS:
         print(f"\n=== {label} : {shift} ===")
         per_arm: dict[str, list[float]] = {}
