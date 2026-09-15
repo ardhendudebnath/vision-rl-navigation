@@ -150,9 +150,27 @@ def train(cfg: DictConfig) -> dict:
     if "activation_fn" in policy_kwargs:
         policy_kwargs["activation_fn"] = getattr(torch.nn, policy_kwargs["activation_fn"])
 
+    # `algo.recurrent` swaps PPO for RecurrentPPO and the MLP policy for an
+    # LSTM one. It is the untested half of the frame-stacking question: fixed
+    # windows of 2 and 4 frames and an explicit velocity channel are all inert,
+    # and a recurrent policy can integrate over a longer history than any of
+    # them. Default false, so every earlier run is unaffected.
+    recurrent = bool(algo.pop("recurrent", False))
+
     resume_from = cfg.train.get("resume_from", None)
     if resume_from:
         model = _load_for_resume(resume_from, vec_env, device)
+    elif recurrent:
+        from sb3_contrib import RecurrentPPO
+
+        model = RecurrentPPO(
+            policy=algo.pop("policy", "MlpLstmPolicy"),
+            env=vec_env,
+            seed=cfg.train.seed,
+            device=device,
+            policy_kwargs=policy_kwargs,
+            **algo,
+        )
     else:
         model = PPO(
             policy=algo.pop("policy", "MlpPolicy"),

@@ -1,0 +1,51 @@
+# RecurrentPPO (sb3-contrib) -- the recurrent arm of the frame-stacking question.
+#
+# Fixed windows of 2 and 4 frames and an explicit per-beam velocity channel are
+# all inert on the fast-mover task. A recurrent policy is the last untested way
+# of handing the policy motion information: it integrates over the whole
+# episode rather than a fixed window, and it *learns* what to retain instead of
+# being handed a hand-designed summary.
+#
+# The environment is deliberately unchanged, so the comparison is
+# algorithm-only:
+#
+#   python -m vision_nav.training.train env=nav_dyn_fast algo=ppo_lstm \
+#       train.run_name=dynfastrec_s0
+#
+# Needs the optional dependency:  pip install -e .[recurrent]
+#
+# Every hyperparameter below is copied from ppo.yaml unchanged. That is the
+# point: the only differences from the dynfast1 baseline are `recurrent`, the
+# policy class, and the LSTM's own size. A tuned LSTM beating an untuned MLP
+# would not answer the question being asked.
+
+# Consumed by train.py, not by the algorithm: swaps PPO for RecurrentPPO.
+recurrent: true
+
+policy: MlpLstmPolicy
+
+n_steps: 2048
+batch_size: 512
+n_epochs: 10
+
+learning_rate: 3.0e-4
+gamma: 0.995
+gae_lambda: 0.95
+clip_range: 0.2
+ent_coef: 0.005
+vf_coef: 0.5
+max_grad_norm: 0.5
+normalize_advantage: true
+
+policy_kwargs:
+  net_arch: [256, 256]
+  activation_fn: Tanh
+  # The recurrent state itself. 256 units matches the width of the feed-forward
+  # trunk, and one layer is SB3's default; going deeper would confound "does
+  # memory help" with "does a bigger policy help".
+  lstm_hidden_size: 256
+  n_lstm_layers: 1
+  # Actor and critic each get their own LSTM. Sharing one makes the value
+  # loss's gradients shape the actor's memory, which is a second variable.
+  shared_lstm: false
+  enable_critic_lstm: true

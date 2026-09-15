@@ -72,18 +72,42 @@ class ClassicalActor:
 
 
 class SB3Actor:
-    """Adapter around a Stable-Baselines3 policy."""
+    """Adapter around a Stable-Baselines3 policy.
+
+    Carries the policy's recurrent state across steps and clears it between
+    episodes. For a feed-forward policy this is inert -- ``predict`` returns
+    ``None`` and nothing changes -- so it is done unconditionally rather than
+    behind a branch on the model type.
+
+    Doing it unconditionally matters. A recurrent policy evaluated without
+    carrying state sees every step as the first, which destroys exactly the
+    memory the policy was trained to use, and the result would read as
+    "recurrence does not help" rather than as a broken evaluation path. This
+    adapter is the single seam through which both training-time validation and
+    every analysis script evaluate, so getting it wrong here would be silent
+    and everywhere.
+    """
 
     def __init__(self, model, deterministic: bool = True, name: str = "rl") -> None:
         self.model = model
         self.deterministic = deterministic
         self.name = name
+        self._state = None
+        self._episode_start = True
 
     def reset(self, env: ProceduralNavEnv, obs: np.ndarray) -> bool:
+        self._state = None
+        self._episode_start = True
         return True
 
     def act(self, env: ProceduralNavEnv, obs: np.ndarray) -> np.ndarray:
-        action, _ = self.model.predict(obs, deterministic=self.deterministic)
+        action, self._state = self.model.predict(
+            obs,
+            state=self._state,
+            episode_start=np.array([self._episode_start]),
+            deterministic=self.deterministic,
+        )
+        self._episode_start = False
         return np.asarray(action, dtype=np.float32).reshape(2)
 
 
@@ -99,5 +123,16 @@ def build_actor(kind: str, *, model_path: str | None = None, robot=None, **kwarg
             raise ValueError("actor kind 'rl' requires model_path")
         from stable_baselines3 import PPO
 
-        return SB3Actor(PPO.load(model_path, device="cpu"), **kwargs)
+        # PPO.load does NOT reject a RecurrentPPO checkpoint: it happily
+        # returns a PPO whose policy is a RecurrentActorCriticPolicy. That
+        # mostly works, because predict() delegates to the policy, but it is
+        # accidental rather than intended, so detect the recurrent policy and
+        # reload under the class that owns it. sb3-contrib is an optional
+        # extra, imported only once a checkpoint is known to need it.
+        model = PPO.load(model_path, device="cpu")
+        if type(model.policy).__name__.startswith("Recurrent"):
+            from sb3_contrib import RecurrentPPO
+
+            model = RecurrentPPO.load(model_path, device="cpu")
+        return SB3Actor(model, **kwargs)
     raise ValueError(f"unknown actor kind {kind!r}; expected random|classical|rl")
