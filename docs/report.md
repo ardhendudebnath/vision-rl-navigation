@@ -719,6 +719,17 @@ python scripts/perception_audit.py            # §7, no training required
 python scripts/seed_analysis.py --arm ...     # §6.2, §7.1, §8
 ```
 
+The recurrent arm of §9.1 needs one optional dependency, and its two result
+files come from two scripts:
+
+```bash
+pip install -e ".[recurrent]"                 # sb3-contrib, for RecurrentPPO
+python -m vision_nav.training.train env=nav_dyn_fast algo=ppo_lstm \
+    train.run_name=dynfastrec_s0 train.seed=0
+python scripts/fast_movers_experiment.py --arm memoryless=... --arm recurrent=...
+python scripts/recurrence_ablation.py         # is the memory actually used?
+```
+
 Section 4.1 needs ROS 2 Jazzy and Nav2, which live in a userspace conda
 environment rather than the project venv (`ros2_bridge/README.md`):
 
