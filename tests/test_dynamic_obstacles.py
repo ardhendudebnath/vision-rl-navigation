@@ -23,7 +23,7 @@ from vision_nav.envs.world import WorldConfig, generate_world
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from dynamic_experiment import sign_test  # noqa: E402
-from fast_movers_experiment import tail_gain  # noqa: E402
+from fast_movers_experiment import tail_gain, verdict_lines  # noqa: E402
 
 DYN = shifted_config(WorldConfig(), "dynamic")
 
@@ -479,6 +479,66 @@ def test_tail_gain_separates_a_converged_arm_from_a_climbing_one(tmp_path):
 
     assert abs(np.mean(tail_gain([flat]))) <= 0.03
     assert np.mean(tail_gain([climbing])) > 0.03
+
+
+def _report(fast_delta, fast_p, slow_delta, slow_p, coll=0.0, tmo=0.0):
+    """Minimal report shaped like the one fast_movers_experiment writes."""
+    def cell(delta, p):
+        return {
+            "base": [0.5] * 6,
+            "treated": [0.5 + delta] * 6,
+            "outcomes": {
+                "base": {"success": [0.5] * 6, "collision": [0.3] * 6,
+                         "timeout": [0.05] * 6},
+                "treated": {"success": [0.5 + delta] * 6,
+                            "collision": [0.3 + coll] * 6,
+                            "timeout": [0.05 + tmo] * 6},
+            },
+            "delta": delta, "p": p, "seeds_higher": 6 if delta > 0 else 0,
+        }
+    return {"conditions": {"dynamic_fast": cell(fast_delta, fast_p),
+                           "dynamic": cell(slow_delta, slow_p)}}
+
+
+def test_verdict_never_calls_a_significant_harm_no_effect():
+    """The bug this function was extracted for.
+
+    The original could only test for *help*, so every other outcome fell to a
+    branch announcing "NO EFFECT ON THE PRIMARY ENDPOINT" -- which it printed
+    over the real recurrence result, a -0.068 at p = 0.017 carried by 5 of 6
+    seeds. A verdict that cannot say "worse" mislabels a real effect as a null
+    every time one appears, and it goes straight into the writeup.
+    """
+    text = " ".join(verdict_lines(_report(-0.068, 0.017, -0.078, 0.004),
+                                  ["base", "treated"]))
+    assert "NO EFFECT" not in text
+    assert "HURTS" in text
+
+
+def test_verdict_uses_the_control_cell_to_refuse_a_mechanism_claim():
+    """A control that moves as much as the treatment leaves the question open."""
+    both = " ".join(verdict_lines(_report(-0.068, 0.017, -0.078, 0.004),
+                                  ["base", "treated"]))
+    assert "NOT SPECIFIC TO MOTION" in both
+    assert "unanswered" in both
+
+    only_fast = " ".join(verdict_lines(_report(-0.068, 0.017, -0.005, 0.9),
+                                       ["base", "treated"]))
+    assert "SPECIFIC TO FAST MOVERS" in only_fast
+
+
+def test_verdict_separates_reward_masking_from_a_worse_policy():
+    """Collisions down with timeouts up is Phase 5h; collisions up is not."""
+    masked = " ".join(verdict_lines(
+        _report(-0.027, 0.44, -0.002, 1.0, coll=-0.018, tmo=0.045),
+        ["base", "treated"]))
+    assert "PHASE 5h SIGNATURE" in masked
+
+    worse = " ".join(verdict_lines(
+        _report(-0.068, 0.017, -0.078, 0.004, coll=0.023, tmo=0.045),
+        ["base", "treated"]))
+    assert "PHASE 5h SIGNATURE" not in worse
+    assert "not reward masking" in worse
 
 
 def test_tail_gain_reads_the_finished_arms_as_converged():

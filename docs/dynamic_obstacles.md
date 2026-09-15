@@ -259,6 +259,99 @@ The pre-registered magnitude was +0.05 and the effect is +0.033, so the
 prediction failed on size while getting the mechanism and its specificity
 right. That is a different kind of miss from the previous six.
 
+## Recurrence: worse everywhere, and not about motion
+
+Three ways of handing the policy motion information were inert: frame stacking
+at two and four frames, and an explicit per-beam velocity channel. Recurrence
+was the fourth and last — an LSTM integrates over the whole episode rather than
+a fixed window, and *learns* what to keep instead of being handed a
+hand-designed summary. Same worlds, same seeds, same 1.5M-step budget; PPO
+becomes RecurrentPPO with a 256-unit LSTM for actor and critic, and every
+other hyperparameter is copied from the baseline unchanged.
+
+Pre-registered: no effect, |Δ| < 0.03 and p > 0.05, with slow movers as the
+control cell.
+
+| Condition | memoryless | recurrent | Δ | p (exact) | seeds higher |
+|---|---|---|---|---|---|
+| fast movers (primary) | 0.652 ± 0.052 | 0.583 ± 0.022 | **-0.068** | **0.017** | 1/6 |
+| slow movers (control) | 0.802 ± 0.027 | 0.723 ± 0.045 | **-0.078** | **0.004** | 0/6 |
+
+**Recurrence is significantly worse, and the control is worse by more.** The
+prediction failed on direction, not just on magnitude.
+
+**And that control refuses the motion reading.** If recurrence were failing to
+help *with motion*, the slow condition — where there is less to anticipate —
+should have been the one it left alone. Instead the harm is slightly larger
+there. Whatever the LSTM costs, it is not paid on anticipation: it is a general
+property of the arm. This is the third time in this study that a control cell
+has stopped a mechanism claim, after churn and commitment length, and the
+lesson is the same each time — the experiment answers a narrower question than
+the one it was built to ask.
+
+The outcome breakdown rules out the one alternative that would have made this
+a story about the reward:
+
+| Arm | Success | Collisions | Timeouts |
+|---|---|---|---|
+| memoryless, fast | 0.652 | 0.300 | 0.048 |
+| recurrent, fast | 0.583 | **0.323** | **0.093** |
+
+Frame stacking at 4:1 cut collisions and paid for it in timeouts — information
+used, and spent on stalling. Here **both rise**. The recurrent policy crashes
+more *and* stalls more, so it is not trading one failure for another; it is
+worse at both, and the reward is not hiding anything.
+
+### Two ways this could have been an artefact, both closed
+
+A negative result is only worth as much as the things ruled out before it was
+read, and two failure modes here produce exactly this number.
+
+**Under-training.** RecurrentPPO has more parameters and a harder optimisation
+than PPO, so "memory does not help" and "the LSTM had not finished" predict the
+same success rate. Comparing each seed's final third of validation evaluations
+against the third before it: the baseline gains +0.026 and the
+recurrent arm -0.008. Both are inside the ±0.03 band measured across
+the four arms that have run this budget to completion. The recurrent arm had
+stopped improving — it is converged, not truncated.
+
+**An LSTM that ignored its own memory.** If the policy had learned to route
+around its recurrent state, the entire cost would be the architecture and the
+recurrence itself would be irrelevant. Evaluating each policy twice on
+identical worlds — once carrying state across the episode, once clearing it at
+every step — gives 0.583 with memory against 0.268 without
+it, a gap of **+0.315**. Memory is emphatically in the loop. The
+policy depends on its history; the history simply does not buy performance
+that the memoryless arm did not already have.
+
+That second check also prices a near-miss in the harness. Carrying recurrent
+state through evaluation had to be *added* for this experiment, and had it been
+left out, the recurrent arm would have scored about 0.268 against
+0.652 — a Δ near -0.38 that reads as a catastrophic
+failure of recurrence and is entirely an evaluation bug. The measured answer
+and the artefact point the same direction, which is exactly why the artefact
+would have been believed.
+
+### What this does and does not establish
+
+It establishes that **at a matched sample budget, on this task, a recurrent
+policy is worse everywhere than a memoryless one**, and that the gap has
+nothing to do with moving obstacles.
+
+It does not establish that memory cannot help here. The LSTM ran on
+hyperparameters chosen for an MLP — deliberately, so the comparison would be
+algorithm-only, but that makes this a result about *dropping recurrence into
+this setup*, not about recurrence. The honest summary is that the cheap version
+of the idea does not work, and costs **19× the wall clock**
+to find out: 78 steps/second against 1480 for the baseline,
+for the same 1.5M samples. Sample-matching is the generous choice here, not the
+strict one — at equal compute the baseline would have seen far more data, and
+the gap would be wider.
+
+The absence-of-commitment account is neither supported nor damaged by this.
+Phase 5h remains the load-bearing result: the reward decides what extra
+information is worth, and nothing here touches that.
+
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
 ones, where a correct map means the path is never blocked and it never fires.

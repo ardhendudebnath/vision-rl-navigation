@@ -47,9 +47,11 @@ decision below follows from wanting that comparison to be trustworthy.
 | Real Nav2 over ROS 2, scored as one more actor | Done |
 | Frozen-mover subtraction; churn and horizon mechanisms ruled out | Done |
 | Faster movers and an explicit velocity channel: both inert | Done |
+| The reward prices information: stacking pays at 1:1, not at 4:1 | Done |
+| Recurrence: worse everywhere, and the control says not about motion | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Twenty-three experiments, each pre-registered where it tests a hypothesis. The
+Twenty-four experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).

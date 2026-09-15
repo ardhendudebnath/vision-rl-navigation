@@ -87,10 +87,11 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of nine advance predictions, the two derived from
-*measurements* held to within 0.021 and 0.001; six derived from intuition failed
-outright and a seventh got the mechanism right and the magnitude wrong, with
-identical confidence of expression throughout. Both the false positive and a
+pre-registered endpoints. Of ten advance predictions, the two derived from
+*measurements* held to within 0.021 and 0.001; seven failed outright and an
+eighth got the mechanism right and the magnitude wrong, with identical
+confidence of expression throughout — including two that reasoned from a real
+measurement but carried it across a boundary the measurement never spanned. Both the false positive and a
 later harness bug that inverted a result are documented in the report rather
 than quietly corrected.
 

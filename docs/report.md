@@ -527,6 +527,17 @@ route), sensing (the movers are fully visible), and commitment length (a 6×
 sweep of the controller's rollout horizon moves the cost by 0.040, inside
 noise, while moving absolute performance by 0.220).
 
+**Recurrence is worse, and not because of motion.** An LSTM policy — the last
+untested way of supplying motion information, and the only one that learns what
+to retain — is significantly *worse* than a memoryless one on fast movers
+({f['delta']:+.3f}, p = {f['p']:.3f}) and worse by slightly more on the slow
+control ({s['delta']:+.3f}, p = {s['p']:.3f}). The control moving as much as the
+treatment refuses the motion reading a fourth time: the cost is a general
+property of the arm. Two artefacts were closed before reading it — the arm is
+converged, and clearing its recurrent state costs {abl['mean_delta']:+.3f}
+success, so the memory is genuinely in use. See
+[`dynamic_obstacles.md`](dynamic_obstacles.md).
+
 **The reward sets what information is worth.** Frame stacking looked inert
 across two mover speeds and three encodings. It is not: the reward prices a
 collision at 20 and a full timeout at 5, and making the two equal turns
@@ -588,17 +599,27 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of nine predictions made in advance, the two derived from a
-*measurement* held, to within 0.021 and 0.001; six from extrapolation or
-intuition failed outright; the ninth got its mechanism right and its magnitude
-wrong (+0.033 against a predicted +0.05). Confidence of expression was
-identical throughout. Two failures sharpened the rule rather than breaking it.
+**Calibration.** Of ten predictions made in advance, the two derived from a
+*measurement* held, to within 0.021 and 0.001; seven from extrapolation or
+intuition failed outright; one got its mechanism right and its magnitude wrong
+(+0.033 against a predicted +0.05). Confidence of expression was identical
+throughout. Three failures sharpened the rule rather than breaking it.
 
 Predicting Nav2 ≥ 0.92 on `dynamic` extrapolated a *measured* collision
 reduction, which by the rule above should have been reliable — but it crossed
 from static clutter to moving obstacles, a boundary the measurement never
 spanned. **Measurement-derived predictions hold within the regime measured and
 become intuition outside it.**
+
+The recurrence prediction broke that rule twice in one sitting. Registered as a
+null on the strength of three measured nulls, it was then *amended* before any
+evaluation ran — on the strength of a fourth measurement — to predict collisions
+falling while success stayed flat. Recurrence was significantly worse
+(-0.068, p = 0.017) and collisions *rose*. Both versions extrapolated across a
+mechanism boundary, from fixed hand-designed windows to learned memory, exactly
+as the Nav2 prediction crossed from static to moving. **Reasoning carefully
+from a measurement does not extend its reach; it only makes the overreach
+harder to notice.**
 
 The churn and horizon experiments each proposed a mechanism, each named a
 control cell where that mechanism should not act, and each was refuted by the
@@ -673,9 +694,14 @@ In order of expected information per GPU-hour:
    and resolution is inert" is a fact about perception or about pricing. This
    is the cheapest way to find out how far Result 2 reaches, and it puts the
    report's own perception findings at risk, which is why it is worth doing.
-3. **Recurrence.** The other half of the original item 3, still untested.
-   Explicit velocity features are now known to be inert, but a recurrent
-   policy could integrate over a longer history than any fixed stack.
+3. **A recurrent policy that was actually tuned.** §9.1 tested one and it was
+   worse everywhere, but it ran on hyperparameters chosen for an MLP so the
+   comparison would be algorithm-only. That makes the result a statement about
+   dropping recurrence into this setup rather than about recurrence, and it
+   cost 19× the wall clock for the same sample budget. A sequence length, an
+   LSTM width and a learning rate chosen *for* the recurrent arm would say
+   whether the idea or the transplant failed. Lowest expected value of the
+   five: the control cell says the deficit is not about motion at all.
 4. **Harder perception** — texture, lighting variation, sensor artefacts — to
    turn the encoder-cost lower bound into an estimate.
 5. **Sim-to-real** on a TurtleBot-class base. The action space is already

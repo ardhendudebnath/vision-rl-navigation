@@ -146,6 +146,47 @@ def claims():
              load(rm)["conditions"]["dynamic_fast"]["p"]),
         ]
 
+    # --- recurrence, report section 9.1 and dynamic_obstacles.md ------
+    rc, ab = "results/recurrence.json", "results/recurrence_state_ablation.json"
+    if os.path.exists(rc) and os.path.exists(ab):
+        cond = load(rc)["conditions"]
+
+        def outc(shift, arm, key):
+            return st.mean(cond[shift]["outcomes"][arm][key])
+
+        out += [
+            ("recurrence memoryless fast", 0.652,
+             arm_mean(rc, "dynamic_fast", "memoryless")),
+            ("recurrence recurrent fast", 0.583,
+             arm_mean(rc, "dynamic_fast", "recurrent")),
+            ("recurrence delta fast", -0.068, cond["dynamic_fast"]["delta"]),
+            ("recurrence p fast", 0.017, cond["dynamic_fast"]["p"]),
+            ("recurrence memoryless slow", 0.802,
+             arm_mean(rc, "dynamic", "memoryless")),
+            ("recurrence recurrent slow", 0.723,
+             arm_mean(rc, "dynamic", "recurrent")),
+            ("recurrence delta slow", -0.078, cond["dynamic"]["delta"]),
+            ("recurrence p slow", 0.004, cond["dynamic"]["p"]),
+            # The breakdown is what separates "worse policy" from the Phase 5h
+            # masking pattern, so it is checked rather than trusted.
+            ("recurrence collisions memoryless", 0.300,
+             outc("dynamic_fast", "memoryless", "collision")),
+            ("recurrence collisions recurrent", 0.323,
+             outc("dynamic_fast", "recurrent", "collision")),
+            ("recurrence timeouts memoryless", 0.048,
+             outc("dynamic_fast", "memoryless", "timeout")),
+            ("recurrence timeouts recurrent", 0.093,
+             outc("dynamic_fast", "recurrent", "timeout")),
+            # Both artefact checks are load-bearing for the negative result.
+            ("recurrence tail gain baseline", 0.026,
+             st.mean(load(rc)["tail_gain"]["memoryless"])),
+            ("recurrence tail gain recurrent", -0.008,
+             st.mean(load(rc)["tail_gain"]["recurrent"])),
+            ("recurrence state ablation", 0.315, load(ab)["mean_delta"]),
+            ("recurrence without memory", 0.268,
+             st.mean([r["without_memory"] for r in load(ab)["per_seed"]])),
+        ]
+
     # --- horizon sweep ------------------------------------------------
     hz_rows = {}
     for d in sorted(glob.glob("results/nav2_horizon/sim*")):

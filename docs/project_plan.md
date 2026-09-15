@@ -35,6 +35,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5f | Faster movers (0.8-1.5 m/s), 2 arms x 6 seeds, pre-registered | **Done** — **stacking inert at 3x speed**; the 3h speed explanation is dead |
 | 5g | Explicit velocity channel vs frame_stack=2, 6 seeds/arm | **Done** — velocity inert in every encoding; extraction explanation dead too |
 | 5h | Indifference reward (collision 5 == timeout 5), 2 arms x 6 seeds | **Done** — **stacking works at 1:1 (+0.033, p = 0.019, 6/6)**; the reward was hiding it |
+| 5i | Recurrence (RecurrentPPO, 256-unit LSTM), 2 arms x 6 seeds | **Done** — **worse everywhere (-0.068 fast, -0.078 slow)**; the control refuses the motion reading |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -1441,6 +1442,62 @@ It also revises how the Phase 3h null should be read: not "velocity
 information is useless to this policy" but "this reward makes velocity
 information useless", which is a claim about experimental design rather than
 about learned navigation.
+
+## Phase 5i — Recurrence: worse everywhere, and not about motion
+
+The fourth and last way of supplying motion information, and the only one that
+learns what to retain rather than being handed a fixed summary. PPO becomes
+RecurrentPPO with a 256-unit LSTM for actor and critic; same worlds, same
+seeds, same 1.5M-step budget, every other hyperparameter copied from the
+baseline so the difference is algorithm-only.
+
+Pre-registered: no effect, |delta| < 0.03 and p > 0.05, slow movers as control.
+Amended before evaluation, on the strength of Phase 5h, to predict collisions
+falling while success stayed flat.
+
+| Condition | memoryless | recurrent | delta | p (exact) | seeds higher |
+|---|---|---|---|---|---|
+| fast movers (primary) | 0.652 | 0.583 | **-0.068** | **0.017** | 1/6 |
+| slow movers (control) | 0.802 | 0.723 | **-0.078** | **0.004** | 0/6 |
+
+Both predictions were wrong, and in a new direction: recurrence is
+significantly **worse**, and collisions *rose* (0.300
+to 0.323) alongside timeouts
+(0.048 to 0.093).
+It is not the Phase 5h pattern of trading crashes for stalls; the arm is worse
+at both.
+
+The control cell is what makes this readable. The harm is as large on slow
+movers as on fast, so it is a general property of the arm rather than a failure
+to anticipate. Fourth time a control has refused a mechanism claim in this
+study, after churn, commitment length, and the stacking speed explanation.
+
+### Two artefacts closed before the number was read
+
+**Under-training.** RecurrentPPO is harder to optimise, so "memory does not
+help" and "the LSTM had not finished" predict the same endpoint. Final third of
+validation minus the third before it: baseline +0.026,
+recurrent -0.008, both inside the +/-0.03
+band measured across the four arms that have completed this budget.
+
+**An LSTM ignoring its own memory.** Clearing recurrent state at every step
+costs +0.315 success across 6/6 seeds, so the policy genuinely
+depends on its history. That also prices a harness near-miss: carrying state
+through evaluation had to be added for this experiment, and without it the arm
+would have scored about 0.268
+against 0.652 — a catastrophic-looking result that
+would have been pure evaluation bug, pointing the same direction as the truth.
+
+### Consequences
+
+The experiment answers a narrower question than it was built to ask. It shows
+that at a matched sample budget a recurrent policy is worse everywhere on this
+task; it does not show that memory cannot help, because the LSTM ran on
+hyperparameters chosen for an MLP. What it does settle is the cost: 19x the
+wall clock for the same samples, which is the number to weigh before reaching
+for recurrence on a task like this one.
+
+Phase 5h remains the load-bearing result. Nothing here touches it.
 
 ## Hardware notes
 

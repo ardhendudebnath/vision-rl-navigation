@@ -1,0 +1,43 @@
+{
+  "episodes": 100,
+  "shift": "dynamic_fast",
+  "per_seed": [
+    {
+      "seed": 0,
+      "with_memory": 0.56,
+      "without_memory": 0.29,
+      "delta": 0.2700000000000001
+    },
+    {
+      "seed": 1,
+      "with_memory": 0.59,
+      "without_memory": 0.27,
+      "delta": 0.31999999999999995
+    },
+    {
+      "seed": 2,
+      "with_memory": 0.57,
+      "without_memory": 0.28,
+      "delta": 0.2899999999999999
+    },
+    {
+      "seed": 3,
+      "with_memory": 0.62,
+      "without_memory": 0.41,
+      "delta": 0.21000000000000002
+    },
+    {
+      "seed": 4,
+      "with_memory": 0.57,
+      "without_memory": 0.13,
+      "delta": 0.43999999999999995
+    },
+    {
+      "seed": 5,
+      "with_memory": 0.59,
+      "without_memory": 0.23,
+      "delta": 0.36
+    }
+  ],
+  "mean_delta": 0.315
+}

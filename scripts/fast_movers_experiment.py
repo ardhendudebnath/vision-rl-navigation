@@ -174,62 +174,95 @@ def main(argv=None) -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
-    fast = report["conditions"].get("dynamic_fast", {})
-    slow = report["conditions"].get("dynamic", {})
-    if "delta" in fast and "delta" in slow:
-        # Deliberately generic: this script runs more than one comparison, and
-        # a verdict hard-coded to the first one printed a conclusion about
-        # mover speed underneath a table about observation encoding.
-        #
-        # Taken from the arm list rather than by excluding the statistic keys.
-        # Excluding them was already wrong -- "seeds_higher" was never in the
-        # exclusion list, so the header silently fell back to the placeholder
-        # the moment that key was added, and every later key would have done
-        # the same.
-        names = list(arms)
-        pair = " - ".join(reversed(names)) if len(names) == 2 else "treated - control"
-        print(f"\n=== verdict ({pair}) ===")
-        helped = fast["delta"] >= 0.05 and fast["p"] < 0.05
-        control_moved = abs(slow["delta"]) > 0.03
-        if helped and not control_moved:
-            print("EFFECT IS SPECIFIC TO FAST MOVERS: {:+.3f} (p = {:.3f}) on "
-                  "fast, {:+.3f} on the slow control. Whatever the treatment "
-                  "supplies, it is used for motion.".format(
-                      fast["delta"], fast["p"], slow["delta"]))
-        elif helped and control_moved:
-            print("EFFECT IS NOT SPECIFIC: {:+.3f} on fast but {:+.3f} on the "
-                  "slow control too, so it is a general property of the arm "
-                  "rather than anything to do with mover speed.".format(
-                      fast["delta"], slow["delta"]))
-        else:
-            print("NO EFFECT ON THE PRIMARY ENDPOINT: {:+.3f} (p = {:.3f}) on "
-                  "fast, {:+.3f} (p = {:.3f}) on the slow control.".format(
-                      fast["delta"], fast["p"], slow["delta"], slow["p"]))
-
-            # A flat endpoint has two very different causes, and Phase 5h shows
-            # this project cannot tell them apart by eye: stacking read as
-            # inert at 4:1 (-0.027) while cutting collisions 0.018 and raising
-            # timeouts 0.045. Anything of that size here means the treatment
-            # supplies usable information that the reward converts to stalling,
-            # and the clean test is a retrain at 1:1 rather than a null.
-            outs = fast.get("outcomes", {})
-            if len(names) == 2 and all(n in outs for n in names):
-                base, treated = (outs[n] for n in names)
-                d_coll = float(np.mean(treated["collision"]) - np.mean(base["collision"]))
-                d_tmo = float(np.mean(treated["timeout"]) - np.mean(base["timeout"]))
-                print(f"  outcome shift: collisions {d_coll:+.3f}, "
-                      f"timeouts {d_tmo:+.3f}")
-                if d_coll <= -0.015 and d_tmo >= 0.015:
-                    print("  BUT THIS IS THE PHASE 5h SIGNATURE, NOT AN ABSENT "
-                          "EFFECT: collisions fall and timeouts rise by as much "
-                          "or more, so the information is being used and the 4:1 "
-                          "reward is spending it on stalling. Do not report this "
-                          "as 'no effect'; retrain both arms at 1:1 to price it.")
-                else:
-                    print("  and the breakdown agrees: no collision saving "
-                          "hidden behind the flat success rate.")
+    for line in verdict_lines(report, list(arms)):
+        print(line)
     print(f"\nWrote {out}")
     return 0
+
+
+def verdict_lines(report: dict, names: list[str]) -> list[str]:
+    """Render the verdict, as lines, from a finished report.
+
+    Split out from main so it can be tested, and so a saved result file can be
+    re-read without re-running the evaluation. It earned that: the version
+    that could only test for *help* printed "NO EFFECT ON THE PRIMARY
+    ENDPOINT" over a -0.068 at p = 0.017, and nothing would have caught it.
+    """
+    fast = report["conditions"].get("dynamic_fast", {})
+    slow = report["conditions"].get("dynamic", {})
+    if "delta" not in fast or "delta" not in slow:
+        return []
+
+    # Deliberately generic: this script runs more than one comparison, and a
+    # verdict hard-coded to the first one printed a conclusion about mover
+    # speed underneath a table about observation encoding.
+    #
+    # Taken from the arm list rather than by excluding the statistic keys.
+    # Excluding them was already wrong -- "seeds_higher" was never in the
+    # exclusion list, so the header silently fell back to the placeholder the
+    # moment that key was added, and every later key would have done the same.
+    pair = " - ".join(reversed(names)) if len(names) == 2 else "treated - control"
+    lines = [f"\n=== verdict ({pair}) ==="]
+
+    # Three outcomes, not two. The earlier version tested only for help and
+    # sent everything else to a branch announcing "NO EFFECT ON THE PRIMARY
+    # ENDPOINT" -- which it duly printed for a significant harm carried by 5 of
+    # 6 seeds. A verdict that cannot say "worse" will call a real effect a null
+    # every time one appears.
+    helped = fast["delta"] >= 0.05 and fast["p"] < 0.05
+    harmed = fast["delta"] <= -0.05 and fast["p"] < 0.05
+    control_moved = abs(slow["delta"]) > 0.03
+
+    if helped or harmed:
+        direction = "HELPS" if helped else "HURTS"
+        if not control_moved:
+            lines.append(
+                f"EFFECT IS SPECIFIC TO FAST MOVERS -- IT {direction}: "
+                f"{fast['delta']:+.3f} (p = {fast['p']:.3f}) on fast, "
+                f"{slow['delta']:+.3f} on the slow control. Whatever the "
+                f"treatment changes, it acts through motion.")
+        else:
+            lines.append(
+                f"NOT SPECIFIC TO MOTION -- IT {direction} EVERYWHERE: "
+                f"{fast['delta']:+.3f} (p = {fast['p']:.3f}) on fast but "
+                f"{slow['delta']:+.3f} (p = {slow['p']:.3f}) on the slow "
+                f"control too. The control moved as much as the treatment, so "
+                f"this is a general property of the arm, and the motion "
+                f"question is left unanswered rather than settled.")
+    else:
+        lines.append(
+            f"NO EFFECT ON THE PRIMARY ENDPOINT: {fast['delta']:+.3f} "
+            f"(p = {fast['p']:.3f}) on fast, {slow['delta']:+.3f} "
+            f"(p = {slow['p']:.3f}) on the slow control.")
+
+    # Where a success delta went is worth seeing whichever way it went, so this
+    # is printed for every verdict. Phase 5h is why: stacking read as inert at
+    # 4:1 (-0.027) while cutting collisions 0.018 and raising timeouts 0.045,
+    # so the information was being used and the reward was spending it on
+    # stalling. Success alone cannot see that.
+    outs = fast.get("outcomes", {})
+    if len(names) == 2 and all(n in outs for n in names):
+        base, treated = (outs[n] for n in names)
+        d_coll = float(np.mean(treated["collision"]) - np.mean(base["collision"]))
+        d_tmo = float(np.mean(treated["timeout"]) - np.mean(base["timeout"]))
+        lines.append(f"  outcome shift: collisions {d_coll:+.3f}, "
+                     f"timeouts {d_tmo:+.3f}")
+        if d_coll <= -0.015 and d_tmo >= 0.015:
+            lines.append(
+                "  THIS IS THE PHASE 5h SIGNATURE, NOT AN ABSENT EFFECT: "
+                "collisions fall and timeouts rise by as much or more, so the "
+                "information is being used and the 4:1 reward is spending it "
+                "on stalling. Do not report this as 'no effect'; retrain both "
+                "arms at 1:1 to price it.")
+        elif d_coll >= 0.015:
+            lines.append(
+                "  and it is not reward masking: collisions rose too, so the "
+                "arm is worse at avoiding obstacles rather than trading "
+                "crashes for stalls.")
+        else:
+            lines.append("  and the breakdown agrees: no collision saving "
+                         "hidden behind the success delta.")
+    return lines
 
 
 if __name__ == "__main__":
