@@ -571,15 +571,15 @@ successes. An observation channel is worth only what the objective lets the
 policy do with it — which is worth knowing before concluding that a sensor or
 a representation is useless.
 
-**Where the learned side earns its keep** is narrow and different in kind from
-what it first appeared. It is indistinguishable from *both* classical stacks
-on `dynamic`, ~6% faster on successful nominal episodes, and indifferent to
-sensor noise — the one axis the hand-written baseline cannot be compared on at
-all, since it never reads the sensor. But §9.1 shows the parity is the planner
-degrading under motion, not the policy handling it: the policy is behind in
-every regime and merely harder to disrupt, because one that never commits to a
-path has no plan to invalidate. **Robustness by absence of commitment is a
-real property and not the one "RL competes when the map is wrong" implies.**
+**Where the learned side earns its keep** is narrow and not what it first
+appeared. It is indistinguishable from *both* classical stacks on `dynamic`,
+~6% faster on successful nominal episodes, and indifferent to sensor noise —
+the one axis the hand-written baseline cannot be compared on at all, since it
+never reads the sensor. But §9.1 shows that parity is the planner degrading
+under motion, not the policy handling it: the policy is behind in every regime
+and merely harder to disrupt, because one that never commits to a path has no
+plan to invalidate. **Robustness by absence of commitment is a real property
+and not the one "RL competes when the map is wrong" implies.**
 
 **The transferable lesson is methodological.** A correctly computed
 significance test produced a confident, reproducible, wrong conclusion because
@@ -588,34 +588,25 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of nine quantitative predictions made in advance, the two
-derived from a *measurement* held, to within 0.021 and 0.001. Six derived from
-extrapolation or intuition failed outright. The ninth — that frame stacking
-would pay once the reward stopped punishing commitment — got the mechanism and
-its specificity right and the magnitude wrong, predicting +0.05 against an
-observed +0.033. Confidence of expression was identical throughout, and the
-base rate was stated in the pre-registration before that last one was run. Two of the failures sharpened the rule rather than just breaking
-it:
+**Calibration.** Of nine predictions made in advance, the two derived from a
+*measurement* held, to within 0.021 and 0.001; six from extrapolation or
+intuition failed outright; the ninth got its mechanism right and its magnitude
+wrong (+0.033 against a predicted +0.05). Confidence of expression was
+identical throughout. Two failures sharpened the rule rather than breaking it.
 
-- Predicting Nav2 ≥ 0.92 on `dynamic` extrapolated a measured collision
-  reduction, which should have made it reliable — but it crossed from static
-  clutter to moving obstacles, a boundary the measurement never spanned, and
-  the pre-registered counter-hypothesis named exactly that. **Measurement-derived
-  predictions hold within the regime measured and become intuition outside it.**
-- The churn prediction named a treated cell *and a control*. The treated cell
-  moved exactly as predicted and the control moved by the same amount, which
-  is what distinguishes "my mechanism" from "some mechanism acting here too".
-  Without the control, +0.070 on `dynamic_dense` would have read as clean
-  confirmation of an explanation the data refutes. **The control cost one
-  extra condition to run.**
+Predicting Nav2 ≥ 0.92 on `dynamic` extrapolated a *measured* collision
+reduction, which by the rule above should have been reliable — but it crossed
+from static clutter to moving obstacles, a boundary the measurement never
+spanned. **Measurement-derived predictions hold within the regime measured and
+become intuition outside it.**
 
-The horizon sweep repeated that lesson at the next attempt: its moving row
-alone traces a tidy optimum, and only the control shows the effect is general
-competence rather than motion-robustness. Two mechanisms proposed for the same
-phenomenon, two controls, two refutations — the pattern worth carrying forward
-is that **a mechanism claim needs a cell where the mechanism should not
-act**, and that a plausible story fitting every number available is weak
-evidence until one exists.
+The churn and horizon experiments each proposed a mechanism, each named a
+control cell where that mechanism should not act, and each was refuted by the
+control moving as much as the treatment. Without those cells, +0.070 on
+`dynamic_dense` and a tidy horizon optimum would both have read as clean
+confirmations of explanations the data refutes. **A mechanism claim needs a
+cell where the mechanism should not act**, and a story fitting every number
+available is weak evidence until one exists. Each cost one extra condition.
 
 **And every narrowing of the headline came from the baseline.** The project's
 most RL-favourable result now holds on `dynamic` alone, having been reduced

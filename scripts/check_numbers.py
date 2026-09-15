@@ -58,9 +58,48 @@ def arm_mean(path, cond, arm):
     return st.mean(load(path)["conditions"][cond][arm])
 
 
+#: benchmark.md column -> field in the corresponding results JSON. Unlike the
+#: curated list below, every row of that table is checkable mechanically,
+#: because each one maps to exactly one result file.
+BENCHMARK_COLUMNS = [
+    (2, "success_rate", 3),
+    (3, "spl", 3),
+    (4, "collision_rate", 3),
+    (5, "timeout_rate", 3),
+    (6, "mean_steps_to_goal", 0),
+]
+
+
+def benchmark_claims():
+    """Every data row of results/benchmark.md against its result file."""
+    out = []
+    if not os.path.exists("results/benchmark.md"):
+        return out
+    for line in doc("results/benchmark.md").splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if len(cells) < 7 or cells[0] in ("Condition", "---"):
+            continue
+        cond, actor = cells[0], cells[1]
+        path = f"results/{cond}__{actor}.json"
+        if not os.path.exists(path):
+            out.append((f"benchmark.md {cond}/{actor}: no result file", 1.0, 0.0))
+            continue
+        data = load(path)
+        for idx, field, places in BENCHMARK_COLUMNS:
+            try:
+                printed = float(cells[idx])
+            except ValueError:
+                continue
+            out.append((f"benchmark.md {cond}/{actor} {field}",
+                        printed, round(data[field], places)))
+    return out
+
+
 def claims():
     """(label, value found in the docs, value from the result file)."""
-    out = []
+    out = benchmark_claims()
 
     # --- README results table: classical column -----------------------
     readme = doc("README.md")
