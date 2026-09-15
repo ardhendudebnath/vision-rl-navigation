@@ -42,13 +42,25 @@ from vision_nav.viz.topdown import render_topdown
 #:
 #: Every seed is listed, so the selection is reproducible and checkable rather
 #: than a claim to trust.
+#: Outcomes below are measured, not remembered — re-checked by replaying all
+#: six episodes for the classical actor (deterministic) and for every 64-beam
+#: seed. An earlier version of these comments said the learned policy stalled
+#: on `narrow` 30006, which it does not: its two failures are 20007 and
+#: `dense` 30009, which is what makes the clip 4 of 6.
+#:
+#: The learned column is seed-dependent. Four of the six 64-beam seeds give
+#: 4 of 6 here; the other two give 3 of 6, failing additionally on one of the
+#: `narrow` worlds. The clip uses one of the former, and the caption's
+#: 0.67 is quoted against a measured 0.70-0.73, so it is representative
+#: rather than the best of six.
 SEQUENCE = [
-    ("open world", "test", None, 20000),           # both succeed
-    ("open world", "test", None, 20007),           # learned collides
-    ("cluttered (dense)", "test_ood", "dense", 30000),   # both succeed
-    ("cluttered (dense)", "test_ood", "dense", 30009),   # BOTH fail
+    ("open world", "test", None, 20000),                        # both succeed
+    ("open world", "test", None, 20007),                        # learned collides
+    ("cluttered (dense)", "test_ood", "dense", 30000),          # both succeed
+    ("cluttered (dense)", "test_ood", "dense", 30009),          # BOTH fail:
+                                                                # classical collides
     ("tight corridors (narrow)", "test_ood", "narrow", 30000),  # both succeed
-    ("tight corridors (narrow)", "test_ood", "narrow", 30006),  # learned stalls
+    ("tight corridors (narrow)", "test_ood", "narrow", 30006),  # both succeed
 ]
 
 
