@@ -117,13 +117,14 @@ def main(argv=None) -> int:
         report["tail_gain"][name] = gains
         mean = float(np.mean(gains))
         verdict = "converged" if abs(mean) <= 0.03 else "STILL MOVING"
-        print(f"  {name:8s} final-third minus previous-third success: "
+        print(f"  {name:11s} final-third minus previous-third success: "
               f"{mean:+.3f}  ({verdict})")
     for label, split, shift in CONDITIONS:
         print(f"\n=== {label} : {shift} ===")
         per_arm: dict[str, list[float]] = {}
+        outcomes: dict[str, dict[str, list[float]]] = {}
         for name, runs in arms.items():
-            succ = []
+            succ, coll, tmo = [], [], []
             for run in runs:
                 cfg = build_env_config(env_overrides_for_run(run), split=split,
                                        shift=shift, n_worlds=args.episodes)
@@ -131,12 +132,30 @@ def main(argv=None) -> int:
                                     robot=cfg.robot)
                 m, _ = evaluate(actor, cfg)
                 succ.append(m.success_rate)
+                coll.append(m.collision_rate)
+                tmo.append(m.timeout_rate)
             per_arm[name] = succ
-            print(f"  {name:8s} per-seed {[round(v, 3) for v in succ]}")
-            print(f"           mean {float(np.mean(succ)):.3f} +/- {float(np.std(succ, ddof=1)):.3f}")
+            outcomes[name] = {"success": succ, "collision": coll, "timeout": tmo}
+            print(f"  {name:11s} per-seed {[round(v, 3) for v in succ]}")
+            print(f"              mean {float(np.mean(succ)):.3f} +/- {float(np.std(succ, ddof=1)):.3f}")
+
+        # Success alone cannot tell "the treatment supplies nothing" from "the
+        # treatment supplies something the reward will not let the policy
+        # spend". Phase 5h is the precedent and the warning: at the 4:1
+        # collision-to-timeout ratio, frame stacking moved success by -0.027 --
+        # readable as inert -- while cutting collisions 0.018 and raising
+        # timeouts 0.045. The information was being used the whole time. Every
+        # arm here trains under that same 4:1 reward, so the breakdown is not
+        # extra colour; it is what makes the endpoint interpretable.
+        print(f"  {'arm':11s} {'success':>8s} {'collision':>10s} {'timeout':>8s}")
+        for name in arms:
+            o = outcomes[name]
+            print(f"  {name:11s} {np.mean(o['success']):8.3f} "
+                  f"{np.mean(o['collision']):10.3f} {np.mean(o['timeout']):8.3f}")
 
         names = list(per_arm)
         entry = {n: per_arm[n] for n in names}
+        entry["outcomes"] = outcomes
         if len(names) == 2:
             a, b = np.array(per_arm[names[0]]), np.array(per_arm[names[1]])
             delta = float(b.mean() - a.mean())
@@ -161,7 +180,13 @@ def main(argv=None) -> int:
         # Deliberately generic: this script runs more than one comparison, and
         # a verdict hard-coded to the first one printed a conclusion about
         # mover speed underneath a table about observation encoding.
-        names = [n for n in fast if n not in ("delta", "p")]
+        #
+        # Taken from the arm list rather than by excluding the statistic keys.
+        # Excluding them was already wrong -- "seeds_higher" was never in the
+        # exclusion list, so the header silently fell back to the placeholder
+        # the moment that key was added, and every later key would have done
+        # the same.
+        names = list(arms)
         pair = " - ".join(reversed(names)) if len(names) == 2 else "treated - control"
         print(f"\n=== verdict ({pair}) ===")
         helped = fast["delta"] >= 0.05 and fast["p"] < 0.05
@@ -180,6 +205,29 @@ def main(argv=None) -> int:
             print("NO EFFECT ON THE PRIMARY ENDPOINT: {:+.3f} (p = {:.3f}) on "
                   "fast, {:+.3f} (p = {:.3f}) on the slow control.".format(
                       fast["delta"], fast["p"], slow["delta"], slow["p"]))
+
+            # A flat endpoint has two very different causes, and Phase 5h shows
+            # this project cannot tell them apart by eye: stacking read as
+            # inert at 4:1 (-0.027) while cutting collisions 0.018 and raising
+            # timeouts 0.045. Anything of that size here means the treatment
+            # supplies usable information that the reward converts to stalling,
+            # and the clean test is a retrain at 1:1 rather than a null.
+            outs = fast.get("outcomes", {})
+            if len(names) == 2 and all(n in outs for n in names):
+                base, treated = (outs[n] for n in names)
+                d_coll = float(np.mean(treated["collision"]) - np.mean(base["collision"]))
+                d_tmo = float(np.mean(treated["timeout"]) - np.mean(base["timeout"]))
+                print(f"  outcome shift: collisions {d_coll:+.3f}, "
+                      f"timeouts {d_tmo:+.3f}")
+                if d_coll <= -0.015 and d_tmo >= 0.015:
+                    print("  BUT THIS IS THE PHASE 5h SIGNATURE, NOT AN ABSENT "
+                          "EFFECT: collisions fall and timeouts rise by as much "
+                          "or more, so the information is being used and the 4:1 "
+                          "reward is spending it on stalling. Do not report this "
+                          "as 'no effect'; retrain both arms at 1:1 to price it.")
+                else:
+                    print("  and the breakdown agrees: no collision saving "
+                          "hidden behind the flat success rate.")
     print(f"\nWrote {out}")
     return 0
 

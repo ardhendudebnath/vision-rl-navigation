@@ -662,17 +662,17 @@ In order of expected information per GPU-hour:
    carrying per-cell velocity would separate "the world changed" from "the
    world is unknowable", and unlike the four already tested it predicts an
    asymmetry between head-on and crossing movers that is directly checkable.
-2. **The last standing explanation for the frame-stacking null.** Three were
-   offered; §9.1 killed two (the movers are not too slow, and the information
-   is not merely hard to extract). The third is that the reward's 4:1
-   preference for stalling over crashing suppresses commitment even when
-   anticipation is possible — a policy that will not act on a prediction has
-   no use for one. The test is cheap and the machinery exists: retrain the
-   stacked and unstacked arms on fast movers under the `abl_lowcoll` reward
-   from §5.4. If stacking suddenly pays, the reward was masking it all along;
-   if it stays inert under a reward that rewards commitment, the
-   absence-of-commitment account stops being the *surviving* explanation and
-   becomes a supported one.
+2. **Re-price the observation results at 1:1.** §9.1 found that the reward
+   decides what extra information is *worth*: frame stacking cuts collisions
+   under either reward, but at 4:1 the saving is spent on timeouts instead of
+   successes. Every other observation-side result in this report — the FOV
+   sweep, the resolution null, the depth and RGB encoder costs — was measured
+   under that same 4:1 reward. Each is therefore a statement about what the
+   objective let the policy do with a channel, not about the channel itself.
+   Re-running even one at indifference would show whether "coverage is causal
+   and resolution is inert" is a fact about perception or about pricing. This
+   is the cheapest way to find out how far Result 2 reaches, and it puts the
+   report's own perception findings at risk, which is why it is worth doing.
 3. **Recurrence.** The other half of the original item 3, still untested.
    Explicit velocity features are now known to be inert, but a recurrent
    policy could integrate over a longer history than any fixed stack.
