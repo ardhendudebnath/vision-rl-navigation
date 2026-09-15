@@ -228,7 +228,7 @@ def main(argv=None) -> int:
 
     clear_clients = [bridge.create_client(ClearEntireCostmap, s)
                      for s in CLEAR_SERVICES]
-    for client, name in zip(clear_clients, CLEAR_SERVICES, strict=False):
+    for client, name in zip(clear_clients, CLEAR_SERVICES, strict=True):
         while not client.service_is_ready():
             pump(bridge, executor)
             if time.monotonic() - started > 240:

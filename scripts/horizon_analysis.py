@@ -67,7 +67,7 @@ def spearman(xs, ys) -> float:
     rx, ry = rank(xs), rank(ys)
     n = len(xs)
     mx, my = sum(rx) / n, sum(ry) / n
-    num = sum((a - mx) * (b - my) for a, b in zip(rx, ry, strict=False))
+    num = sum((a - mx) * (b - my) for a, b in zip(rx, ry, strict=True))
     dx = sum((a - mx) ** 2 for a in rx) ** 0.5
     dy = sum((b - my) ** 2 for b in ry) ** 0.5
     return num / (dx * dy) if dx and dy else 0.0

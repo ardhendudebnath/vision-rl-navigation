@@ -44,7 +44,7 @@ def _draw_polyline(
     h, w = img.shape[:2]
     seg = np.diff(points, axis=0)
     lengths = np.linalg.norm(seg, axis=1)
-    for start, delta, length in zip(points[:-1], seg, lengths, strict=False):
+    for start, delta, length in zip(points[:-1], seg, lengths, strict=True):
         n = max(int(length * RenderStyle.px_per_metre), 1)
         ts = np.linspace(0.0, 1.0, n + 1)[:, None]
         pts = start[None, :] + ts * delta[None, :]

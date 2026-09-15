@@ -157,7 +157,7 @@ def main(argv=None) -> int:
         rl_frames = pad_to_length(rl_frames, length)
 
         caption = f"{label}  ·  world seed {seed}"
-        for i, (lf, rf) in enumerate(zip(cls_frames, rl_frames, strict=False)):
+        for i, (lf, rf) in enumerate(zip(cls_frames, rl_frames, strict=True)):
             # Reveal each outcome only once that run has actually ended.
             l_done = i >= min(len(cls_frames), (cls_steps // args.stride) + 1)
             r_done = i >= min(len(rl_frames), (rl_steps // args.stride) + 1)
