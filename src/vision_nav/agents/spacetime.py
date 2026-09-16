@@ -1,0 +1,245 @@
+"""A classical agent that plans in space-time and tracks a schedule, not a path.
+
+The planner (``spacetime_astar``) can decide to wait for a mover or to pass ahead
+of one. None of that survives a controller that follows a *path*: pure pursuit
+steers at a point some distance along the route, so a planned "wait here for
+two seconds" is driven straight through. This agent tracks a *schedule* instead
+-- at each moment it steers for where the plan says the robot should be a short
+time from now -- so a wait in the plan is a stop on the ground.
+
+Everything else is deliberately the spatial baseline's. Controller gains,
+thresholds, safety margin and reactive slow-down are read from
+:class:`PursuitConfig`'s defaults rather than restated, so the two agents cannot
+drift apart and a difference between them is a difference in planning.
+
+One asymmetry is unavoidable and stated here. The plan's time step is chosen so a
+*diagonal* cell move is feasible at top speed; orthogonal moves then run at about
+70% of it. The alternative -- a step sized for straight moves -- makes diagonals
+physically impossible to follow, which shows up as tracking error and confounds
+everything downstream. The frozen-mover control measures what the slower
+straight-line driving costs on its own.
+"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, field
+
+import numpy as np
+
+from vision_nav.agents.classical import PursuitConfig
+from vision_nav.envs.robot import RobotConfig, wrap_angle
+from vision_nav.planning.grid_astar import geodesic_distance_field
+from vision_nav.planning.spacetime_astar import spacetime_astar
+
+__all__ = ["SpaceTimeConfig", "SpaceTimeAgent"]
+
+_BASE = PursuitConfig()
+
+
+@dataclass
+class SpaceTimeConfig:
+    #: Seconds of mover motion the planner reasons about. Past it, only the map.
+    window_s: float = 7.0
+    #: Replan at least this often, in seconds of simulation time.
+    replan_every_s: float = 1.0
+    #: Replan immediately if the robot is this far from its scheduled position.
+    replan_deviation: float = 0.25
+    #: How far ahead on the schedule the controller steers, in seconds.
+    track_lead_s: float = 0.5
+    #: Below this distance to the scheduled point the robot is on station:
+    #: it holds still rather than turning to face a point it is already at.
+    station_radius: float = 0.05
+    #: ``True``: the planner knows *when* each cell holds a mover. ``False``: it
+    #: sees every cell a mover occupies anywhere in the window as blocked at
+    #: every step -- a swept region, as the spatial baseline sees it.
+    #:
+    #: This is the ablation that makes the experiment mean something. The agent
+    #: differs from the spatial baseline in its window, replan timer, schedule
+    #: tracking and step-minimising paths as well as in reasoning about time;
+    #: switching only this isolates the last. With frozen movers the union over
+    #: time equals every single step, so the two settings must be bit-identical
+    #: there -- an identity control, checked.
+    time_varying_movers: bool = True
+
+    # --- matched to the spatial baseline, not restated --------------------
+    safety_margin: float = field(default=_BASE.safety_margin)
+    heading_gain: float = field(default=_BASE.heading_gain)
+    turn_in_place_threshold: float = field(default=_BASE.turn_in_place_threshold)
+    slowdown_radius: float = field(default=_BASE.slowdown_radius)
+    caution_clearance: float = field(default=_BASE.caution_clearance)
+    min_speed_scale: float = field(default=_BASE.min_speed_scale)
+
+
+class SpaceTimeAgent:
+    """Space-time A* planning with oracle mover trajectories, schedule tracking."""
+
+    def __init__(self, config: SpaceTimeConfig | None = None,
+                 robot: RobotConfig | None = None) -> None:
+        self.config = config or SpaceTimeConfig()
+        self.robot = robot or RobotConfig()
+        self._world = None
+        self._waypoints: np.ndarray | None = None
+        self._times: np.ndarray | None = None
+        self._last_plan_t = -math.inf
+        self._static_cache: dict[float, tuple[np.ndarray, np.ndarray]] = {}
+        self._grid_pts: np.ndarray | None = None
+        self.replans = 0
+        self.plan_failures = 0
+        self.planned_waits = 0
+
+    # ------------------------------------------------------------------
+    @property
+    def dt_plan(self) -> float:
+        """One plan step: long enough for a diagonal cell move at top speed."""
+        res = self._world.config.grid_resolution
+        return res * math.sqrt(2.0) / self.robot.max_linear_vel
+
+    def start_episode(self, world, pose: np.ndarray) -> bool:
+        self._world = world
+        self._waypoints = self._times = None
+        self._last_plan_t = -math.inf
+        self._static_cache = {}
+        self._grid_pts = None
+        self.replans = 0
+        self.plan_failures = 0
+        self.planned_waits = 0
+        return self._plan(np.asarray(pose, dtype=np.float64))
+
+    # ------------------------------------------------------------------
+    def _static(self, radius: float) -> tuple[np.ndarray, np.ndarray]:
+        """Inflated map and goal heuristic, cached: neither changes in an episode."""
+        if radius not in self._static_cache:
+            occ = self._world.occupancy_at(radius, include_dynamic=False)
+            goal = tuple(int(v) for v in self._world.world_to_grid(self._world.goal))
+            self._static_cache[radius] = (occ, geodesic_distance_field(occ, goal))
+        return self._static_cache[radius]
+
+    def _mover_occupancy(self, radius: float, steps: int) -> np.ndarray:
+        """``(steps, R, C)`` cells within ``radius`` of a mover at each plan step.
+
+        Uses the same test as the map -- clearance to the disc at or below the
+        inflation radius -- so a mover and a static obstacle are inflated alike.
+        """
+        w = self._world
+        n_rows, n_cols = w.occupancy.shape
+        if not len(w.dynamic):
+            return np.zeros((steps, n_rows, n_cols), dtype=bool)
+        if self._grid_pts is None:
+            res = w.config.grid_resolution
+            xs = (np.arange(n_cols) + 0.5) * res
+            ys = (np.arange(n_rows) + 0.5) * res
+            gx, gy = np.meshgrid(xs, ys, indexing="xy")
+            self._grid_pts = np.stack([gx.ravel(), gy.ravel()], axis=-1)
+        pts = self._grid_pts
+        out = np.zeros((steps, n_rows * n_cols), dtype=bool)
+        for k in range(steps):
+            discs = w.dynamic_at(w._t + k * self.dt_plan)
+            d = np.linalg.norm(pts[:, None, :] - discs[None, :, :2], axis=-1) - discs[None, :, 2]
+            out[k] = (d <= radius).any(axis=1)
+        if not self.config.time_varying_movers:
+            out[:] = out.any(axis=0)
+        return out.reshape(steps, n_rows, n_cols)
+
+    def _plan(self, pose: np.ndarray) -> bool:
+        """Plan from ``pose`` at the current simulation time. Keeps the old plan
+        on failure, as the spatial baseline does."""
+        w, cfg = self._world, self.config
+        steps = max(1, int(math.ceil(cfg.window_s / self.dt_plan)))
+        start = tuple(int(v) for v in w.world_to_grid(pose[:2]))
+        goal = tuple(int(v) for v in w.world_to_grid(w.goal))
+        self._last_plan_t = w._t
+        self.replans += 1
+        for radius in (w.config.robot_radius + cfg.safety_margin,
+                       w.config.robot_radius + cfg.safety_margin * 0.5,
+                       w.config.robot_radius):
+            static, heuristic = self._static(radius)
+            movers = self._mover_occupancy(radius, steps)
+            # Movers persist past the window where they were at its last step,
+            # rather than vanishing -- see spacetime_astar's tail_occ for the
+            # exploit a vanishing mover invites.
+            path = spacetime_astar(static, movers, start, goal, heuristic,
+                                   tail_occ=movers[-1])
+            if path is None:
+                continue
+            cells = np.asarray([(r, c) for r, c, _k in path], dtype=int)
+            wp = w.grid_to_world(cells).astype(np.float64)
+            wp[0] = pose[:2]
+            wp[-1] = w.goal
+            self._waypoints = wp
+            self._times = w._t + self.dt_plan * np.arange(len(path))
+            # Waits in the part of the plan that will actually run before the
+            # next scheduled replan. An agent that never plans one is a spatial
+            # planner with extra steps, and needs to be seen to be one.
+            executed = int(math.ceil(cfg.replan_every_s / self.dt_plan))
+            head = path[:executed + 1]
+            self.planned_waits += sum(
+                (a[0], a[1]) == (b[0], b[1]) for a, b in zip(head, head[1:], strict=False)
+            )
+            return True
+        self.plan_failures += 1
+        return False
+
+    # ------------------------------------------------------------------
+    def _scheduled(self, t: float) -> np.ndarray:
+        """Where the plan puts the robot at time ``t``, interpolated."""
+        times, wp = self._times, self._waypoints
+        if t <= times[0]:
+            return wp[0]
+        if t >= times[-1]:
+            return wp[-1]
+        i = int(np.searchsorted(times, t) - 1)
+        a = (t - times[i]) / (times[i + 1] - times[i])
+        return wp[i] + a * (wp[i + 1] - wp[i])
+
+    def act(self, pose: np.ndarray) -> np.ndarray:
+        assert self._world is not None, "start_episode() must be called first"
+        cfg, w = self.config, self._world
+        pose = np.asarray(pose, dtype=np.float64)
+        position = pose[:2]
+
+        if self._waypoints is not None:
+            drift = float(np.linalg.norm(self._scheduled(w._t) - position))
+            if w._t - self._last_plan_t >= cfg.replan_every_s or drift > cfg.replan_deviation:
+                self._plan(pose)
+        else:
+            self._plan(pose)
+        if self._waypoints is None:
+            return np.array([self._speed_to_action(0.0), 0.0], dtype=np.float32)
+
+        target = self._scheduled(w._t + cfg.track_lead_s)
+        to_target = target - position
+        dist = float(np.linalg.norm(to_target))
+        if dist < cfg.station_radius:
+            # On station: the schedule says be here. Hold still, do not spin
+            # toward a point the robot already occupies.
+            return np.array([self._speed_to_action(0.0), 0.0], dtype=np.float32)
+
+        heading_error = float(wrap_angle(math.atan2(to_target[1], to_target[0]) - pose[2]))
+        omega = float(np.clip(cfg.heading_gain * heading_error / self.robot.max_angular_vel,
+                              -1.0, 1.0))
+        if abs(heading_error) > cfg.turn_in_place_threshold:
+            speed = 0.0
+        else:
+            # Speed that arrives at the scheduled point on time, never faster.
+            speed = min(dist / cfg.track_lead_s / self.robot.max_linear_vel, 1.0)
+            speed *= max(math.cos(heading_error), 0.0)
+            goal_dist = float(np.linalg.norm(w.goal - position))
+            speed *= min(goal_dist / cfg.slowdown_radius, 1.0)
+            speed *= self._caution_scale(position)
+        return np.array([self._speed_to_action(speed), omega], dtype=np.float32)
+
+    # --- identical in form to AStarPursuitAgent -----------------------------
+    def _caution_scale(self, position: np.ndarray) -> float:
+        cfg = self.config
+        margin = float(self._world.clearance(position)) - self._world.config.robot_radius
+        if margin >= cfg.caution_clearance:
+            return 1.0
+        ratio = max(margin, 0.0) / cfg.caution_clearance
+        return cfg.min_speed_scale + (1.0 - cfg.min_speed_scale) * ratio
+
+    def _speed_to_action(self, speed_fraction: float) -> float:
+        r = self.robot
+        v = float(np.clip(speed_fraction, 0.0, 1.0)) * r.max_linear_vel
+        span = r.max_linear_vel - r.min_linear_vel
+        return float(np.clip(2.0 * (v - r.min_linear_vel) / span - 1.0, -1.0, 1.0))

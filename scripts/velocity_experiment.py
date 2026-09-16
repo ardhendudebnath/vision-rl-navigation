@@ -89,11 +89,14 @@ def mcnemar_p(a: np.ndarray, b: np.ndarray) -> tuple[float, int, int]:
 
 
 def run_cell(condition: str, episodes: int, config: PursuitConfig,
-             env_overrides: dict | None = None) -> list[dict]:
+             env_overrides: dict | None = None,
+             agent_factory=None) -> list[dict]:
     """One condition, per-episode outcomes.
 
     ``env_overrides`` is merged into the env config -- Phase 5o uses it to
-    change the robot's kinematic limits. ``None`` reproduces every earlier run.
+    change the robot's kinematic limits. ``agent_factory(robot)`` substitutes a
+    different agent -- Phase 5p's space-time planner -- through the same loop.
+    ``None`` for both reproduces every earlier run.
     """
     split, shift, _ = DYNAMIC_CONDITIONS[condition]
     overrides = {"freeze_dynamic": True} if condition in FROZEN_CONDITIONS else {}
@@ -102,7 +105,8 @@ def run_cell(condition: str, episodes: int, config: PursuitConfig,
     env_config = build_env_config(dict(overrides), split=split, shift=shift,
                                   n_worlds=episodes)
     env = ProceduralNavEnv(env_config)
-    agent = AStarPursuitAgent(config, robot=env_config.robot)
+    agent = (agent_factory(env_config.robot) if agent_factory is not None
+             else AStarPursuitAgent(config, robot=env_config.robot))
 
     rows = []
     for seed in env_config.world_seeds:
@@ -119,9 +123,14 @@ def run_cell(condition: str, episodes: int, config: PursuitConfig,
             done = term or trunc
             steps += 1
         succ, coll = bool(info.get("is_success")), bool(info.get("collision"))
-        rows.append({"seed": int(seed), "success": succ, "collision": coll,
-                     "timeout": not succ and not coll, "replans": agent.replans,
-                     "steps": steps, "planning_failure": False})
+        row = {"seed": int(seed), "success": succ, "collision": coll,
+               "timeout": not succ and not coll, "replans": agent.replans,
+               "steps": steps, "planning_failure": False}
+        # Only agents that plan waits report them, so every earlier arm's rows
+        # -- compared elsewhere by dict equality -- stay exactly as they were.
+        if hasattr(agent, "planned_waits"):
+            row["planned_waits"] = agent.planned_waits
+        rows.append(row)
     return rows
 
 

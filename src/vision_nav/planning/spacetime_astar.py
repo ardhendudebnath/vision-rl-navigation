@@ -54,6 +54,7 @@ def spacetime_astar(
     goal: tuple[int, int],
     heuristic_cells: np.ndarray,
     max_steps: int = 5000,
+    tail_occ: np.ndarray | None = None,
 ) -> list[tuple[int, int, int]] | None:
     """Find a minimum-time path that avoids static obstacles and movers.
 
@@ -71,6 +72,17 @@ def spacetime_astar(
         ``static_occ``, ``inf`` where unreachable.
     max_steps:
         Hard cap on elapsed steps, so an unreachable goal cannot run forever.
+    tail_occ:
+        ``(R, C)`` bool, extra obstacles for every step at or past the window.
+        ``None`` means past the window only the map exists.
+
+        That default has an exploit, found by the agent planning waits on
+        worlds whose movers never move: a mover that vanishes at the window's
+        edge can be *waited out*. The cheapest plan through a corridor a frozen
+        mover blocks becomes "wait until the window ends, then drive through
+        it", and since the window slides forward at every replan the robot
+        waits forever. Passing the movers' occupancy at the last window step
+        closes it: a mover that has not moved by then is still there after.
 
     Returns
     -------
@@ -81,6 +93,7 @@ def spacetime_astar(
     """
     static_occ = np.ascontiguousarray(static_occ, dtype=bool)
     mover_occ = np.ascontiguousarray(mover_occ, dtype=bool)
+    tail = None if tail_occ is None else np.ascontiguousarray(tail_occ, dtype=bool)
     n_rows, n_cols = static_occ.shape
     window = mover_occ.shape[0]
     sr, sc = int(start[0]), int(start[1])
@@ -91,16 +104,19 @@ def spacetime_astar(
             return None
     if not math.isfinite(heuristic_cells[sr, sc]):
         return None
-    if window and mover_occ[0, sr, sc]:
-        # Starting inside a mover's inflated disc. Planning out of it would
-        # require passing through blocked cells, so report no plan rather than
-        # invent one; the caller keeps its previous plan.
-        return None
 
     def blocked(r: int, c: int, k: int) -> bool:
         if static_occ[r, c]:
             return True
-        return k < window and bool(mover_occ[k, r, c])
+        if k < window:
+            return bool(mover_occ[k, r, c])
+        return tail is not None and bool(tail[r, c])
+
+    if blocked(sr, sc, 0):
+        # Starting inside a mover's inflated disc. Planning out of it would
+        # require passing through blocked cells, so report no plan rather than
+        # invent one; the caller keeps its previous plan.
+        return None
 
     def h(r: int, c: int) -> float:
         return heuristic_cells[r, c] / _SQRT2

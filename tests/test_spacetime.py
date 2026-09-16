@@ -1,4 +1,4 @@
-"""Tests for the space-time planner.
+﻿"""Tests for the space-time planner.
 
 A weak implementation here would produce the most misleading possible result:
 "a planner that can wait does not help either", reported as a finding when it
@@ -26,7 +26,7 @@ def _plan(static, movers, start, goal, **kw):
     return spacetime_astar(static, movers, start, goal, h, **kw)
 
 
-def _bfs_min_steps(static, movers, start, goal, max_steps):
+def _bfs_min_steps(static, movers, start, goal, max_steps, tail=None):
     """Reference: exhaustive breadth-first search over (row, col, step).
 
     Uses exactly the planner's blocking rules and no collapse, so on a window
@@ -36,9 +36,13 @@ def _bfs_min_steps(static, movers, start, goal, max_steps):
     window = movers.shape[0]
 
     def blocked(r, c, k):
-        return static[r, c] or (k < window and movers[k, r, c])
+        if static[r, c]:
+            return True
+        if k < window:
+            return bool(movers[k, r, c])
+        return tail is not None and bool(tail[r, c])
 
-    if static[start] or (window and movers[0][start]):
+    if blocked(start[0], start[1], 0):
         return None
     seen = {(start[0], start[1], 0)}
     q = deque([(start[0], start[1], 0)])
@@ -256,3 +260,147 @@ def test_past_the_window_only_the_map_matters():
     path = _plan(static, movers, (1, 0), (1, 19))
     _assert_valid(path, static, movers, (1, 0), (1, 19))
     assert len(path) - 1 == 19
+
+
+def test_a_mover_that_never_moves_cannot_be_waited_out():
+    """The exploit, and its fix, in one test.
+
+    A mover sits in the only corridor for the whole window. If movers vanish
+    past the window, the cheapest plan is to wait until it ends and drive
+    through -- and since a replanning robot's window slides forward, it waits
+    forever. The first assertion proves the exploit is real, so the second is
+    not vacuous.
+    """
+    static = _corridor(12)
+    window = 10
+    movers = np.zeros((window, 3, 12), dtype=bool)
+    movers[:, 1, 6] = True
+    h = geodesic_distance_field(static, (1, 11))
+
+    ghost = spacetime_astar(static, movers, (1, 0), (1, 11), h)
+    assert ghost is not None, "without a tail the planner should exploit the window"
+    assert any(c == 6 and k >= window for _r, c, k in ghost), "expected a pass after the window"
+
+    fixed = spacetime_astar(static, movers, (1, 0), (1, 11), h, tail_occ=movers[-1])
+    assert fixed is None, "a mover that never moves blocked the corridor and was driven through"
+
+
+@pytest.mark.parametrize("seed", range(25))
+def test_matches_brute_force_with_a_tail(seed):
+    """Optimality still holds once obstacles persist past the window.
+
+    The window is kept short so paths genuinely run into the tail, which is the
+    part of the search this changes; brute force searches the same rule.
+    """
+    rng = np.random.default_rng(1000 + seed)
+    n = int(rng.integers(6, 10))
+    static = rng.random((n, n)) < 0.15
+    window = int(rng.integers(3, 6))
+    movers = rng.random((window, n, n)) < 0.12
+    tail = rng.random((n, n)) < 0.08
+    free = np.argwhere(~static)
+    if len(free) < 2:
+        return
+    start = tuple(int(v) for v in free[rng.integers(len(free))])
+    goal = tuple(int(v) for v in free[rng.integers(len(free))])
+    movers[0][start] = False
+    tail[goal] = False
+
+    cap = 4 * n
+    expected = _bfs_min_steps(static, movers, start, goal, max_steps=cap, tail=tail)
+    path = _plan(static, movers, start, goal, max_steps=cap, tail_occ=tail)
+    if expected is None:
+        assert path is None, "planner found a path brute force says does not exist"
+        return
+    assert path is not None, "brute force found a path the planner missed"
+    for _r, _c, k in path:
+        r, c = path[k][0], path[k][1]
+        assert not static[r, c]
+        assert not (movers[k, r, c] if k < window else tail[r, c]), f"blocked cell at {k}"
+    assert len(path) - 1 == expected, f"planner {len(path) - 1} steps, optimum {expected}"
+
+# ============================================================================
+# The agent: schedule tracking, and the controls the experiment rests on
+# ============================================================================
+def _episode(cond, seed, time_varying):
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+    from vision_nav.envs.nav_env import ProceduralNavEnv
+    from vision_nav.envs.splits import DYNAMIC_CONDITIONS, FROZEN_CONDITIONS
+    from vision_nav.training.env_factory import build_env_config
+
+    split, shift, _ = DYNAMIC_CONDITIONS[cond]
+    over = {"freeze_dynamic": True} if cond in FROZEN_CONDITIONS else {}
+    cfg = build_env_config(over, split=split, shift=shift, n_worlds=seed + 1)
+    env = ProceduralNavEnv(cfg)
+    env.reset(options={"world_seed": int(cfg.world_seeds[seed])})
+    agent = SpaceTimeAgent(SpaceTimeConfig(time_varying_movers=time_varying),
+                           robot=cfg.robot)
+    assert agent.start_episode(env.world, env.robot.pose)
+    traj, info, done = [env.robot.position.copy()], {}, False
+    while not done:
+        _, _, term, trunc, info = env.step(agent.act(env.robot.pose))
+        done = term or trunc
+        traj.append(env.robot.position.copy())
+    return np.asarray(traj), info, agent
+
+
+@pytest.mark.parametrize("seed", [0, 3])
+def test_frozen_worlds_make_timing_knowledge_irrelevant(seed):
+    """The identity control. A frozen mover occupies the same cells at every
+    step, so the union over the window equals each step and the two variants
+    must drive bit-identical trajectories."""
+    full, _, _ = _episode("dynamic_dense_frozen", seed, True)
+    swept, _, _ = _episode("dynamic_dense_frozen", seed, False)
+    assert full.shape == swept.shape and np.array_equal(full, swept)
+
+
+def test_timing_knowledge_is_not_silently_inert_on_moving_worlds():
+    """An ablation arm identical to the treatment would report exactly the null
+    the experiment could find, for no reason."""
+    changed = 0
+    for seed in range(6):
+        full, _, _ = _episode("dynamic_dense", seed, True)
+        swept, _, _ = _episode("dynamic_dense", seed, False)
+        if full.shape != swept.shape or not np.array_equal(full, swept):
+            changed += 1
+    assert changed > 0
+
+
+def test_frozen_worlds_plan_no_waits():
+    """Guards the tail fix. Before it, a mover that vanished at the window's
+    edge could be waited out, and the agent planned waits on worlds with
+    nothing moving -- 1.7 an episode."""
+    for seed in range(4):
+        _, _, agent = _episode("dynamic_dense_frozen", seed, True)
+        assert agent.planned_waits == 0, f"seed {seed} planned {agent.planned_waits} waits"
+
+
+def test_controller_parameters_cannot_drift_from_the_spatial_baseline():
+    """A difference between the agents must be a difference in planning."""
+    from vision_nav.agents.classical import PursuitConfig
+    from vision_nav.agents.spacetime import SpaceTimeConfig
+
+    st, base = SpaceTimeConfig(), PursuitConfig()
+    for name in ("safety_margin", "heading_gain", "turn_in_place_threshold",
+                 "slowdown_radius", "caution_clearance", "min_speed_scale"):
+        assert getattr(st, name) == getattr(base, name), name
+
+
+def test_a_scheduled_wait_is_a_stop_on_the_ground():
+    """The reason schedule tracking exists: pure pursuit would drive through a
+    planned wait. Give the agent a schedule that holds position and check it
+    commands zero forward speed."""
+    from vision_nav.agents.spacetime import SpaceTimeAgent
+    from vision_nav.envs.nav_env import NavEnvConfig, ProceduralNavEnv
+
+    env = ProceduralNavEnv(NavEnvConfig(world_seeds=[0]))
+    env.reset(options={"world_seed": 0})
+    agent = SpaceTimeAgent(robot=env.config.robot)
+    agent.start_episode(env.world, env.robot.pose)
+    here = env.robot.position.copy()
+    agent._waypoints = np.stack([here, here, here])
+    agent._times = env.world._t + np.array([0.0, 5.0, 10.0])
+    agent._last_plan_t = env.world._t  # suppress the replan for this one step
+    action = agent.act(env.robot.pose)
+    assert action[0] == pytest.approx(agent._speed_to_action(0.0))
+    assert action[1] == 0.0, "turned to face a point it already occupies"
