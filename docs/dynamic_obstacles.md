@@ -525,6 +525,71 @@ and this project lists as avoided practice. The interval on remaining cost above
 is sharper and is what the conclusion rests on, but it was added after the first
 run and is labelled so throughout; the registered prediction is unchanged.
 
+### A planner that reasons about time
+
+What survived every test so far was that a planner reasoning only in space
+uses a perfect input crudely: it can route around where a mover goes, but not
+wait for it or pass ahead of it. A space-time A\* over (row, col, time), held
+to optimality against brute force and with each safety rule mutation-tested,
+was paired with an agent that tracks a *schedule* rather than a path -- pure
+pursuit would drive straight through a planned wait -- and shares every
+controller parameter with the spatial baseline.
+
+That agent differs from the baseline in five ways, not one, so beating it could
+not be credited to timing. The test is an ablation: the same agent shown every
+mover's union over the planning window at every step, so it knows *where*
+movers go but not *when*. On frozen worlds the two are bit-identical, as they
+must be. The prediction, its decision rule, and a null bounded at ±0.03 were
+pushed to the repository before the run finished.
+
+| success, 200 episodes | spatial | swept (no timing) | full (timing) |
+|---|---|---|---|
+| `dynamic`, moving | 0.905 | 0.995 | 0.945 |
+| `dynamic`, frozen | 1.000 | 0.995 | 0.995 |
+| `dynamic_dense`, moving | 0.890 | 0.910 | 0.960 |
+| `dynamic_dense`, frozen | 0.975 | 0.985 | 0.985 |
+
+**On dense clutter, knowing *when* matters** -- full against swept
++0.050, p = 0.031, 14 episodes won
+and 4 lost, interval [+0.010, +0.090]. It meets the
+registered rule. **But not by the registered mechanism.** The prediction said
+fewer collisions; the gain is in timeouts, −0.060, while
+collisions move +0.010. Blocking every cell a mover will
+touch for the whole window walls off corridors, and the swept planner gets
+stuck; knowing when those cells clear un-sticks it.
+
+**On sparse worlds, knowing *when* is significantly worse** --
+−0.050, p = 0.002, 0 won and
+10 lost, all of it collisions (+0.050).
+The likely cause, not yet tested: the full planner threads gaps a single
+0.24 s plan step ahead of a mover with no temporal safety margin, so any lag in
+tracking puts the robot where the mover arrives. The swept planner never threads
+a timing gap, and on a sparse world it has room to go round.
+
+The registered decision rule labelled that result "inconclusive", because it
+named only MATTERS and a bounded INERT. So did the code that applied it -- the
+same defect fixed in `fast_movers_experiment.py` earlier in this project,
+written again. The rule now has a HARMS outcome, added after the run and
+labelled as such, with a test that a significant harm is never called
+inconclusive.
+
+**And the ablation stopped a misattribution.** Against the spatial baseline the
+swept agent -- no timing at all -- closes the sparse motion cost completely
+(+0.095 to +0.000,
+18 won and 0 lost). The window, replan
+timer and schedule tracking do that, and a comparison of the full agent against
+the spatial baseline alone would have credited it to reasoning about time. On
+dense clutter those same differences trade collisions for timeouts and net
+nothing (+0.020, p = 0.58); timing turns the
+timeouts into successes. Together they cut the dense motion cost remaining after
+oracle prediction from +0.085 to
++0.025.
+
+So timing buys access at the price of robustness. It pays where a cautious
+planner would be walled in and costs where it would not. A planner that keeps a
+temporal margin -- or chooses between the two by how blocked a corridor is -- is
+the obvious next test, and the sparse harm is the prediction it has to beat.
+
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
 ones, where a correct map means the path is never blocked and it never fires.

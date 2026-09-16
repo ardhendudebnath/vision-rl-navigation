@@ -63,6 +63,27 @@ PREDICTION = (
 BOUND = 0.03
 
 
+def verdict(gain: float, p: float, ci: list[float], bound: float = BOUND) -> str:
+    """Classify a paired contrast. Four outcomes, not three.
+
+    The first version tested only for help and for a bounded null and sent
+    everything else to "inconclusive". It duly labelled full-vs-swept on
+    `dynamic` -- a -0.050 at p = 0.002, ten episodes lost and none won --
+    "inconclusive". That is the same defect fixed in fast_movers_experiment.py
+    earlier in this project: a verdict that cannot say "worse" calls a
+    significant harm a null every time one appears. The pre-registered rule
+    named only MATTERS and INERT; HARMS is added here, after the run, and the
+    documents say so.
+    """
+    if p < 0.05 and gain >= bound:
+        return "MATTERS"
+    if p < 0.05 and gain <= -bound:
+        return "HARMS"
+    if ci[0] > -bound and ci[1] < bound:
+        return "INERT (bounded)"
+    return "inconclusive"
+
+
 def succ(rows):
     return np.array([r["success"] for r in rows], dtype=bool)
 
@@ -147,12 +168,7 @@ def main(argv=None) -> int:
             ci = paired_ci(a, b, rng, args.bootstrap)
             cost_t = rate(runs[treated][frozen], "success") - rate(b, "success")
             cost_r = rate(runs[ref][frozen], "success") - rate(a, "success")
-            if gain >= BOUND and p_val < 0.05:
-                verdict = "MATTERS"
-            elif ci[0] > -BOUND and ci[1] < BOUND:
-                verdict = "INERT (bounded)"
-            else:
-                verdict = "inconclusive"
+            label = verdict(gain, p_val, ci)
             key = f"{treated}_vs_{ref}"
             report["contrasts"].setdefault(key, {})[moving] = {
                 "success_gain": gain, "p": p_val, "episodes_won": won,
@@ -160,11 +176,11 @@ def main(argv=None) -> int:
                 "collision_delta": rate(b, "collision") - rate(a, "collision"),
                 "timeout_delta": rate(b, "timeout") - rate(a, "timeout"),
                 "motion_cost_treated": cost_t, "motion_cost_reference": cost_r,
-                "verdict": verdict,
+                "verdict": label,
             }
             print(f"  {key:18s} {moving:14s} {gain:+.3f}  p {p_val:.4f} (+{won}/-{lost})  "
                   f"CI [{ci[0]:+.3f},{ci[1]:+.3f}]  cost {cost_r:+.3f} -> {cost_t:+.3f}  "
-                  f"{verdict}", flush=True)
+                  f"{label}", flush=True)
 
     print("\npre-registered: " + PREDICTION)
     out = Path(args.out)

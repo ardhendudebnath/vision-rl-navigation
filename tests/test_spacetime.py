@@ -404,3 +404,37 @@ def test_a_scheduled_wait_is_a_stop_on_the_ground():
     action = agent.act(env.robot.pose)
     assert action[0] == pytest.approx(agent._speed_to_action(0.0))
     assert action[1] == 0.0, "turned to face a point it already occupies"
+
+# ============================================================================
+# The experiment's verdict: it must be able to say "worse"
+# ============================================================================
+def _verdict():
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    from spacetime_experiment import verdict
+
+    return verdict
+
+
+def test_a_significant_harm_is_never_called_inconclusive():
+    """The values the first version mislabelled, verbatim: full vs swept on
+    `dynamic`, -0.050 at p = 0.002, ten episodes lost and none won."""
+    assert _verdict()(-0.050, 0.0020, [-0.085, -0.020]) == "HARMS"
+
+
+def test_the_registered_primary_still_reads_as_it_did():
+    """Adding HARMS must not change the pre-registered call on the primary."""
+    assert _verdict()(0.050, 0.0309, [0.010, 0.090]) == "MATTERS"
+
+
+@pytest.mark.parametrize("gain, p, ci, expected", [
+    (0.010, 0.60, [-0.020, 0.025], "INERT (bounded)"),
+    (0.000, 1.00, [-0.40, 0.40], "inconclusive"),   # the 5o trap: wide, includes 0
+    (0.020, 0.01, [0.005, 0.035], "inconclusive"),  # significant but under the bound
+    (-0.020, 0.01, [-0.035, -0.005], "inconclusive"),
+])
+def test_bounded_null_and_boundaries(gain, p, ci, expected):
+    """An interval that merely includes zero is not a null; the bound must hold."""
+    assert _verdict()(gain, p, ci) == expected

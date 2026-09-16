@@ -440,6 +440,49 @@ def claims():
             ("speed dense 1x gain p", 0.004, bd["1.0"]["p"]),
         ]
 
+    # --- space-time planning, Phase 5p ---------------------------------
+    stp = "results/spacetime_experiment.json"
+    if os.path.exists(stp):
+        stj = load(stp)
+        stc, stx = stj["checks"], stj["contrasts"]
+        fsd, fss = stx["full_vs_swept"]["dynamic_dense"], stx["full_vs_swept"]["dynamic"]
+        fpd = stx["full_vs_spatial"]["dynamic_dense"]
+        sps = stx["swept_vs_spatial"]["dynamic"]
+        spd = stx["swept_vs_spatial"]["dynamic_dense"]
+        out += [
+            ("spacetime spatial reproduces 5m", 1.0, float(stc["spatial_reproduces_phase_5m"])),
+            ("spacetime frozen identity", 1.0, float(stc["frozen_identity_full_vs_swept"])),
+            ("spacetime dense timing gain", 0.050, fsd["success_gain"]),
+            ("spacetime dense timing p", 0.031, fsd["p"]),
+            ("spacetime dense timing won", 14, fsd["episodes_won"]),
+            ("spacetime dense timing lost", 4, fsd["episodes_lost"]),
+            ("spacetime dense timing ci lo", 0.010, fsd["ci95"][0]),
+            ("spacetime dense timing ci hi", 0.090, fsd["ci95"][1]),
+            ("spacetime dense timing timeout delta", -0.060, fsd["timeout_delta"]),
+            ("spacetime dense timing collision delta", 0.010, fsd["collision_delta"]),
+            ("spacetime sparse timing gain", -0.050, fss["success_gain"]),
+            ("spacetime sparse timing p", 0.002, fss["p"]),
+            ("spacetime sparse timing won", 0, fss["episodes_won"]),
+            ("spacetime sparse timing lost", 10, fss["episodes_lost"]),
+            ("spacetime sparse timing collision delta", 0.050, fss["collision_delta"]),
+            ("spacetime dense cost spatial", 0.085, fpd["motion_cost_reference"]),
+            ("spacetime dense cost full", 0.025, fpd["motion_cost_treated"]),
+            ("spacetime sparse cost spatial", 0.095, sps["motion_cost_reference"]),
+            ("spacetime sparse cost swept", 0.000, sps["motion_cost_treated"]),
+            ("spacetime sparse swept won", 18, sps["episodes_won"]),
+            ("spacetime sparse swept lost", 0, sps["episodes_lost"]),
+            ("spacetime dense swept gain", 0.020, spd["success_gain"]),
+            # Quoted to two decimals in the documents, so checked at two.
+            ("spacetime dense swept p", 0.58, round(spd["p"], 2)),
+        ]
+        # The registered labels are part of the record: the documents say the
+        # sparse contrast was *registered* as inconclusive and corrected to
+        # HARMS, so both halves of that sentence are checked.
+        registered = {"dense": fsd["verdict"], "sparse": fss["verdict"]}
+        for key, want in (("dense", "MATTERS"), ("sparse", "inconclusive")):
+            out.append((f"spacetime registered label {key}", 1.0,
+                        float(registered[key] == want)))
+
     # --- device benchmark, quoted in resolve_device's docstring -------
     # That docstring decides what every run in this project trains on, so its
     # table should not be able to drift from the measurement behind it.

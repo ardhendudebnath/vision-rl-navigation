@@ -608,9 +608,14 @@ p = 0.016 against a threshold of 0.017 corrected for three horizons; 7
 episodes won and 0 lost), through collisions (−0.100). The same oracle fed to the initial plan and the
 controller's slow-down recovers nothing further, and doubling the robot's
 agility leaves the dense remainder unchanged (+0.005,
-95% CI [−0.045, +0.055]). That bounds what better velocity
-*estimates* or a nimbler robot can add, not what a planner reasoning in time
-could do with the same knowledge.
+95% CI [−0.045, +0.055]). A planner reasoning in space-time with
+the same oracle does close most of the dense remainder, from 0.085
+to 0.025. Against an ablation that knows where movers go but
+not when, timing is worth +0.050 on dense clutter
+(p = 0.031) — through fewer timeouts, not the fewer collisions
+predicted — and costs −0.050 on sparse worlds (p = 0.002),
+all collisions. It buys access where a cautious planner is walled in and spends
+robustness where it is not.
 
 **Recurrence is worse, and not because of motion.** An LSTM policy — the last
 untested way of supplying motion information, and the only one that learns what
@@ -685,15 +690,17 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of fifteen predictions made in advance, three derived from a
+**Calibration.** Of sixteen predictions made in advance, three derived from a
 *measurement* held — two to within 0.021 and 0.001, and one on both magnitude
-and mechanism; seven from extrapolation or intuition failed outright; five got
+and mechanism; seven from extrapolation or intuition failed outright; six got
 part right and part wrong. Confidence of expression was identical throughout.
 Three rules came out of them; the record of each prediction is in
 [`project_plan.md`](project_plan.md). The fifteenth also broke this report's own
 stated practice: its null was registered as an interval including zero, which
 intervals of ±0.4 satisfy whatever is true, so its conclusion rests on a sharper
-test added afterwards and labelled as such.
+test added afterwards and labelled as such. The sixteenth was committed to the
+repository before its data existed, so its timing is checkable rather than
+asserted.
 
 **A measurement predicts only where something has been measured.** Carried
 into regimes nothing had measured, measurement-derived forecasts failed like
@@ -765,13 +772,12 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Test space-time planning on the other half of the motion cost.** Oracle
-   knowledge of every mover's future, supplied everywhere this planner and
-   controller read movers, recovers half and no more; doubling the robot's
-   agility does not reduce the rest on dense clutter (§9.1). The surviving
-   explanation is that a planner reasoning only in space uses a perfect input
-   crudely. A planner searching over (x, y, t) with the same oracle is the test,
-   and the first item here that needs a new planner rather than a setting.
+1. **A temporal safety margin.** Space-time planning closes most of the dense
+   motion cost but loses 0.050 on sparse worlds to collisions (§9.1), plausibly
+   because it threads gaps one plan step ahead of a mover and any tracking lag
+   costs a collision. A margin of a step or two either side of a mover's
+   occupancy is the test, and the sparse harm is what it has to remove without
+   giving back the dense gain.
 2. **Re-price the encoder cost.** §8.4 re-ran two perception results at 1:1
    and they came apart: coverage's effect survived unchanged while its
    mechanism moved, and resolution's reversed sign. The third, the
@@ -797,7 +803,7 @@ In order of expected information per GPU-hour:
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 377 tests
+pytest                                        # 383 tests
 python scripts/check_docs.py                  # every doc link resolves
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix

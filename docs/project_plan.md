@@ -42,6 +42,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5m | Oracle motion prediction for the classical planner, 4 horizons | **Done** — **recovers 44% of the dense motion cost (p = 0.016)**; bounds better estimates for this planner |
 | 5n | Oracle prediction for the initial plan and the slow-down | **Done** — **recovers nothing further**; +0.090 remains, not an information problem within this architecture |
 | 5o | Robot agility 0.75x-2x, with and without the oracle | **Done** — **dense remainder unchanged at 2x (+0.005, CI [-0.045, +0.055])**; not a physical limit |
+| 5p | Space-time A* with a when-blind ablation, 200 episodes | **Done** — **timing +0.050 on dense (p = 0.031), −0.050 on sparse (p = 0.002)**; access for robustness |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -1940,6 +1941,59 @@ cost, added after the first run -- the per-episode data needed for it had not
 been kept -- and labelled post hoc in the script, the result file and every
 document. The lesson is the oldest one in this record, repeated: a null has to
 say how big an effect it rules out.
+
+## Phase 5p — Space-time planning: timing buys access and costs robustness
+
+The explanation left standing after 5o: a planner reasoning only in space uses a
+perfect input crudely. Tested with a space-time A\* -- optimal against brute
+force on 65 random worlds, each safety rule mutation-tested -- driven by an
+agent that tracks a schedule. Full treatment in `dynamic_obstacles.md`.
+
+The agent differs from the spatial baseline in its window, replan timer, schedule
+tracking and step-minimising paths as well as in timing, so the test is an
+ablation: the same agent shown each mover's window-union at every step. Checks:
+the spatial arm reproduces Phase 5m; full and swept are bit-identical on frozen
+worlds. The prediction and a null bounded at ±0.03 were committed (`fe3e75e`)
+before the result file existed.
+
+| full − swept | gain | p | won / lost | 95% CI | registered label | corrected |
+|---|---|---|---|---|---|---|
+| `dynamic_dense` | +0.050 | 0.031 | 14 / 4 | [+0.010, +0.090] | MATTERS | MATTERS |
+| `dynamic` | −0.050 | 0.002 | 0 / 10 | [−0.085, −0.020] | inconclusive | **HARMS** |
+
+Timing matters on dense clutter through fewer timeouts (−0.060),
+not fewer collisions (+0.010). It harms sparse worlds through
+collisions (+0.050). The swept agent alone closes the sparse
+motion cost against the spatial baseline (+0.095 to
++0.000), so full-against-spatial would have credited
+timing with work the architecture did. On dense clutter the full agent cuts the
+remaining motion cost from +0.085 to
++0.025.
+
+### Two things found along the way
+
+**A planner exploit.** Movers vanished past the planning window, so the cheapest
+route through a corridor a frozen mover blocked was to wait out the window and
+drive through; the window slides at every replan, so the robot would wait
+forever. Found by the agent planning 1.7 waits an episode on worlds where nothing
+moves. Movers now persist past the window at their last position; frozen waits
+0.0. I guessed it also caused the one frozen failure in the smoke test; frozen
+success did not change, so it did not.
+
+**A verdict that could not say "worse", written twice.** The registered rule
+named MATTERS and a bounded INERT, and the code applying it labelled a −0.050 at
+p = 0.002 with no episode won "inconclusive" -- the defect fixed in
+`fast_movers_experiment.py` earlier, repeated in a new script. HARMS is added
+after the run, labelled as post hoc, with tests.
+
+### Calibration
+
+Prediction 16: "full minus swept on dense +0.03 to +0.08, p < 0.05, carried by
+fewer collisions; frozen identical." Magnitude, significance and the identity
+held; the mechanism did not -- it was timeouts. Derived from a 20-episode smoke
+test, where full showed no collisions and swept one; at 200 episodes that
+reading of mechanism did not survive, which is the Phase 5n lesson about small
+samples in a new form. Partial.
 
 ## Hardware notes
 
