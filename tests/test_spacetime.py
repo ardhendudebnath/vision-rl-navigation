@@ -322,7 +322,7 @@ def test_matches_brute_force_with_a_tail(seed):
 # ============================================================================
 # The agent: schedule tracking, and the controls the experiment rests on
 # ============================================================================
-def _episode(cond, seed, time_varying):
+def _episode(cond, seed, time_varying, margin=0):
     from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
     from vision_nav.envs.nav_env import ProceduralNavEnv
     from vision_nav.envs.splits import DYNAMIC_CONDITIONS, FROZEN_CONDITIONS
@@ -333,7 +333,8 @@ def _episode(cond, seed, time_varying):
     cfg = build_env_config(over, split=split, shift=shift, n_worlds=seed + 1)
     env = ProceduralNavEnv(cfg)
     env.reset(options={"world_seed": int(cfg.world_seeds[seed])})
-    agent = SpaceTimeAgent(SpaceTimeConfig(time_varying_movers=time_varying),
+    agent = SpaceTimeAgent(SpaceTimeConfig(time_varying_movers=time_varying,
+                                           temporal_margin_steps=margin),
                            robot=cfg.robot)
     assert agent.start_episode(env.world, env.robot.pose)
     traj, info, done = [env.robot.position.copy()], {}, False
@@ -438,3 +439,72 @@ def test_the_registered_primary_still_reads_as_it_did():
 def test_bounded_null_and_boundaries(gain, p, ci, expected):
     """An interval that merely includes zero is not a null; the bound must hold."""
     assert _verdict()(gain, p, ci) == expected
+
+# ============================================================================
+# Temporal safety margin
+# ============================================================================
+def test_dilation_blocks_exactly_the_margin_either_side():
+    from vision_nav.agents.spacetime import dilate_in_time
+
+    occ = np.zeros((12, 3), dtype=bool)
+    occ[5, 1] = True
+    out = dilate_in_time(occ, 2)
+    assert [k for k in range(12) if out[k, 1]] == [3, 4, 5, 6, 7]
+    assert not out[:, 0].any() and not out[:, 2].any(), "spread in space, not only time"
+
+
+def test_dilation_clips_at_the_window_ends_rather_than_wrapping():
+    from vision_nav.agents.spacetime import dilate_in_time
+
+    occ = np.zeros((6, 1), dtype=bool)
+    occ[0, 0] = True
+    occ[5, 0] = True
+    out = dilate_in_time(occ, 2)
+    assert out[:, 0].tolist() == [True, True, True, True, True, True]
+    occ2 = np.zeros((6, 1), dtype=bool)
+    occ2[0, 0] = True
+    assert dilate_in_time(occ2, 2)[:, 0].tolist() == [True, True, True, False, False, False]
+
+
+def test_zero_margin_is_exactly_no_dilation():
+    from vision_nav.agents.spacetime import dilate_in_time
+
+    occ = np.random.default_rng(0).random((10, 20)) < 0.3
+    assert dilate_in_time(occ, 0) is occ
+
+
+@pytest.mark.parametrize("seed", [0, 3])
+def test_a_margin_leaves_frozen_worlds_unchanged(seed):
+    """The identity control carries over: a frozen mover is the same at every
+    step, so widening it in time changes nothing."""
+    plain, _, _ = _episode("dynamic_dense_frozen", seed, True, margin=0)
+    padded, _, _ = _episode("dynamic_dense_frozen", seed, True, margin=4)
+    assert plain.shape == padded.shape and np.array_equal(plain, padded)
+
+
+def test_a_margin_reaches_the_planner_and_only_adds_blocked_cells():
+    """"Not silently ignored", asked at the level where it cannot be luck.
+
+    First written as "some trajectory changes in episodes 0-5", which failed
+    with no bug present: a 2-step margin changes 8 of 30 sparse trajectories,
+    but the first is episode 8. Checking which episodes happened to be sampled
+    is the wrong test. What must hold is that the planner's mover occupancy
+    changes -- and, a real property of a margin, that it only ever grows.
+    """
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+    from vision_nav.envs.nav_env import ProceduralNavEnv
+    from vision_nav.envs.splits import DYNAMIC_CONDITIONS
+    from vision_nav.training.env_factory import build_env_config
+
+    split, shift, _ = DYNAMIC_CONDITIONS["dynamic"]
+    cfg = build_env_config({}, split=split, shift=shift, n_worlds=1)
+    env = ProceduralNavEnv(cfg)
+    env.reset(options={"world_seed": int(cfg.world_seeds[0])})
+    radius = env.world.config.robot_radius + SpaceTimeConfig().safety_margin
+    occ = {}
+    for margin in (0, 2):
+        agent = SpaceTimeAgent(SpaceTimeConfig(temporal_margin_steps=margin), robot=cfg.robot)
+        agent.start_episode(env.world, env.robot.pose)
+        occ[margin] = agent._mover_occupancy(radius, 30)
+    assert not np.array_equal(occ[0], occ[2]), "the margin did not reach the planner"
+    assert (occ[2] >= occ[0]).all(), "a margin removed a blocked cell"

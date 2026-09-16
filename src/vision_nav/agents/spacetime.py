@@ -32,9 +32,26 @@ from vision_nav.envs.robot import RobotConfig, wrap_angle
 from vision_nav.planning.grid_astar import geodesic_distance_field
 from vision_nav.planning.spacetime_astar import spacetime_astar
 
-__all__ = ["SpaceTimeConfig", "SpaceTimeAgent"]
+__all__ = ["SpaceTimeConfig", "SpaceTimeAgent", "dilate_in_time"]
 
 _BASE = PursuitConfig()
+
+
+def dilate_in_time(occ: np.ndarray, margin: int) -> np.ndarray:
+    """A cell is blocked at step ``k`` if it is blocked anywhere in ``k +/- margin``.
+
+    Symmetric on purpose. A robot running *late* reaches a cell after a mover
+    has arrived, which the forward half covers; one running *early* reaches it
+    before the mover has left, which the backward half covers. The window's
+    ends are clipped rather than wrapped.
+    """
+    if margin <= 0:
+        return occ
+    steps = occ.shape[0]
+    out = np.empty_like(occ)
+    for k in range(steps):
+        out[k] = occ[max(0, k - margin):min(steps, k + margin + 1)].any(axis=0)
+    return out
 
 
 @dataclass
@@ -61,6 +78,16 @@ class SpaceTimeConfig:
     #: time equals every single step, so the two settings must be bit-identical
     #: there -- an identity control, checked.
     time_varying_movers: bool = True
+    #: Plan steps either side of a mover's occupancy that its cells also count
+    #: as blocked. ``0`` plans to the step, which is what Phase 5p ran.
+    #:
+    #: Phase 5p found timing worth +0.050 on dense clutter but -0.050 on sparse
+    #: worlds, all collisions, and offered an untested cause: the planner
+    #: threads gaps one 0.24 s step ahead of a mover, so any tracking lag puts
+    #: the robot where the mover arrives. A margin is the test of that cause.
+    #: A frozen mover occupies the same cells at every step, so widening its
+    #: occupancy in time changes nothing and the frozen identity still holds.
+    temporal_margin_steps: int = 0
 
     # --- matched to the spatial baseline, not restated --------------------
     safety_margin: float = field(default=_BASE.safety_margin)
@@ -139,6 +166,8 @@ class SpaceTimeAgent:
             out[k] = (d <= radius).any(axis=1)
         if not self.config.time_varying_movers:
             out[:] = out.any(axis=0)
+        elif self.config.temporal_margin_steps > 0:
+            out = dilate_in_time(out, self.config.temporal_margin_steps)
         return out.reshape(steps, n_rows, n_cols)
 
     def _plan(self, pose: np.ndarray) -> bool:
