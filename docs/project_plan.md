@@ -39,7 +39,8 @@ Phases are numbered as in the roadmap's Section 3.
 | 5j | Re-price angular resolution at 1:1, 2 arms x 6 seeds | **Done** — **the reward flips the sign (interaction -0.142, p = 0.0043)**; 3d's null was success-only |
 | 5k | Timeout audit of all six remaining seed_analysis results | **Done** — all reproduce exactly; **coverage deficits stall, sensing deficits crash** |
 | 5l | Re-price coverage at 1:1, 6 new depth arms | **Done** — **headline survives (+0.080, p = 0.032)**; mechanism moves stall -> crash |
-| 5m | Oracle motion prediction for the classical planner, 4 horizons | **Done** — **recovers 44% of the dense motion cost (p = 0.016)**; velocity explains at most half |
+| 5m | Oracle motion prediction for the classical planner, 4 horizons | **Done** — **recovers 44% of the dense motion cost (p = 0.016)**; bounds better estimates for this planner |
+| 5n | Oracle prediction for the initial plan and the slow-down | **Done** — **recovers nothing further**; +0.090 remains, not an information problem within this architecture |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -1820,9 +1821,11 @@ won and 0 lost, via collisions -0.100.
 Neither neighbouring horizon is significant. `dynamic` agrees in direction but
 not significance (+0.060 at 4 s, p = 0.070).
 
-**The ceiling is as important as the recovery.** An oracle bounds every real
-estimate, so velocity explains at most about half the cost and the rest
-survives perfect motion knowledge.
+**The ceiling is as important as the recovery, and was first overstated.** An
+oracle bounds every real *estimate* for this planner, which plans in space
+around swept regions. It does not bound a planner reasoning in space-time with
+the same input. The first writeup said velocity explains "at most about half"
+the cost outright; Phase 5n is what made the difference sharp.
 
 Calibration, prediction 13: registered as low-confidence intuition. Magnitude
 landed in its +0.03 to +0.08 band; the "long horizons hurt" shape held on dense
@@ -1832,6 +1835,59 @@ catching the answer is not evidence the forecast was good.
 Also caught in passing: a new test helper reused the name of an existing one
 and silently rebound it, breaking three churn tests. Ruff's F811 flags only
 redefinition of an *unused* name, so the full suite was the only guard.
+
+## Phase 5n — Prediction everywhere else: the other half does not move
+
+Phase 5m's oracle fed replanning and the replan trigger and recovered half the
+dense motion cost. Two places still read movers as snapshots: the initial plan
+and the controller's reactive slow-down. Each got the same 2 s oracle, measured
+against 5m's best arm, whose remaining cost is +0.090 on both
+conditions. Full treatment in `dynamic_obstacles.md`.
+
+"The initial plan sees movers" is two interventions -- seeing them at all
+changes frozen worlds, seeing their futures does not -- so it was tested as two
+arms, and only the second has an identity control. Checks: the 5m arm
+reproduces Phase 5m on every rate, both frozen identities hold, and the churn
+experiment still reproduces across 800 episodes to the last bit.
+
+| added to replanning prediction | `dynamic` | `dynamic_dense` |
+|---|---|---|
+| initial plan sees movers at all | -0.010 (1 won, 2 lost) | +0.010 (2 won, 1 lost) |
+| initial plan sees their futures | +0.000 (1 won, 1 lost) | +0.000 (0 won, 0 lost) |
+| slow-down reads their futures | -0.040 (1 won, 5 lost, p = 0.22) | +0.000 (1 won, 1 lost) |
+
+**Nothing moves.** Oracle knowledge at every point this stack reads movers
+recovers half the motion cost and no more. Predictive slow-down leans the wrong
+way on `dynamic` -- collisions +0.040 -- but
+not significantly.
+
+This also forced a correction to Phase 5m's writeup, which said velocity
+explains "at most about half" the motion cost. An oracle bounds the information,
+not its use, and this planner uses a perfect input crudely. What is established
+is narrower: better information does not close the gap *within this
+architecture*. The remainder has two separable explanations -- space-time
+planning with the same oracle, or physical limits on evading a correctly
+anticipated mover, testable by raising speed and acceleration limits alone.
+
+### Calibration
+
+Prediction 14, and it inverts the usual pattern: the measurement-derived part
+failed and the intuition parts held.
+
+- **"initS identical to base2 on every episode" -- failed.** Derived from a
+  diagnostic in which 0 of 8 episodes had a mover on the route at t = 0. Across
+  400 episodes a few percent did, and outcomes differed by one to three episodes
+  a cell. The derivation was sound and the claim built on it was not: 0 of 8
+  cannot measure "never". By the rule of three it is compatible with a true rate
+  near 37%, so predicting zero differences in 400 was overreach from the start.
+- **Initial-plan prediction null -- held.** +0.000 on both conditions.
+- **Slow-down +0.00 to +0.04, not significant -- half held.** Not significant
+  anywhere, but -0.040 on `dynamic` is outside the band and of the wrong sign.
+- **Overall, neither closes the remaining half -- held.**
+
+The lesson is distinct from the earlier three. A measurement can be taken in
+exactly the right regime and still not support a claim made at a resolution it
+never had.
 
 ## Hardware notes
 

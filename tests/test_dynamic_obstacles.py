@@ -558,7 +558,8 @@ def test_tail_gain_reads_the_finished_arms_as_converged():
 # ----------------------------------------------------------------------
 # Oracle motion prediction: report Section 12, item 1
 # ----------------------------------------------------------------------
-def _run_predicting(seed, horizon, *, shift="dynamic_dense", freeze=False, steps=500):
+def _run_predicting(seed, horizon, *, shift="dynamic_dense", freeze=False, steps=500,
+                    initial="none", caution=False):
     """One episode of the adopted baseline at a given prediction horizon."""
     from vision_nav.agents.classical import AStarPursuitAgent, PursuitConfig
 
@@ -567,7 +568,8 @@ def _run_predicting(seed, horizon, *, shift="dynamic_dense", freeze=False, steps
                                         freeze_dynamic=freeze))
     env.reset(options={"world_seed": seed})
     agent = AStarPursuitAgent(
-        PursuitConfig(replan_on_block=True, predict_horizon=horizon),
+        PursuitConfig(replan_on_block=True, predict_horizon=horizon,
+                      initial_plan_movers=initial, predict_caution=caution),
         robot=env.config.robot,
     )
     assert agent.start_episode(env.world, env.robot.pose)
@@ -651,3 +653,69 @@ def test_prediction_actually_changes_behaviour_on_moving_worlds():
         if base.shape != pred.shape or not np.array_equal(base, pred):
             changed += 1
     assert changed > 0, "a 2 s prediction horizon changed no trajectory at all"
+
+@pytest.mark.parametrize("seed", [30000, 30003])
+def test_frozen_initial_prediction_is_identical_to_initial_sensing(seed):
+    """Identity control for the prediction half of the initial-plan change.
+
+    Only the *predicted* versus *current* comparison has one. Seeing movers at
+    all in the first plan is a real change on frozen worlds -- a frozen mover
+    is an obstacle the map lacks -- so "none" is deliberately not compared.
+    """
+    current, _, _ = _run_predicting(seed, 2.0, freeze=True, initial="current")
+    predicted, _, _ = _run_predicting(seed, 2.0, freeze=True, initial="predicted")
+    assert np.array_equal(current, predicted)
+
+
+@pytest.mark.parametrize("seed", [30000, 30003])
+def test_frozen_caution_prediction_changes_nothing(seed):
+    """Identity control for the controller half: a frozen swept region is the
+    current disc, so the slow-down must read exactly what it read before."""
+    plain, _, _ = _run_predicting(seed, 2.0, freeze=True)
+    cautious, _, _ = _run_predicting(seed, 2.0, freeze=True, caution=True)
+    assert np.array_equal(plain, cautious)
+
+
+def test_initial_plan_movers_rejects_an_unknown_mode():
+    from vision_nav.agents.classical import AStarPursuitAgent, PursuitConfig
+
+    env = ProceduralNavEnv(NavEnvConfig(world_seeds=[30000], world=DYN))
+    env.reset(options={"world_seed": 30000})
+    agent = AStarPursuitAgent(PursuitConfig(initial_plan_movers="predict"))
+    with pytest.raises(ValueError, match="initial_plan_movers"):
+        agent.start_episode(env.world, env.robot.pose)
+
+
+@pytest.mark.parametrize("option", ["initial_predicted", "caution"])
+def test_each_snapshot_intervention_is_not_silently_inert(option):
+    """Same guard as for replanning prediction: an arm identical to its
+    reference would report the null this experiment could find, for nothing."""
+    kwargs = {"initial_predicted": {"initial": "predicted"},
+              "caution": {"caution": True}}[option]
+    changed = 0
+    for seed in range(30000, 30008):
+        base, _, _ = _run_predicting(seed, 2.0)
+        other, _, _ = _run_predicting(seed, 2.0, **kwargs)
+        if base.shape != other.shape or not np.array_equal(base, other):
+            changed += 1
+    assert changed > 0, f"{option} changed no trajectory in eight episodes"
+
+def test_initial_sensing_reaches_the_grid_even_where_it_changes_no_plan():
+    """"Not silently ignored" for initial_plan_movers="current", asked properly.
+
+    The trajectory-level guard used for the other options fires on this one,
+    and that is a true result rather than a bug: at t = 0 no mover's disc lies
+    on the static route in these worlds, so including the movers leaves A*'s
+    answer unchanged. What must hold is that the setting takes effect -- that
+    the grid the first plan reads really does contain the movers -- and it
+    does, by hundreds of cells.
+    """
+    world = shifted_config(WorldConfig(), "dynamic_dense")
+    env = ProceduralNavEnv(NavEnvConfig(world_seeds=[30000], world=world))
+    env.reset(options={"world_seed": 30000})
+    w = env.world
+    assert len(w._dyn_now) > 0, "movers not loaded when the first plan is made"
+    r = w.config.robot_radius
+    added = int(w.occupancy_at(r, include_dynamic=True).sum()
+                - w.occupancy_at(r, include_dynamic=False).sum())
+    assert added > 0, "including movers did not change the first plan's grid"

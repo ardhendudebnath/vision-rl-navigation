@@ -90,9 +90,9 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of thirteen advance predictions, three derived from
-*measurements* held; seven failed outright and three got a mechanism or a
-magnitude right and the other wrong, with identical confidence of expression
+pre-registered endpoints. Of fourteen advance predictions, three derived from
+*measurements* held; seven failed outright and four got part right and part
+wrong, with identical confidence of expression
 throughout. The three failures that reasoned from a real measurement all
 carried it into a regime nothing had been measured in — and the one that
 crossed a boundary *with* the far side already measured held on both
@@ -145,7 +145,7 @@ committee can tell the difference.
 > ROS 2 / Nav2): a twenty-three-experiment controlled study of learned versus
 > classical navigation under distribution shift, with seed-level significance
 > testing, pre-registered predictions, a real Nav2 baseline over a ROS 2
-> bridge, and a 286-test suite. Includes a documented false positive I caught
+> bridge, and a 294-test suite. Includes a documented false positive I caught
 > in my own results.
 
 **One line, for a subject line or an introduction.**

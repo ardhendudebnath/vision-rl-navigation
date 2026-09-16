@@ -85,12 +85,31 @@ class PursuitConfig:
     #: planner can tell a mover about to cross the path from one leaving it.
     #: That is report Section 12's leading untested explanation for the motion
     #: cost. The motion is analytic, so this is *oracle* prediction -- an upper
-    #: bound on what a real velocity layer could supply. If it cannot recover
-    #: the cost, no velocity estimate will.
+    #: bound on how much better velocity *estimates* could help this planner.
+    #: It is not a bound on what a planner reasoning in space-time could do with
+    #: the same information: this one consumes it as a union of swept regions
+    #: and plans in space, which is a crude use of a perfect input.
     #:
-    #: The initial plan is deliberately left static-only, as in the baseline,
-    #: so the two differ in how they replan and in nothing else.
+    #: The initial plan stays static-only unless ``initial_plan_movers`` says
+    #: otherwise, so by default arms differ in how they replan and nothing else.
     predict_horizon: float = 0.0
+
+    #: What the first plan of an episode knows about movers: ``"none"`` (the
+    #: baseline -- the map, which does not contain them), ``"current"`` (where
+    #: they are at t = 0, as a sensing robot could see) or ``"predicted"``
+    #: (their swept regions over ``predict_horizon``).
+    #:
+    #: Three values rather than a flag because "the initial plan sees movers"
+    #: is two interventions. Seeing them at all changes frozen worlds too, since
+    #: a frozen mover is an obstacle the map is missing; seeing where they go
+    #: changes only moving ones. Only the second has an identity control, so
+    #: they have to be separable to be tested.
+    initial_plan_movers: str = "none"
+
+    #: Whether the reactive slow-down reads clearance to each mover's swept
+    #: region rather than to where it currently is. Requires
+    #: ``predict_horizon > 0``; with it off the controller is unchanged.
+    predict_caution: bool = False
 
 
 class AStarPursuitAgent:
@@ -130,7 +149,16 @@ class AStarPursuitAgent:
         self.replans = 0
         self.churn_total = 0.0
         self.churn_max = 0.0
-        return self.reset(world, pose)
+        mode = self.config.initial_plan_movers
+        if mode == "none":
+            return self.reset(world, pose)
+        if mode == "current":
+            return self.reset(world, pose, include_dynamic=True, predict=False)
+        if mode == "predicted":
+            return self.reset(world, pose, include_dynamic=True, predict=True)
+        raise ValueError(
+            f"initial_plan_movers must be 'none', 'current' or 'predicted', got {mode!r}"
+        )
 
     @property
     def churn_mean(self) -> float:
@@ -138,8 +166,19 @@ class AStarPursuitAgent:
         return self.churn_total / self.replans if self.replans else 0.0
 
     # ------------------------------------------------------------------
-    def reset(self, world, pose: np.ndarray, include_dynamic: bool = False) -> bool:
-        """Plan for a new episode. Returns ``False`` if no plan was found."""
+    def reset(
+        self,
+        world,
+        pose: np.ndarray,
+        include_dynamic: bool = False,
+        predict: bool | None = None,
+    ) -> bool:
+        """Plan for a new episode. Returns ``False`` if no plan was found.
+
+        ``predict`` defaults to prediction whenever movers are included and a
+        horizon is set, which is what replanning wants; ``False`` plans around
+        movers where they are, even with a horizon configured.
+        """
         self._world = world
         self._cursor = 0
         self._since_replan = 0
@@ -151,7 +190,10 @@ class AStarPursuitAgent:
         # preferred margin can make the goal unreachable, and refusing to
         # plan at all would score as a failure that the planner could in fact
         # have avoided.
-        predict = include_dynamic and self.config.predict_horizon > 0
+        if predict is None:
+            predict = include_dynamic and self.config.predict_horizon > 0
+        else:
+            predict = include_dynamic and predict and self.config.predict_horizon > 0
         swept = world.dynamic_swept(self.config.predict_horizon) if predict else None
         for radius in (
             world.config.robot_radius + margin,
@@ -276,7 +318,14 @@ class AStarPursuitAgent:
         into a clean pass.
         """
         cfg = self.config
-        margin = float(self._world.clearance(position)) - self._world.config.robot_radius
+        if cfg.predict_caution and cfg.predict_horizon > 0:
+            # Slow for a mover about to be close, not only one that already is.
+            swept = self._world.dynamic_swept(cfg.predict_horizon)
+            clear = float(self._world.clearance(position, include_dynamic=False,
+                                                extra_discs=swept))
+        else:
+            clear = float(self._world.clearance(position))
+        margin = clear - self._world.config.robot_radius
         if margin >= cfg.caution_clearance:
             return 1.0
         ratio = max(margin, 0.0) / cfg.caution_clearance

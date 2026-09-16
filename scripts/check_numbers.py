@@ -382,6 +382,38 @@ def claims():
              v["cells"]["dynamic_dense"]["2.0"]["replans_mean"]),
         ]
 
+    # --- snapshot experiment, Phase 5n ---------------------------------
+    # Both checks are preconditions for every contrast, so they are claims
+    # in their own right rather than assumptions.
+    se = "results/snapshot_experiment.json"
+    if os.path.exists(se):
+        sn = load(se)
+        ch, ct = sn["checks"], sn["contrasts"]
+        out += [
+            ("snapshot reproduces 5m", 1.0, float(ch["reproduces_phase_5m"])),
+            ("snapshot frozen identities", 1.0, float(ch["frozen_identities_hold"])),
+            ("snapshot dense cost remaining", 0.090,
+             ch["dynamic_dense_cost_remaining_after_5m"]),
+            ("snapshot sparse cost remaining", 0.090,
+             ch["dynamic_cost_remaining_after_5m"]),
+            ("snapshot initial sees dense", 0.010,
+             ct["initial plan sees movers at all"]["dynamic_dense"]["success_gain"]),
+            ("snapshot initial sees sparse", -0.010,
+             ct["initial plan sees movers at all"]["dynamic"]["success_gain"]),
+            ("snapshot initial predicts dense", 0.000,
+             ct["initial plan predicts"]["dynamic_dense"]["success_gain"]),
+            ("snapshot initial predicts sparse", 0.000,
+             ct["initial plan predicts"]["dynamic"]["success_gain"]),
+            ("snapshot caution sparse", -0.040,
+             ct["slow-down predicts"]["dynamic"]["success_gain"]),
+            ("snapshot caution sparse p", 0.2188,
+             ct["slow-down predicts"]["dynamic"]["p"]),
+            ("snapshot caution sparse collision", 0.040,
+             ct["slow-down predicts"]["dynamic"]["collision_delta"]),
+            ("snapshot caution dense", 0.000,
+             ct["slow-down predicts"]["dynamic_dense"]["success_gain"]),
+        ]
+
     # --- device benchmark, quoted in resolve_device's docstring -------
     # That docstring decides what every run in this project trains on, so its
     # table should not be able to drift from the measurement behind it.

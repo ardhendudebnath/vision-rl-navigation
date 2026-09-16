@@ -605,9 +605,10 @@ moving absolute performance by 0.220). The fifth survived. Every actor treated
 a mover as a snapshot where it stood; giving the planner **oracle** knowledge
 of where movers are going recovers 44% of the dense motion cost (+0.070,
 p = 0.016 against a threshold of 0.017 corrected for three horizons; 7
-episodes won and 0 lost), through collisions (−0.100). Because the prediction is an
-oracle it is also a ceiling: velocity explains at most about half the cost, and
-the rest survives perfect knowledge of every mover's future.
+episodes won and 0 lost), through collisions (−0.100). The same oracle fed to the initial plan and the
+controller's slow-down recovers nothing further. That bounds what better
+velocity *estimates* can add to this planner, not what a planner reasoning in
+time could do with them.
 
 **Recurrence is worse, and not because of motion.** An LSTM policy — the last
 untested way of supplying motion information, and the only one that learns what
@@ -682,10 +683,10 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of thirteen predictions made in advance, three derived from a
+**Calibration.** Of fourteen predictions made in advance, three derived from a
 *measurement* held — two to within 0.021 and 0.001, and one on both magnitude
-and mechanism; seven from extrapolation or intuition failed outright; three got
-a mechanism or a magnitude right and the other wrong. Confidence of expression
+and mechanism; seven from extrapolation or intuition failed outright; four got
+part right and part wrong. Confidence of expression
 was identical throughout. Three rules came out of them; the record of each
 prediction is in [`project_plan.md`](project_plan.md).
 
@@ -695,9 +696,11 @@ intuition: Nav2 ≥ 0.92 on `dynamic`, extrapolated from static clutter, and
 recurrence, forecast from three fixed-window nulls and significantly worse
 instead (−0.068, p = 0.017). Crossing a boundary of its own, 4:1 → 1:1, but *with*
 the far side already measured, the coverage forecast held on magnitude and
-mechanism. A
-crossing is only extrapolation while the far side is unmeasured — and careful
-reasoning does not extend a measurement's reach, it only hides the overreach.
+mechanism. A crossing is only extrapolation while the far side is unmeasured —
+and careful reasoning does not extend a measurement's reach, it only hides the
+overreach. Nor does a measurement support a claim at a resolution it never had:
+from 0 of 8 episodes I forecast identical outcomes on all 400, and a few percent
+differed. By the rule of three, 0 of 8 is compatible with a true rate near 37%.
 
 **A right number is not a right model.** The resolution forecast crossed no
 boundary and its number held (+0.032 against |Δ| < 0.03), but its reasoning was
@@ -757,15 +760,12 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Explain the other half of the motion cost.** Oracle motion prediction
-   recovers about half of it (§9.1), which settles what a velocity costmap
-   layer can be worth — at most that half — before one is built. The
-   remainder survives exact knowledge of every mover's future, so it is not an
-   information problem at the planner. Two places still act on snapshots and
-   are cheap to test the same way: the *initial* plan, deliberately left
-   static-only so the arms differed in replanning alone, and the controller's
-   reactive slow-down, which reads current clearance. The head-on versus
-   crossing asymmetry a velocity account predicts is also still unchecked.
+1. **Explain the other half of the motion cost.** Oracle knowledge of every
+   mover's future, supplied everywhere this planner and controller read movers,
+   recovers half and no more (+0.090 remains, §9.1). Two separable
+   explanations are left: a planner using the same oracle in space-time rather
+   than as swept regions, or physical limits on evading a correctly anticipated
+   mover — testable by raising the robot's speed and acceleration limits alone.
 2. **Re-price the encoder cost.** §8.4 re-ran two perception results at 1:1
    and they came apart: coverage's effect survived unchanged while its
    mechanism moved, and resolution's reversed sign. The third, the
@@ -791,7 +791,7 @@ In order of expected information per GPU-hour:
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 286 tests
+pytest                                        # 294 tests
 python scripts/check_docs.py                  # every doc link resolves
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix

@@ -408,11 +408,14 @@ episodes of cost to recover from rather than sixteen, that is as consistent
 with low power as with no effect, and it is reported as unconfirmed rather than
 as a null.
 
-**And the ceiling is the finding as much as the recovery.** Because the
-prediction is an oracle, no real velocity estimate can do better. So
-velocity-blindness explains **at most about half** the motion cost, and the
-other half survives perfect knowledge of where every mover is going. That rules
-out a velocity costmap layer as a complete answer before one is built.
+**The ceiling needs stating carefully, and the first writeup did not.** An
+oracle bounds the *quality* of the information, not how it is used. So this
+bounds how much better velocity estimates could help *this* planner -- which
+consumes them as swept regions and plans in space -- at about half. It does not
+bound what a planner reasoning in space-time could do with the same input. The
+first version of this paragraph said velocity explains "at most about half" the
+motion cost outright, which reads a limit of the architecture as a limit of the
+information.
 
 Replanning rises about 4-fold
 (0.9 replans an episode at H = 0
@@ -420,6 +423,44 @@ against 3.8 at 2 s) while success
 rises. Phase 5d found churn does not cause the motion cost, and this agrees
 from the other side: more replanning is harmless when it replans against the
 right thing.
+
+### The other half: prediction everywhere else the stack reads movers
+
+The oracle above fed replanning and the replan trigger. Two other places still
+read movers as snapshots: the **initial plan**, left static-only so the arms
+differed in replanning alone, and the controller's **reactive slow-down**,
+which reads clearance to where a mover currently is. Each was given the same
+2 s oracle, measured against the replanning-only arm, whose motion cost
+remaining is +0.090 on both conditions.
+
+"The initial plan sees movers" is two interventions and was tested as two.
+Seeing movers *at all* changes frozen worlds too, since a frozen mover is an
+obstacle the map lacks; seeing *where they are going* changes only moving ones,
+and is bit-identical on frozen cells, as is prediction in the slow-down. Both
+identities hold, and the replanning-only arm reproduces the table above on
+every rate.
+
+| added to replanning prediction (`dynamic_dense` unless noted) | success | collision | timeout | episodes |
+|---|---|---|---|---|
+| initial plan sees movers where they are | +0.010 | +0.000 | -0.010 | 2 won, 1 lost |
+| ... and where they are going | +0.000 | +0.020 | -0.020 | 0 won, 0 lost |
+| slow-down reads where they are going | +0.000 | +0.010 | -0.010 | 1 won, 1 lost |
+| slow-down reads where they are going, `dynamic` | -0.040 | +0.040 | +0.000 | 1 won, 5 lost |
+
+**None of it recovers anything.** Oracle knowledge of every mover's future,
+supplied at every point this planner and controller read movers, recovers half
+the motion cost and not a percentage point more. Predictive slow-down is, if
+anything, counter-productive on `dynamic` -- more collisions, the one
+direction a caution rule should not move -- though at
+p = 0.22 that is not a finding. Hesitating for a mover
+about to arrive is plausibly exactly wrong when the better move is to pass
+before it does.
+
+So the remainder is not fixed by more information *within this architecture*.
+Two explanations are left, and they are separable: a planner that uses the same
+oracle in space-time rather than as swept regions, or physical limits on
+evading a mover the robot has correctly anticipated. The second is testable by
+raising the robot's speed and acceleration limits and nothing else.
 
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static

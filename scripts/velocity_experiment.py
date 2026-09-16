@@ -17,6 +17,12 @@ what makes the result decisive in either direction:
   and a velocity costmap layer is worth building;
 - if it does not, no velocity estimate can, and a fifth mechanism is gone.
 
+Scope, added after Phase 5n and left outside the pre-registration below, which
+is unchanged: "no velocity estimate can" holds for *this* planner, which
+consumes the oracle as swept regions and plans in space. It does not bound a
+planner that reasons in space-time with the same information. Reading it as a
+bound on velocity in general was an overclaim in the first writeup.
+
 The frozen cells are the control, and here the control is an **identity**
 rather than a tolerance. A frozen mover has zero amplitude, so its swept region
 at any horizon is its current disc; every frozen episode must be bit-identical

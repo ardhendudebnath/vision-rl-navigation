@@ -36,7 +36,7 @@ decision below follows from wanting that comparison to be trustworthy.
 
 | Stage | State |
 |---|---|
-| Task, metrics, splits, 286-test suite | Done |
+| Task, metrics, splits, 294-test suite | Done |
 | Classical baseline (A* + pure pursuit, full map) | Done |
 | Privileged RL, robustness suite, distribution shifts | Done |
 | Four explanations for the gap, each tested and rejected | Done |
@@ -52,10 +52,11 @@ decision below follows from wanting that comparison to be trustworthy.
 | Re-pricing perception at 1:1: the reward flips what resolution does | Done |
 | Timeout audit of every perception result: all reproduce; deficits stall, not crash | Done |
 | Coverage re-priced at 1:1: headline survives, mechanism moves stall to crash | Done |
-| Oracle motion prediction: explains about half the motion cost, and bounds the rest | Done |
+| Oracle motion prediction: recovers about half the motion cost | Done |
+| Prediction in the initial plan and controller: the other half does not move | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Twenty-eight experiments, each pre-registered where it tests a hypothesis. The
+Twenty-nine experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).
