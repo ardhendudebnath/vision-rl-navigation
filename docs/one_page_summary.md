@@ -95,7 +95,7 @@ pre-registered endpoints. Of thirteen advance predictions, three derived from
 magnitude right and the other wrong, with identical confidence of expression
 throughout. The three failures that reasoned from a real measurement all
 carried it into a regime nothing had been measured in — and the one that
-crossed the same boundary *with* the far side already measured held on both
+crossed a boundary *with* the far side already measured held on both
 its magnitude and its mechanism (+0.080,
 collision interaction -0.133,
 p = 0.024). Both the false positive and a

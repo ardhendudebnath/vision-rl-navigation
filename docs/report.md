@@ -446,12 +446,10 @@ effect.** This sharpens the earlier framing rather than confirming it: "field
 of view beats angular resolution" implies a frontier where either knob buys
 performance. There is no such frontier — one knob is inert *in success rate*.
 
-That qualifier was added late, and it matters. The sentence read "changes
-nothing", and for one of the two contrasts that is false: doubling beams at
-360° moves collisions +0.083 (p = 0.006) and timeouts −0.080, so the same
-number of episodes fail and what changes is *how*. The pre-registered null was
-about success and held; the prose generalised past it. §8.4 shows that
-behavioural effect reverses sign with the reward, and §8.5 what it means.
+The qualifier was added late. Doubling beams at 360° moves collisions +0.083
+(p = 0.006) and timeouts −0.080, so the same number of episodes fail and only
+*how* changes; the pre-registered null was about success and held, and the
+prose had generalised past it.
 
 The §7 audit forecast this sweep's two interior levels — the ones it was not
 fitted on — to within **+0.021 and +0.001**, untrained and unseeded: with §7.1,
@@ -549,13 +547,8 @@ contrast between channels rather than an argument from low power. Below
 adequacy the pattern inverts: 16 beams is too few to see obstacles, and fixing
 that cuts collisions with timeouts unmoved.
 
-The qualifier is not decoration. Every row above was measured at 4:1, and §8.4
-shows that at 1:1 the same coverage deficit costs the same success through
-*collisions* instead (-0.133 interaction,
-p = 0.024). Getting stuck is what a coverage
-deficit looks like under a reward that prices stalling cheaply. What the
-deficit reliably costs is success; how it spends that cost is the objective's
-decision, not the sensor's.
+The qualifier matters: every row was measured at 4:1, and §8.4 shows the same
+coverage deficit costing the same success through *collisions* at 1:1.
 
 ## 9. Results 11–12: where the map is wrong
 
@@ -690,54 +683,32 @@ pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
 **Calibration.** Of thirteen predictions made in advance, three derived from a
-*measurement* held — two to within 0.021 and 0.001, and one on both its
-magnitude and its mechanism; seven from extrapolation or intuition failed
-outright; three got a mechanism or a magnitude right and the other wrong.
-Confidence of expression was identical throughout. The thirteenth, pure
-intuition about a regime nothing had measured, landed inside its band — but
-the band was 0.05 wide and its predicted shape held on one condition of two,
-which is not evidence of calibration and is not counted as such.
+*measurement* held — two to within 0.021 and 0.001, and one on both magnitude
+and mechanism; seven from extrapolation or intuition failed outright; three got
+a mechanism or a magnitude right and the other wrong. Confidence of expression
+was identical throughout. Three rules came out of them; the record of each
+prediction is in [`project_plan.md`](project_plan.md).
 
-Three failures share one cause. Predicting Nav2 ≥ 0.92 on `dynamic`
-extrapolated a *measured* collision reduction, but carried it from static
-clutter to moving obstacles, a boundary the measurement never spanned. The
-recurrence prediction did it twice in one sitting: registered as a null on the
-strength of three measured nulls, then *amended* before evaluation — on the
-strength of a fourth measurement — to predict collisions falling while success
-stayed flat. Recurrence was significantly worse (-0.068, p = 0.017) and
-collisions *rose*. Both versions crossed from fixed hand-designed windows to
-learned memory, exactly as the Nav2 prediction crossed from static to moving.
-**Measurement-derived predictions become intuition where nothing has been
-measured — and reasoning carefully from the measurement does not extend its
-reach, it only makes the overreach harder to notice.**
+**A measurement predicts only where something has been measured.** Carried
+into regimes nothing had measured, measurement-derived forecasts failed like
+intuition: Nav2 ≥ 0.92 on `dynamic`, extrapolated from static clutter, and
+recurrence, forecast from three fixed-window nulls and significantly worse
+instead (−0.068, p = 0.017). Crossing a boundary of its own, 4:1 → 1:1, but *with*
+the far side already measured, the coverage forecast held on magnitude and
+mechanism. A
+crossing is only extrapolation while the far side is unmeasured — and careful
+reasoning does not extend a measurement's reach, it only hides the overreach.
 
-The twelfth prediction is why that is phrased as it is. It crossed the same
-4:1 → 1:1 boundary, and held on both its magnitude and its mechanism, because
-§8.4 had already measured the far side: with the timeout channel known to
-close at 1:1, "coverage must then pay through collisions or not at all" is
-deduction from two measurements bracketing the new cell rather than
-extrapolation past one. **A crossing is only extrapolation while the far side
-is unmeasured.**
+**A right number is not a right model.** The resolution forecast crossed no
+boundary and its number held (+0.032 against |Δ| < 0.03), but its reasoning was
+wrong: collisions improved by 0.058 where it said they would not. Only the
+discriminator registered beside it showed which.
 
-The eleventh was the first that crossed no boundary at all — same arms, same
-seeds, same condition, derived from that contrast's own breakdown — and its
-number essentially held (+0.032 against a predicted
-|Δ| < 0.03, not significant as predicted) while the *reasoning* behind it was
-wrong. It argued that extra resolution buys aggression rather than accuracy, so
-the 1:1 collision delta should not improve; it improved by
--0.058, and the interaction is significant. What
-saved the result was the discriminator registered alongside it, which named in
-advance the observation that would tell the two mechanisms apart.
-**A right number is not a right model, and only a pre-registered discriminator
-tells you which one you had.**
-
-The churn and horizon experiments each proposed a mechanism, each named a
-control cell where that mechanism should not act, and each was refuted by the
-control moving as much as the treatment. Without those cells, +0.070 on
-`dynamic_dense` and a tidy horizon optimum would both have read as clean
-confirmations of explanations the data refutes. **A mechanism claim needs a
-cell where the mechanism should not act**, and a story fitting every number
-available is weak evidence until one exists. Each cost one extra condition.
+**A mechanism claim needs a cell where the mechanism should not act.** Churn and
+commitment length each fit every number available, and each was refuted by a
+control that moved as much as the treatment. Without those cells, +0.070 on
+`dynamic_dense` and a tidy horizon optimum would have read as confirmations.
+Each cost one extra condition.
 
 **And every narrowing of the headline came from the baseline.** The project's
 most RL-favourable result now holds on `dynamic` alone, having been reduced

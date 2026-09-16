@@ -1503,6 +1503,21 @@ for recurrence on a task like this one.
 
 Phase 5h remains the load-bearing result. Nothing here touches it.
 
+### Calibration
+
+Prediction 10, and it failed twice. Registered as a null on the strength of
+three measured nulls -- 2-frame stacking, 4-frame stacking, the explicit
+velocity channel -- then amended before any evaluation, on the strength of
+Phase 5h, to predict collisions falling while success stayed flat. Recurrence
+was significantly *worse* (-0.068, p = 0.017) and collisions *rose*.
+
+Both versions reasoned carefully from real measurements, and both carried
+those measurements across a boundary none of them spanned: from fixed
+hand-designed windows to learned memory. That is the same crossing, in a
+different form, as the Nav2 >= 0.92 prediction's static-to-moving extrapolation
+in Phase 5b. Careful reasoning from a measurement did not extend its reach; it
+only made the overreach harder to notice.
+
 ## Phase 5j — The reward prices perception too, and Phase 3d overstated a null
 
 Phase 5h showed the reward decides what an observation *channel* is worth.
@@ -1615,6 +1630,25 @@ The report's perception findings stand as success-rate results -- coverage is
 causal, resolution is inert in success -- but "resolution is inert" now needs
 its qualifier, because what resolution does to *behaviour* is significant,
 reward-dependent, and reverses sign.
+
+### Calibration
+
+Prediction 11 was the first in the record that crossed no boundary at all --
+same arms, same seeds, same condition, derived from this contrast's own 4:1
+breakdown -- and I said in advance that if it failed anyway, the calibration
+rule was weaker than claimed.
+
+Its *number* essentially held: +0.032 against a predicted |delta| < 0.03, not
+significant, as predicted. Its *reasoning* was wrong. It argued that extra
+resolution buys aggression rather than accuracy, since at 4:1 128 beams crashed
+more at equal success, so the 1:1 collision delta should not improve. It
+improved by 0.058, and the interaction is significant.
+
+What made the result interpretable was the discriminator registered alongside
+the prediction, which named the observation that would separate the two
+mechanisms before either was seen. Without it, a number inside its bound would
+have been reported as a confirmed model. **A right number is not a right model,
+and only a pre-registered discriminator tells you which one you had.**
 
 ## Phase 5k — The audit completed: perception deficits make it stall, not crash
 
