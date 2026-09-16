@@ -530,11 +530,11 @@ noise, while moving absolute performance by 0.220).
 **Recurrence is worse, and not because of motion.** An LSTM policy — the last
 untested way of supplying motion information, and the only one that learns what
 to retain — is significantly *worse* than a memoryless one on fast movers
-({f['delta']:+.3f}, p = {f['p']:.3f}) and worse by slightly more on the slow
-control ({s['delta']:+.3f}, p = {s['p']:.3f}). The control moving as much as the
+(−0.068, p = 0.017) and worse by slightly more on the slow
+control (−0.078, p = 0.004). The control moving as much as the
 treatment refuses the motion reading a fourth time: the cost is a general
 property of the arm. Two artefacts were closed before reading it — the arm is
-converged, and clearing its recurrent state costs {abl['mean_delta']:+.3f}
+converged, and clearing its recurrent state costs +0.315
 success, so the memory is genuinely in use. See
 [`dynamic_obstacles.md`](dynamic_obstacles.md).
 
@@ -711,7 +711,7 @@ In order of expected information per GPU-hour:
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 265 tests
+pytest                                        # 279 tests
 python scripts/check_docs.py                  # every doc link resolves
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix

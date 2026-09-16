@@ -22,6 +22,7 @@ import json
 import os
 import re
 import statistics as st
+import subprocess
 import sys
 
 TOL = 0.0005  # printed to three decimals
@@ -35,6 +36,29 @@ def load(path):
 def doc(name):
     with open(name, encoding="utf-8") as fh:
         return fh.read()
+
+
+def collected_tests():
+    """How many tests pytest actually collects, or None if it cannot be asked.
+
+    The suite size is quoted in three documents and drifts every time a test is
+    added -- it was wrong by five before this check existed, and wrong again by
+    fourteen within the same day. A number no one can be bothered to re-derive
+    by hand is exactly the kind that should not be maintained by hand.
+
+    CHECK_NUMBERS_NO_PYTEST exists so that a test which invokes this module
+    cannot recurse into pytest invoking this module.
+    """
+    if os.environ.get("CHECK_NUMBERS_NO_PYTEST"):
+        return None
+    env = dict(os.environ, CHECK_NUMBERS_NO_PYTEST="1")
+    try:
+        r = subprocess.run([sys.executable, "-m", "pytest", "--collect-only"],
+                           capture_output=True, text=True, timeout=300, env=env)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    m = re.search(r"(\d+) tests? collected", r.stdout)
+    return int(m.group(1)) if m else None
 
 
 def classical(cond, field="success_rate"):
@@ -145,6 +169,20 @@ def claims():
             ("indiff p fast", 0.019,
              load(rm)["conditions"]["dynamic_fast"]["p"]),
         ]
+
+    # --- suite size, quoted in three documents ------------------------
+    n_tests = collected_tests()
+    if n_tests is not None:
+        for name, pattern in (
+            ("docs/report.md", r"pytest\s+#\s*([0-9]+) tests"),
+            ("README.md", r"([0-9]+)-test suite"),
+            ("docs/one_page_summary.md", r"([0-9]+)-test suite"),
+        ):
+            if os.path.exists(name):
+                m = re.search(pattern, doc(name))
+                if m:
+                    out.append((f"{name} suite size", float(m.group(1)),
+                                float(n_tests)))
 
     # --- recurrence, report section 9.1 and dynamic_obstacles.md ------
     rc, ab = "results/recurrence.json", "results/recurrence_state_ablation.json"

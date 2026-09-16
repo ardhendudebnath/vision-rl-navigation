@@ -1,4 +1,5 @@
-"""Verify every relative link and repo path named in the docs resolves.
+"""Verify every relative link and repo path named in the docs resolves, and
+that no generated prose still contains an unrendered format placeholder.
 
 A committee skims the repo before it reads anything, so a dead link costs more
 than any single result in it is worth. This has already caught two module
@@ -28,6 +29,18 @@ MD_LINK = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 EXTERNAL = {
     "nav2_bringup/navigation_launch.py",
 }
+
+#: An f-string placeholder that reached a document unrendered. Result sections
+#: are written by scripts that interpolate numbers out of results/*.json, and
+#: one of those templates was missing its `f` prefix -- so the report shipped
+#: "({f['delta']:+.3f}, p = {f['p']:.3f})" as literal text, in the paragraph
+#: stating the headline of an experiment. Nothing else caught it: the links
+#: resolved, the tests passed, and check_numbers.py compares result files
+#: against hand-typed literals rather than reading the prose. Two shapes, both
+#: unambiguous in Markdown: a subscript like `{d['k']}` and a format spec like
+#: `{x:+.3f}`.
+PLACEHOLDER = re.compile(r"\{[A-Za-z_][A-Za-z0-9_]*\s*\[[^\]]*\][^}]*\}"
+                         r"|\{[A-Za-z_][A-Za-z0-9_]*:[<>^+\-0-9.,]*[dfegs%]\}")
 
 
 def docs() -> list[str]:
@@ -62,6 +75,11 @@ def main(argv=None) -> int:
             if not (os.path.exists(target)
                     or os.path.exists(os.path.normpath(os.path.join(base, target)))):
                 broken.append((doc, "path", target, ""))
+
+        for line_no, line in enumerate(text.splitlines(), start=1):
+            for hit in PLACEHOLDER.findall(line):
+                broken.append((doc, "fstr", hit[:36], f"line {line_no}"))
+        checked += 1
 
     if not args.quiet:
         print(f"checked {checked} references across {len(docs())} docs")
