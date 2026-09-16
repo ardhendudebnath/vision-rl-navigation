@@ -57,6 +57,13 @@ def collected_tests():
                            capture_output=True, text=True, timeout=300, env=env)
     except (OSError, subprocess.SubprocessError):
         return None
+    if r.returncode != 0:
+        # Collection errors still print "N tests collected" for the modules
+        # that imported -- under an interpreter without the package installed,
+        # 11 -- which would read as the suite having shrunk.
+        print("  suite size not checked: pytest collection failed "
+              f"(exit {r.returncode}; is {sys.executable} the project interpreter?)")
+        return None
     m = re.search(r"(\d+) tests? collected", r.stdout)
     return int(m.group(1)) if m else None
 
