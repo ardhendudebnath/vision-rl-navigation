@@ -88,6 +88,18 @@ class SpaceTimeConfig:
     #: A frozen mover occupies the same cells at every step, so widening its
     #: occupancy in time changes nothing and the frozen identity still holds.
     temporal_margin_steps: int = 0
+    #: Where the planner's mover futures come from. ``"oracle"`` reads the exact
+    #: analytic trajectories, which is what every result up to Phase 5q used.
+    #: ``"constant_velocity"`` extrapolates each mover in a straight line from
+    #: the last two positions the agent has itself observed, one control step
+    #: apart, and assumes it stationary until it has two.
+    #:
+    #: Observations are noise-free on purpose. That isolates *model* error --
+    #: movers here move on sinusoids, so a straight-line extrapolation drifts as
+    #: they curve and reverse -- from sensing error, which is a second question.
+    #: A frozen mover has zero velocity, so its estimate is exact and the
+    #: estimated planner must be bit-identical to the oracle on frozen worlds.
+    predictor: str = "oracle"
 
     # --- matched to the spatial baseline, not restated --------------------
     safety_margin: float = field(default=_BASE.safety_margin)
@@ -111,6 +123,7 @@ class SpaceTimeAgent:
         self._last_plan_t = -math.inf
         self._static_cache: dict[float, tuple[np.ndarray, np.ndarray]] = {}
         self._grid_pts: np.ndarray | None = None
+        self._observations: list[tuple[float, np.ndarray]] = []
         self.replans = 0
         self.plan_failures = 0
         self.planned_waits = 0
@@ -131,6 +144,8 @@ class SpaceTimeAgent:
         self.replans = 0
         self.plan_failures = 0
         self.planned_waits = 0
+        self._observations = []
+        self._observe()
         return self._plan(np.asarray(pose, dtype=np.float64))
 
     # ------------------------------------------------------------------
@@ -161,7 +176,7 @@ class SpaceTimeAgent:
         pts = self._grid_pts
         out = np.zeros((steps, n_rows * n_cols), dtype=bool)
         for k in range(steps):
-            discs = w.dynamic_at(w._t + k * self.dt_plan)
+            discs = self._predicted_discs(w._t + k * self.dt_plan)
             d = np.linalg.norm(pts[:, None, :] - discs[None, :, :2], axis=-1) - discs[None, :, 2]
             out[k] = (d <= radius).any(axis=1)
         if not self.config.time_varying_movers:
@@ -169,6 +184,28 @@ class SpaceTimeAgent:
         elif self.config.temporal_margin_steps > 0:
             out = dilate_in_time(out, self.config.temporal_margin_steps)
         return out.reshape(steps, n_rows, n_cols)
+
+    def _observe(self) -> None:
+        """Record where the movers are now -- what the robot's sensors see."""
+        w = self._world
+        self._observations.append((w._t, w._dyn_now.copy()))
+        del self._observations[:-2]
+
+    def _predicted_discs(self, t: float) -> np.ndarray:
+        """Mover discs ``(M, 3)`` the planner believes occupy space at time ``t``."""
+        w = self._world
+        if self.config.predictor == "oracle":
+            return w.dynamic_at(t)
+        if self.config.predictor != "constant_velocity":
+            raise ValueError(f"unknown predictor {self.config.predictor!r}")
+        t1, p1 = self._observations[-1]
+        out = p1.copy()
+        if len(self._observations) >= 2:
+            t0, p0 = self._observations[-2]
+            if t1 > t0 and len(p0) == len(p1):
+                velocity = (p1[:, :2] - p0[:, :2]) / (t1 - t0)
+                out[:, :2] = p1[:, :2] + velocity * (t - t1)
+        return out
 
     def _plan(self, pose: np.ndarray) -> bool:
         """Plan from ``pose`` at the current simulation time. Keeps the old plan
@@ -226,6 +263,7 @@ class SpaceTimeAgent:
         cfg, w = self.config, self._world
         pose = np.asarray(pose, dtype=np.float64)
         position = pose[:2]
+        self._observe()
 
         if self._waypoints is not None:
             drift = float(np.linalg.norm(self._scheduled(w._t) - position))

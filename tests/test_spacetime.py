@@ -322,7 +322,7 @@ def test_matches_brute_force_with_a_tail(seed):
 # ============================================================================
 # The agent: schedule tracking, and the controls the experiment rests on
 # ============================================================================
-def _episode(cond, seed, time_varying, margin=0):
+def _episode(cond, seed, time_varying, margin=0, predictor="oracle"):
     from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
     from vision_nav.envs.nav_env import ProceduralNavEnv
     from vision_nav.envs.splits import DYNAMIC_CONDITIONS, FROZEN_CONDITIONS
@@ -334,7 +334,8 @@ def _episode(cond, seed, time_varying, margin=0):
     env = ProceduralNavEnv(cfg)
     env.reset(options={"world_seed": int(cfg.world_seeds[seed])})
     agent = SpaceTimeAgent(SpaceTimeConfig(time_varying_movers=time_varying,
-                                           temporal_margin_steps=margin),
+                                           temporal_margin_steps=margin,
+                                           predictor=predictor),
                            robot=cfg.robot)
     assert agent.start_episode(env.world, env.robot.pose)
     traj, info, done = [env.robot.position.copy()], {}, False
@@ -508,3 +509,96 @@ def test_a_margin_reaches_the_planner_and_only_adds_blocked_cells():
         occ[margin] = agent._mover_occupancy(radius, 30)
     assert not np.array_equal(occ[0], occ[2]), "the margin did not reach the planner"
     assert (occ[2] >= occ[0]).all(), "a margin removed a blocked cell"
+
+# ============================================================================
+# Constant-velocity estimate in place of the oracle
+# ============================================================================
+def _cv_agent_on(cond="dynamic"):
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+    from vision_nav.envs.nav_env import ProceduralNavEnv
+    from vision_nav.envs.splits import DYNAMIC_CONDITIONS, FROZEN_CONDITIONS
+    from vision_nav.training.env_factory import build_env_config
+
+    split, shift, _ = DYNAMIC_CONDITIONS[cond]
+    over = {"freeze_dynamic": True} if cond in FROZEN_CONDITIONS else {}
+    cfg = build_env_config(over, split=split, shift=shift, n_worlds=1)
+    env = ProceduralNavEnv(cfg)
+    env.reset(options={"world_seed": int(cfg.world_seeds[0])})
+    agent = SpaceTimeAgent(SpaceTimeConfig(predictor="constant_velocity"), robot=cfg.robot)
+    agent.start_episode(env.world, env.robot.pose)
+    return agent, env
+
+
+def test_constant_velocity_extrapolates_in_a_straight_line():
+    agent, env = _cv_agent_on()
+    p0 = np.array([[1.0, 1.0, 0.3]])
+    p1 = np.array([[1.2, 0.9, 0.3]])
+    agent._observations = [(2.0, p0), (2.1, p1)]
+    got = agent._predicted_discs(3.1)  # one second past the last observation
+    np.testing.assert_allclose(got[0, :2], [1.2 + 2.0 * 1.0, 0.9 - 1.0 * 1.0])
+    assert got[0, 2] == 0.3, "radius must not be extrapolated"
+
+
+def test_constant_velocity_assumes_stationary_without_two_observations():
+    agent, env = _cv_agent_on()
+    p = np.array([[4.0, 5.0, 0.3]])
+    agent._observations = [(1.0, p)]
+    np.testing.assert_array_equal(agent._predicted_discs(9.0), p)
+    agent._observations = [(1.0, p), (1.0, p + 1.0)]  # zero elapsed time
+    np.testing.assert_array_equal(agent._predicted_discs(9.0), p + 1.0)
+
+
+def test_constant_velocity_never_reads_the_true_future():
+    """An estimate must be *wrong* where the truth curves, or it is the oracle.
+
+    An estimator that quietly read the oracle would reproduce the oracle's
+    result and look like a triumph of estimation. The first version of this
+    test advanced the world clock and checked the prediction held still -- but
+    the oracle is a pure function of absolute time, so a leaking estimator
+    passed it too, and it caught nothing. Movers here run on sinusoids, so a
+    genuine straight-line extrapolation two seconds out must disagree with
+    where they really are.
+    """
+    agent, env = _cv_agent_on("dynamic")
+    for _ in range(12):
+        env.step(agent.act(env.robot.pose))
+    t_future = env.world._t + 2.0
+    estimated = agent._predicted_discs(t_future)
+    truth = env.world.dynamic_at(t_future)
+    assert len(truth), "needs movers to mean anything"
+    gaps = np.linalg.norm(estimated[:, :2] - truth[:, :2], axis=1)
+    assert gaps.max() > 0.05, f"estimate matches the true future (gaps {gaps}); oracle leak"
+
+
+def test_estimate_reaches_the_planner_on_moving_worlds():
+    """Not silently the oracle: its planning grid must differ once movers move."""
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+
+    agent, env = _cv_agent_on("dynamic")
+    for _ in range(5):
+        env.step(agent.act(env.robot.pose))
+    radius = env.world.config.robot_radius + agent.config.safety_margin
+    cv = agent._mover_occupancy(radius, 30)
+    oracle = SpaceTimeAgent(SpaceTimeConfig(predictor="oracle"), robot=env.config.robot)
+    oracle._world = env.world
+    assert not np.array_equal(cv, oracle._mover_occupancy(radius, 30))
+
+
+@pytest.mark.parametrize("seed", [0, 3])
+def test_estimate_is_exact_on_frozen_worlds(seed):
+    """The identity control: a frozen mover has zero velocity, so the estimate
+    and the oracle must drive bit-identical trajectories."""
+    oracle, _, _ = _episode("dynamic_dense_frozen", seed, True, margin=2, predictor="oracle")
+    cv, _, _ = _episode("dynamic_dense_frozen", seed, True, margin=2,
+                        predictor="constant_velocity")
+    assert oracle.shape == cv.shape and np.array_equal(oracle, cv)
+
+
+def test_unknown_predictor_fails_loudly():
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+
+    agent, env = _cv_agent_on()
+    bad = SpaceTimeAgent(SpaceTimeConfig(predictor="kalman"), robot=env.config.robot)
+    bad._world = env.world
+    with pytest.raises(ValueError, match="unknown predictor"):
+        bad._predicted_discs(env.world._t)
