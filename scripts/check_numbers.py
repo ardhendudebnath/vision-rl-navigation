@@ -350,6 +350,38 @@ def claims():
              cx["dense"]["timeout"]["interaction"]),
         ]
 
+    # --- oracle motion prediction, report 9.1 and dynamic_obstacles.md --
+    # The frozen identity is a precondition for every other number here, so
+    # it is checked as a claim in its own right rather than assumed.
+    ve = "results/velocity_experiment.json"
+    if os.path.exists(ve):
+        v = load(ve)
+        dd = v["effects"]["dynamic_dense"]
+        dy = v["effects"]["dynamic"]
+        out += [
+            ("velocity frozen identity", 1.0, float(v["frozen_identity_holds"])),
+            ("velocity dense motion cost", 0.160, dd["motion_cost"]),
+            ("velocity sparse motion cost", 0.120, dy["motion_cost"]),
+            ("velocity dense 2s gain", 0.070, dd["by_horizon"]["2.0"]["success_gain"]),
+            ("velocity dense 2s p", 0.0156, dd["by_horizon"]["2.0"]["p"]),
+            ("velocity dense 2s won", 7, dd["by_horizon"]["2.0"]["episodes_won"]),
+            ("velocity dense 2s lost", 0, dd["by_horizon"]["2.0"]["episodes_lost"]),
+            ("velocity dense 2s recovered", 0.4375,
+             dd["by_horizon"]["2.0"]["fraction_of_cost_recovered"]),
+            ("velocity dense 2s collision", -0.100,
+             dd["by_horizon"]["2.0"]["collision_delta"]),
+            ("velocity dense 1s gain", 0.020, dd["by_horizon"]["1.0"]["success_gain"]),
+            ("velocity dense 4s gain", 0.040, dd["by_horizon"]["4.0"]["success_gain"]),
+            ("velocity sparse 4s gain", 0.060, dy["by_horizon"]["4.0"]["success_gain"]),
+            ("velocity sparse 4s p", 0.0703, dy["by_horizon"]["4.0"]["p"]),
+            # Quoted in dynamic_obstacles.md, and once hardcoded there from
+            # printed output before the script stored them.
+            ("velocity dense replans h0", 0.9,
+             v["cells"]["dynamic_dense"]["0.0"]["replans_mean"]),
+            ("velocity dense replans h2", 3.8,
+             v["cells"]["dynamic_dense"]["2.0"]["replans_mean"]),
+        ]
+
     # --- device benchmark, quoted in resolve_device's docstring -------
     # That docstring decides what every run in this project trains on, so its
     # table should not be able to drift from the measurement behind it.

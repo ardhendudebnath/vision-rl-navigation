@@ -76,6 +76,22 @@ class PursuitConfig:
     #: the robot reacts about as early as the timer would have.
     block_check_distance: float = 2.0
 
+    #: Seconds of mover motion to plan around. ``0`` treats every mover as a
+    #: static snapshot where it currently is, which is what every actor in this
+    #: project has done, and takes exactly the original code path.
+    #:
+    #: Above zero, replanning and the replan trigger both use each mover's
+    #: swept region over the horizon rather than its current disc, so the
+    #: planner can tell a mover about to cross the path from one leaving it.
+    #: That is report Section 12's leading untested explanation for the motion
+    #: cost. The motion is analytic, so this is *oracle* prediction -- an upper
+    #: bound on what a real velocity layer could supply. If it cannot recover
+    #: the cost, no velocity estimate will.
+    #:
+    #: The initial plan is deliberately left static-only, as in the baseline,
+    #: so the two differ in how they replan and in nothing else.
+    predict_horizon: float = 0.0
+
 
 class AStarPursuitAgent:
     """Map-based planner with a pure-pursuit local controller.
@@ -135,12 +151,19 @@ class AStarPursuitAgent:
         # preferred margin can make the goal unreachable, and refusing to
         # plan at all would score as a failure that the planner could in fact
         # have avoided.
+        predict = include_dynamic and self.config.predict_horizon > 0
+        swept = world.dynamic_swept(self.config.predict_horizon) if predict else None
         for radius in (
             world.config.robot_radius + margin,
             world.config.robot_radius + margin * 0.5,
             world.config.robot_radius,
         ):
-            occ = world.occupancy_at(radius, include_dynamic=include_dynamic)
+            if predict:
+                # The swept set already contains the movers' current discs, so
+                # it replaces include_dynamic rather than adding to it.
+                occ = world.occupancy_at(radius, include_dynamic=False, extra_discs=swept)
+            else:
+                occ = world.occupancy_at(radius, include_dynamic=include_dynamic)
             start = tuple(int(v) for v in world.world_to_grid(pose[:2]))
             goal = tuple(int(v) for v in world.world_to_grid(world.goal))
             if occ[start] or occ[goal]:
@@ -235,6 +258,13 @@ class AStarPursuitAgent:
         n = max(1, int(self.config.block_check_distance / self.config.track_spacing))
         ahead = ahead[:n]
         radius = self._world.config.robot_radius
+        if self.config.predict_horizon > 0:
+            # Trigger on a mover that is *going to* cross the path, not only
+            # one already on it -- otherwise prediction would reshape plans
+            # that are only ever rebuilt too late to use it.
+            swept = self._world.dynamic_swept(self.config.predict_horizon)
+            clear = self._world.clearance(ahead, include_dynamic=False, extra_discs=swept)
+            return bool(np.any(clear <= radius))
         return bool(np.any(self._world.clearance(ahead, include_dynamic=True) <= radius))
 
     def _caution_scale(self, position: np.ndarray) -> float:

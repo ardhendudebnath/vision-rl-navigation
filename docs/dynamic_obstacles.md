@@ -352,6 +352,75 @@ The absence-of-commitment account is neither supported nor damaged by this.
 Phase 5h remains the load-bearing result: the reward decides what extra
 information is worth, and nothing here touches that.
 
+## Knowing where the movers are going: half the motion cost
+
+Four mechanisms for the classical stack's motion cost were eliminated --
+replanning churn, planning failure, sensing, commitment length -- and every
+actor still treated a mover as a static snapshot at its current position. A
+planner that cannot tell a mover approaching its path from one leaving it
+replans too late for the first and needlessly for the second.
+
+The adopted baseline was given **oracle** knowledge of motion: the trajectories
+are analytic, so it plans around, and triggers replans on, each mover's exact
+swept region over the next H seconds. That is an upper bound on what any real
+velocity layer could supply. The initial plan stays static-only, so the arms
+differ in how they replan and nothing else.
+
+Two guards came first, because the change touched the world's geometry. At
+H = 0 the committed churn experiment reproduces **episode-for-episode across
+800 episodes**, churn included to the last bit, so every earlier result is
+untouched. And the frozen cells are the control stated as an **identity**: a
+frozen mover's swept region at any horizon is its current disc, so frozen
+episodes must be bit-identical across horizons. They are, at every horizon.
+
+At H = 0 the motion cost is +0.160 on `dynamic_dense` and
++0.120 on `dynamic` -- exactly the figures published
+before, which is itself a check.
+
+| `dynamic_dense` | success | of the cost | collision | timeout | p (McNemar) |
+|---|---|---|---|---|---|
+| 1 s | +0.020 | 13% | -0.030 | +0.010 | 0.5000 (2 won, 0 lost) |
+| 2 s | +0.070 | 44% | -0.100 | +0.030 | 0.0156 (7 won, 0 lost) |
+| 4 s | +0.040 | 25% | -0.080 | +0.040 | 0.3438 (7 won, 3 lost) |
+
+**At two seconds, prediction recovers 44%
+of the dense motion cost** -- +0.070, significant
+at the Bonferroni-corrected α = 0.05/3, with every one of the
+7 episodes that changed outcome changing for the
+better. It works the way the hypothesis says it should: collisions fall
+-0.100. The planner was driving into movers
+it failed to anticipate.
+
+### What bounds the claim
+
+**It is significant by a hair, and it is the best of three.** p =
+0.0156 against a corrected threshold of 0.0167, and neither
+neighbouring horizon reaches significance. Phase 5e read a tidy optimum across
+a sweep as confirmation and its control refuted it; the correction was
+registered in advance for exactly that reason, and the result survives it, but
+not by much.
+
+**`dynamic` agrees in direction and not in significance.** Its best is
++0.060 at 4 s (p = 0.070,
+7 won, 1 lost),
+recovering 50%. With twelve
+episodes of cost to recover from rather than sixteen, that is as consistent
+with low power as with no effect, and it is reported as unconfirmed rather than
+as a null.
+
+**And the ceiling is the finding as much as the recovery.** Because the
+prediction is an oracle, no real velocity estimate can do better. So
+velocity-blindness explains **at most about half** the motion cost, and the
+other half survives perfect knowledge of where every mover is going. That rules
+out a velocity costmap layer as a complete answer before one is built.
+
+Replanning rises about 4-fold
+(0.9 replans an episode at H = 0
+against 3.8 at 2 s) while success
+rises. Phase 5d found churn does not cause the motion cost, and this agrees
+from the other side: more replanning is harmless when it replans against the
+right thing.
+
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
 ones, where a correct map means the path is never blocked and it never fires.

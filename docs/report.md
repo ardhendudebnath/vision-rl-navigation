@@ -603,12 +603,18 @@ learned policy only 0.048–0.068. The policy is behind in every regime; it is
 simply harder to disrupt, because one that never commits to a path has no plan
 to invalidate.
 
-**The motion cost itself is unexplained.** Four candidate mechanisms were
-tested and eliminated: replanning churn (real, but a clutter pathology that
-leaves the cost unchanged), planning failure (A\* never fails to find a
-route), sensing (the movers are fully visible), and commitment length (a 6×
-sweep of the controller's rollout horizon moves the cost by 0.040, inside
-noise, while moving absolute performance by 0.220).
+**The motion cost is half explained.** Four candidate mechanisms were tested
+and eliminated: replanning churn (real, but a clutter pathology that leaves the
+cost unchanged), planning failure (A\* never fails to find a route), sensing
+(the movers are fully visible), and commitment length (a 6× sweep of the
+controller's rollout horizon moves the cost by 0.040, inside noise, while
+moving absolute performance by 0.220). The fifth survived. Every actor treated
+a mover as a snapshot where it stood; giving the planner **oracle** knowledge
+of where movers are going recovers 44% of the dense motion cost (+0.070,
+p = 0.016 against a threshold of 0.017 corrected for three horizons; 7
+episodes won and 0 lost), through collisions (−0.100). Because the prediction is an
+oracle it is also a ceiling: velocity explains at most about half the cost, and
+the rest survives perfect knowledge of every mover's future.
 
 **Recurrence is worse, and not because of motion.** An LSTM policy — the last
 untested way of supplying motion information, and the only one that learns what
@@ -683,11 +689,14 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of twelve predictions made in advance, three derived from a
+**Calibration.** Of thirteen predictions made in advance, three derived from a
 *measurement* held — two to within 0.021 and 0.001, and one on both its
 magnitude and its mechanism; seven from extrapolation or intuition failed
-outright; two got a mechanism or a magnitude right and the other wrong.
-Confidence of expression was identical throughout.
+outright; three got a mechanism or a magnitude right and the other wrong.
+Confidence of expression was identical throughout. The thirteenth, pure
+intuition about a regime nothing had measured, landed inside its band — but
+the band was 0.05 wide and its predicted shape held on one condition of two,
+which is not evidence of calibration and is not counted as such.
 
 Three failures share one cause. Predicting Nav2 ≥ 0.92 on `dynamic`
 extrapolated a *measured* collision reduction, but carried it from static
@@ -777,24 +786,23 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Explain the motion cost**, now that four mechanisms are eliminated
-   (§9.1). The next candidate worth a controlled test is *velocity in the
-   costmap*: every actor here treats each scan as a static snapshot, so none
-   can distinguish a mover approaching from one receding. A costmap layer
-   carrying per-cell velocity would separate "the world changed" from "the
-   world is unknowable", and unlike the four already tested it predicts an
-   asymmetry between head-on and crossing movers that is directly checkable.
-2. **Re-price the observation results at 1:1.** §9.1 found that the reward
-   decides what extra information is *worth*: frame stacking cuts collisions
-   under either reward, but at 4:1 the saving is spent on timeouts instead of
-   successes. Every other observation-side result in this report — the FOV
-   sweep, the resolution null, the depth and RGB encoder costs — was measured
-   under that same 4:1 reward. Each is therefore a statement about what the
-   objective let the policy do with a channel, not about the channel itself.
-   Re-running even one at indifference would show whether "coverage is causal
-   and resolution is inert" is a fact about perception or about pricing. This
-   is the cheapest way to find out how far Result 2 reaches, and it puts the
-   report's own perception findings at risk, which is why it is worth doing.
+1. **Explain the other half of the motion cost.** Oracle motion prediction
+   recovers about half of it (§9.1), which settles what a velocity costmap
+   layer can be worth — at most that half — before one is built. The
+   remainder survives exact knowledge of every mover's future, so it is not an
+   information problem at the planner. Two places still act on snapshots and
+   are cheap to test the same way: the *initial* plan, deliberately left
+   static-only so the arms differed in replanning alone, and the controller's
+   reactive slow-down, which reads current clearance. The head-on versus
+   crossing asymmetry a velocity account predicts is also still unchecked.
+2. **Re-price the encoder cost.** §8.4 re-ran two perception results at 1:1
+   and they came apart: coverage's effect survived unchanged while its
+   mechanism moved, and resolution's reversed sign. The third, the
+   0.16–0.24 cost of reading pixels through a CNN, is the only perception
+   headline still measured under a single reward, and §8.3 shows it has the
+   same exposure — on `nominal` its cost lands in timeouts. Whether it behaves
+   like coverage or like resolution is a real question, not a formality. It is
+   the most expensive of the three, being the one that needs CNN training.
 3. **A recurrent policy that was actually tuned.** §9.1 tested one and it was
    worse everywhere, but it ran on hyperparameters chosen for an MLP so the
    comparison would be algorithm-only. That makes the result a statement about
@@ -812,7 +820,7 @@ In order of expected information per GPU-hour:
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 279 tests
+pytest                                        # 286 tests
 python scripts/check_docs.py                  # every doc link resolves
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix

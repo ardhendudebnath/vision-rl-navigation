@@ -109,6 +109,9 @@ class World:
     _dyn_now: np.ndarray = field(
         default_factory=lambda: np.zeros((0, 3)), repr=False, compare=False
     )
+    #: Simulation time of the last :meth:`set_time`, so a planner can ask where
+    #: the movers are *going* and not only where they are.
+    _t: float = field(default=0.0, repr=False, compare=False)
 
     # ------------------------------------------------------------------
     # Time
@@ -121,13 +124,42 @@ class World:
         where they currently are without every call site having to thread a
         timestamp through.
         """
+        self._t = float(t)
         if not len(self.dynamic):
             return
+        self._dyn_now = self.dynamic_at(float(t))
+
+    def dynamic_at(self, t: float) -> np.ndarray:
+        """Mover discs ``(M, 3)`` at time ``t``, without changing world state.
+
+        Pure, so a planner can look ahead without the risk of leaving the
+        simulation's movers somewhere they are not -- which a set/restore pair
+        around a lookahead would invite, and which would corrupt physics and
+        sensing silently.
+        """
+        if not len(self.dynamic):
+            return np.zeros((0, 3))
         d = self.dynamic
         offset = (d[:, 5] * np.sin(d[:, 6] * float(t)))[:, None]
-        self._dyn_now = np.concatenate(
-            [d[:, :2] + d[:, 3:5] * offset, d[:, 2:3]], axis=1
-        )
+        return np.concatenate([d[:, :2] + d[:, 3:5] * offset, d[:, 2:3]], axis=1)
+
+    def dynamic_swept(self, horizon: float, dt: float = 0.1) -> np.ndarray:
+        """Every disc a mover occupies over ``[now, now + horizon]``.
+
+        The union of positions sampled at ``dt``, which is the simulation step,
+        so consecutive samples of even the fastest mover overlap and the swept
+        region has no gaps a path could thread. Sampling starts at ``now``, so
+        the result always contains the current positions.
+
+        This is oracle knowledge of motion -- the trajectories are analytic --
+        and that is deliberate: it is an upper bound on what any velocity
+        estimate could supply, which is what makes a null from it decisive.
+        """
+        if not len(self.dynamic) or horizon <= 0:
+            return self._dyn_now
+        steps = int(np.floor(horizon / dt + 1e-9))
+        times = self._t + dt * np.arange(steps + 1)
+        return np.concatenate([self.dynamic_at(t) for t in times], axis=0)
 
     @property
     def has_dynamic(self) -> bool:
@@ -150,7 +182,12 @@ class World:
     # ------------------------------------------------------------------
     # Geometry queries
     # ------------------------------------------------------------------
-    def clearance(self, points: np.ndarray, include_dynamic: bool = True) -> np.ndarray:
+    def clearance(
+        self,
+        points: np.ndarray,
+        include_dynamic: bool = True,
+        extra_discs: np.ndarray | None = None,
+    ) -> np.ndarray:
         """Signed distance from ``points`` to the nearest obstacle or wall.
 
         Parameters
@@ -163,6 +200,11 @@ class World:
             for the occupancy grid, because the grid is the *map*, and the
             premise of the dynamic condition is that the map does not contain
             them.
+        extra_discs:
+            Further ``(K, 3)`` discs to treat as obstacles -- a planner's
+            *prediction* of where movers will be, as opposed to where they
+            are. ``None`` leaves the result exactly as it was before this
+            parameter existed.
 
         Returns
         -------
@@ -190,6 +232,8 @@ class World:
         discs = self.circles
         if include_dynamic and len(self._dyn_now):
             discs = np.concatenate([discs, self._dyn_now], axis=0) if len(discs) else self._dyn_now
+        if extra_discs is not None and len(extra_discs):
+            discs = np.concatenate([discs, extra_discs], axis=0) if len(discs) else extra_discs
 
         if len(discs):
             delta = pts[:, None, :] - discs[None, :, :2]
@@ -245,14 +289,21 @@ class World:
             self._occupancy = ~free
         return self._occupancy
 
-    def occupancy_at(self, radius: float, include_dynamic: bool = False) -> np.ndarray:
+    def occupancy_at(
+        self,
+        radius: float,
+        include_dynamic: bool = False,
+        extra_discs: np.ndarray | None = None,
+    ) -> np.ndarray:
         """Occupancy grid inflated by an arbitrary ``radius``.
 
         The classical baseline plans at ``robot_radius + safety_margin`` so
         its path has tracking margin, mirroring how Nav2's inflation layer
-        keeps the global plan away from obstacle edges.
+        keeps the global plan away from obstacle edges. ``extra_discs`` is
+        passed through to :meth:`clearance`.
         """
-        if np.isclose(radius, self.config.robot_radius) and not include_dynamic:
+        if (np.isclose(radius, self.config.robot_radius) and not include_dynamic
+                and extra_discs is None):
             return self.occupancy
         res = self.config.grid_resolution
         n_x = int(np.ceil(self.config.width / res))
@@ -261,7 +312,8 @@ class World:
         ys = (np.arange(n_y) + 0.5) * res
         gx, gy = np.meshgrid(xs, ys, indexing="xy")
         pts = np.stack([gx.ravel(), gy.ravel()], axis=-1)
-        occupied = self.clearance(pts, include_dynamic=include_dynamic) <= radius
+        occupied = self.clearance(pts, include_dynamic=include_dynamic,
+                                  extra_discs=extra_discs) <= radius
         return occupied.reshape(n_y, n_x)
 
     def world_to_grid(self, points: np.ndarray) -> np.ndarray:

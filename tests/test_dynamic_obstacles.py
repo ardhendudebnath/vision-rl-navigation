@@ -553,3 +553,101 @@ def test_tail_gain_reads_the_finished_arms_as_converged():
     if len(runs) < 6:
         pytest.skip("training runs not present in this checkout")
     assert abs(float(np.mean(tail_gain(runs)))) <= 0.03
+
+
+# ----------------------------------------------------------------------
+# Oracle motion prediction: report Section 12, item 1
+# ----------------------------------------------------------------------
+def _run_predicting(seed, horizon, *, shift="dynamic_dense", freeze=False, steps=500):
+    """One episode of the adopted baseline at a given prediction horizon."""
+    from vision_nav.agents.classical import AStarPursuitAgent, PursuitConfig
+
+    world = shifted_config(WorldConfig(), shift)
+    env = ProceduralNavEnv(NavEnvConfig(world_seeds=[seed], world=world,
+                                        freeze_dynamic=freeze))
+    env.reset(options={"world_seed": seed})
+    agent = AStarPursuitAgent(
+        PursuitConfig(replan_on_block=True, predict_horizon=horizon),
+        robot=env.config.robot,
+    )
+    assert agent.start_episode(env.world, env.robot.pose)
+    poses, info = [], {}
+    for _ in range(steps):
+        _, _, term, trunc, info = env.step(agent.act(env.robot.pose))
+        poses.append(env.robot.pose.copy())
+        if term or trunc:
+            break
+    return np.asarray(poses), info, agent.replans
+
+
+def test_dynamic_at_does_not_move_the_simulation():
+    """A lookahead must never leave the movers somewhere they are not.
+
+    That would corrupt physics and sensing with no error anywhere, which is
+    why prediction goes through a pure query rather than set_time/restore.
+    """
+    w = generate_world(1, DYN)
+    w.set_time(3.0)
+    before = w._dyn_now.copy()
+    w.dynamic_at(9.0)
+    w.dynamic_swept(4.0)
+    assert np.array_equal(w._dyn_now, before)
+    assert w._t == 3.0
+
+
+def test_dynamic_at_matches_set_time_exactly():
+    w = generate_world(2, DYN)
+    for t in (0.0, 1.7, 12.25):
+        w.set_time(t)
+        assert np.array_equal(w.dynamic_at(t), w._dyn_now)
+
+
+def test_swept_region_starts_at_now_and_covers_the_motion():
+    w = generate_world(4, DYN)
+    w.set_time(2.0)
+    assert np.array_equal(w.dynamic_swept(0.0), w._dyn_now)
+    swept = w.dynamic_swept(3.0)
+    m = len(w.dynamic)
+    assert np.array_equal(swept[:m], w._dyn_now), "must include current positions"
+    assert np.array_equal(swept[-m:], w.dynamic_at(5.0)), "must reach the horizon"
+
+
+def test_clearance_is_unchanged_without_extra_discs():
+    w = generate_world(5, DYN)
+    w.set_time(1.0)
+    pts = np.random.default_rng(0).uniform(0, 12, size=(200, 2))
+    a = w.clearance(pts, include_dynamic=True)
+    b = w.clearance(pts, include_dynamic=True, extra_discs=None)
+    assert np.array_equal(a, b)
+
+
+@pytest.mark.parametrize("seed", [30000, 30003])
+def test_frozen_movers_make_any_horizon_identical_to_none(seed):
+    """The control cell, stated as an identity rather than a tolerance.
+
+    A frozen mover has zero amplitude, so its swept region at any horizon is
+    its current disc and the planner sees exactly what it saw before. If any
+    horizon changes a frozen trajectory by a single bit, the implementation
+    has a side effect and the experiment is void -- which is a far stronger
+    guard than a frozen cell landing "within noise".
+    """
+    base, _, _ = _run_predicting(seed, 0.0, freeze=True)
+    for horizon in (1.0, 4.0):
+        other, _, _ = _run_predicting(seed, horizon, freeze=True)
+        assert np.array_equal(base, other), f"horizon {horizon} moved a frozen run"
+
+
+def test_prediction_actually_changes_behaviour_on_moving_worlds():
+    """Guard against the intervention being silently inert.
+
+    This project has been bitten four times by a setting that was accepted and
+    ignored. A velocity arm that behaves identically to the baseline would
+    produce exactly the null this experiment could report, for no reason.
+    """
+    changed = 0
+    for seed in range(30000, 30008):
+        base, _, _ = _run_predicting(seed, 0.0)
+        pred, _, _ = _run_predicting(seed, 2.0)
+        if base.shape != pred.shape or not np.array_equal(base, pred):
+            changed += 1
+    assert changed > 0, "a 2 s prediction horizon changed no trajectory at all"

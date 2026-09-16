@@ -39,6 +39,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5j | Re-price angular resolution at 1:1, 2 arms x 6 seeds | **Done** — **the reward flips the sign (interaction -0.142, p = 0.0043)**; 3d's null was success-only |
 | 5k | Timeout audit of all six remaining seed_analysis results | **Done** — all reproduce exactly; **coverage deficits stall, sensing deficits crash** |
 | 5l | Re-price coverage at 1:1, 6 new depth arms | **Done** — **headline survives (+0.080, p = 0.032)**; mechanism moves stall -> crash |
+| 5m | Oracle motion prediction for the classical planner, 4 horizons | **Done** — **recovers 44% of the dense motion cost (p = 0.016)**; velocity explains at most half |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -1766,6 +1767,37 @@ two measurements that jointly bracket the new cell: if the timeout channel is
 closed and coverage still helps, it must help through another channel.
 **What matters is whether some measurement covers the new regime, not whether
 a boundary is crossed.** Given both sides, the crossing is interpolation.
+
+## Phase 5m — Oracle motion prediction: half the motion cost, and a ceiling
+
+Report Section 12 ranked velocity-blindness first among the explanations left
+for the classical stack's motion cost. The adopted baseline was given exact
+knowledge of each mover's swept region over H seconds, for both planning and
+the replan trigger; the initial plan stays static-only so the arms differ only
+in how they replan. Full treatment in `dynamic_obstacles.md`.
+
+Guards: at H = 0 the committed churn experiment reproduces across 800 episodes
+to the last bit, and the frozen cells are bit-identical at every horizon.
+
+Result on `dynamic_dense`: **+0.070 at 2 s, recovering
+44% of a 0.160 motion cost**, p =
+0.0156 against a Bonferroni-corrected 0.0167, 7 episodes
+won and 0 lost, via collisions -0.100.
+Neither neighbouring horizon is significant. `dynamic` agrees in direction but
+not significance (+0.060 at 4 s, p = 0.070).
+
+**The ceiling is as important as the recovery.** An oracle bounds every real
+estimate, so velocity explains at most about half the cost and the rest
+survives perfect motion knowledge.
+
+Calibration, prediction 13: registered as low-confidence intuition. Magnitude
+landed in its +0.03 to +0.08 band; the "long horizons hurt" shape held on dense
+and failed on sparse, where the best horizon was the longest. A 0.05-wide band
+catching the answer is not evidence the forecast was good.
+
+Also caught in passing: a new test helper reused the name of an existing one
+and silently rebound it, breaking three churn tests. Ruff's F811 flags only
+redefinition of an *unused* name, so the full suite was the only guard.
 
 ## Hardware notes
 
