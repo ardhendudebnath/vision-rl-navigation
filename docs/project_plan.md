@@ -44,6 +44,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5o | Robot agility 0.75x-2x, with and without the oracle | **Done** — **dense remainder unchanged at 2x (+0.005, CI [-0.045, +0.055])**; not a physical limit |
 | 5p | Space-time A* with a when-blind ablation, 200 episodes | **Done** — **timing +0.050 on dense (p = 0.031), −0.050 on sparse (p = 0.002)**; access for robustness |
 | 5q | Temporal safety margin 0-4 steps on the space-time agent | **Done** — **FIXED: sparse harm removed (+0.050, p = 0.002)**; motion cost 0.010 dense given oracle trajectories |
+| 5r | Constant-velocity estimate in place of the oracle, 200 episodes | **Done** — **COSTLY: −0.065 on dense (p = 0.001), all collisions**; a 4-step margin recovers none |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -2039,6 +2040,54 @@ Worth noting against the calibration rule: the magnitude came from a measurement
 in the regime tested, but the *mechanism* was a hypothesis nothing had measured,
 the crossing the rule says to distrust, and it held. One case does not revise a
 rule; it is recorded so a second can.
+
+## Phase 5r — A constant-velocity estimate: about half survives
+
+Phase 5q's result was conditional on exact mover trajectories. Here the oracle is
+replaced by the simplest real estimate: constant velocity from the last two
+positions the agent observed, noise-free. Pre-registered in `d428cc5`, before the
+result file existed. Full treatment in `dynamic_obstacles.md`.
+
+Checks: estimate and oracle bit-identical on frozen worlds; the oracle arm
+reproduces Phase 5q on every episode. Registered decision: **COSTLY**.
+
+- Estimate against oracle, dense: −0.065, p = 0.001, 1 won and
+  14 lost, CI [−0.105, −0.030]; collisions +0.065,
+  timeouts +0.000.
+- Sparse: −0.020, p = 0.125, 0 won and 4 lost,
+  CI [−0.040, −0.005] -- neither significant nor bounded-inert.
+- Four-step margin against two, dense: +0.000, CI [−0.025, +0.030]
+  -- recovers nothing.
+
+Motion cost with the estimate: 0.075 dense, 0.020 sparse (oracle 0.010 and
+0.000; spatial baseline without prediction 0.145 and 0.140).
+
+Post hoc, by `estimate_diagnostic.py`: all 18 lost episodes end in contact with a
+mover; the estimate was a median 0.030 m off at contact, at most
+0.159 m; in 15 the plan in force was made at the bare robot radius. Whether
+that fallback is cause or symptom is untested.
+
+### Consequences
+
+The explanation of the motion cost stands, but what it is worth without an
+oracle is about half as much on dense clutter, before sensor noise. The next
+test is cheap: withhold the zero-margin fallback from the estimating agent.
+
+### Calibration
+
+Prediction 18 failed. The headline -- bounded-inert on both conditions -- came
+out COSTLY on dense clutter. The clauses registered for the case it failed put
+the loss on dense clutter and said a wider margin would not recover it, both
+right, but named the wrong channel: collisions, not timeouts. They are not
+counted towards the prediction. A fallback written for the case the headline
+fails does not earn the headline partial credit.
+
+This is the calibration rule's own case. The prediction was arithmetic rather
+than a measurement, and said so. The arithmetic held -- a median 0.030 m error
+at contact, inside the 0.1 m it computed -- and the conclusion did not, because
+the 0.18 m margin it was compared against was absent from the plan in force in
+15 of 18 collisions. Phase 5q recorded an untested crossing that held, so that a
+second could revise the rule if it held too. This one failed; the rule stands.
 
 ## Hardware notes
 

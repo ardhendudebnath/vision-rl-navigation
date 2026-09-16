@@ -57,9 +57,10 @@ decision below follows from wanting that comparison to be trustworthy.
 | Doubling robot agility: the remaining dense cost is not a physical limit | Done |
 | Space-time planning: timing helps dense clutter, harms sparse worlds | Done |
 | Temporal safety margin: removes the harm; motion cost ~0 given oracle trajectories | Done |
+| Constant-velocity estimate for the oracle: about half survives on dense; the loss is collisions | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Thirty-two experiments, each pre-registered where it tests a hypothesis. The
+Thirty-three experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).

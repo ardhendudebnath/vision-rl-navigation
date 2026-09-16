@@ -520,6 +520,77 @@ def claims():
              mcells["m0"]["dynamic_frozen"]["success"] - mcells["m2"]["dynamic"]["success"]),
         ]
 
+    # --- constant-velocity estimate, Phase 5r ---------------------------
+    es = "results/estimate_experiment.json"
+    if os.path.exists(es):
+        ej = load(es)
+        ec, ecells = ej["checks"], ej["cells"]
+        primary, wide = ej["contrasts"]["cv_m2_vs_oracle_m2"], ej["contrasts"]["cv_m4_vs_cv_m2"]
+        ed, esp, ew = primary["dynamic_dense"], primary["dynamic"], wide["dynamic_dense"]
+        out += [
+            ("estimate frozen identity", 1.0, float(ec["frozen_identity_cv_vs_oracle"])),
+            ("estimate reproduces 5q", 1.0, float(ec["oracle_reproduces_phase_5q"])),
+            ("estimate decision COSTLY", 1.0, float(ej["decision"] == "COSTLY")),
+            ("estimate dense gain", -0.065, ed["success_gain"]),
+            ("estimate dense p", 0.001, ed["p"]),
+            ("estimate dense won", 1, ed["episodes_won"]),
+            ("estimate dense lost", 14, ed["episodes_lost"]),
+            ("estimate dense ci lo", -0.105, ed["ci95"][0]),
+            ("estimate dense ci hi", -0.030, ed["ci95"][1]),
+            ("estimate dense collision delta", 0.065, ed["collision_delta"]),
+            ("estimate dense timeout delta", 0.000, ed["timeout_delta"]),
+            ("estimate sparse gain", -0.020, esp["success_gain"]),
+            ("estimate sparse p", 0.125, esp["p"]),
+            ("estimate sparse won", 0, esp["episodes_won"]),
+            ("estimate sparse lost", 4, esp["episodes_lost"]),
+            ("estimate sparse ci lo", -0.040, esp["ci95"][0]),
+            ("estimate sparse ci hi", -0.005, esp["ci95"][1]),
+            ("estimate m4 vs m2 dense", 0.000, ew["success_gain"]),
+            ("estimate m4 vs m2 ci lo", -0.025, ew["ci95"][0]),
+            ("estimate m4 vs m2 ci hi", 0.030, ew["ci95"][1]),
+            ("estimate motion cost dense", 0.075, ec["motion_cost_dynamic_dense"]["cv_m2"]),
+            ("estimate motion cost sparse", 0.020, ec["motion_cost_dynamic"]["cv_m2"]),
+        ]
+        # The companion's table, cell by cell.
+        for arm, cond, key, want in (
+            ("oracle_m2", "dynamic", "success", 0.995), ("oracle_m2", "dynamic", "collision", 0.000),
+            ("cv_m2", "dynamic", "success", 0.975), ("cv_m2", "dynamic", "collision", 0.020),
+            ("cv_m4", "dynamic", "success", 0.970), ("cv_m4", "dynamic", "collision", 0.025),
+            ("oracle_m2", "dynamic_dense", "success", 0.975),
+            ("oracle_m2", "dynamic_dense", "collision", 0.010),
+            ("oracle_m2", "dynamic_dense", "timeout", 0.015),
+            ("cv_m2", "dynamic_dense", "success", 0.910),
+            ("cv_m2", "dynamic_dense", "collision", 0.075),
+            ("cv_m2", "dynamic_dense", "timeout", 0.015),
+            ("cv_m4", "dynamic_dense", "success", 0.910),
+            ("cv_m4", "dynamic_dense", "collision", 0.070),
+            ("cv_m4", "dynamic_dense", "timeout", 0.020),
+        ):
+            out.append((f"estimate {arm} {cond} {key}", want, ecells[arm][cond][key]))
+
+    # Post hoc description of the episodes the estimate lost.
+    edg = "results/estimate_diagnostic.json"
+    if os.path.exists(edg):
+        dj = load(edg)
+        ds, dc = dj["summary"], dj["conditions"]
+        out += [
+            ("estimate diag lost", 18, ds["lost"]),
+            ("estimate diag mover contacts", 18, ds["mover_contacts"]),
+            ("estimate diag median error", 0.030, ds["median_estimate_error_m"]),
+            ("estimate diag max error", 0.159, ds["max_estimate_error_m"]),
+            ("estimate diag bare radius", 15, ds["plans_at_bare_radius"]),
+            ("estimate diag dense early share", 0.116,
+             dc["dynamic_dense"]["median_reduced_share_early_estimate"]),
+            ("estimate diag dense oracle share", 0.000,
+             dc["dynamic_dense"]["median_reduced_share_oracle"]),
+            ("estimate diag sparse early share", 0.033,
+             dc["dynamic"]["median_reduced_share_early_estimate"]),
+            ("estimate diag sparse oracle share", 0.077,
+             dc["dynamic"]["median_reduced_share_oracle"]),
+            ("estimate diag no early fallback", 6,
+             dc["dynamic"]["no_early_fallback"] + dc["dynamic_dense"]["no_early_fallback"]),
+        ]
+
     # --- device benchmark, quoted in resolve_device's docstring -------
     # That docstring decides what every run in this project trains on, so its
     # table should not be able to drift from the measurement behind it.

@@ -635,6 +635,63 @@ learned policy, which never had them. What it settles is what a better
 *estimate* of motion could be worth to this stack: all of the motion cost, if
 the estimate is good enough -- which is now the question worth asking.
 
+### A constant-velocity estimate instead of the oracle
+
+Every number in the margin section used the movers' exact futures. This
+replaces them with the simplest estimate a real robot could make: each mover
+carried forward at the velocity between the last two positions the agent itself
+observed. The observations are noise-free, so the error measured is the
+model's -- a straight line drawn along a sinusoid -- and not a sensor's. A
+frozen mover has zero velocity and so an exact estimate, and the estimating and
+oracle agents are bit-identical on frozen worlds; the oracle arm reproduces the
+margin experiment on every episode. The prediction and its decision rule were
+pushed to the repository before the run, in `d428cc5`.
+
+| 200 episodes | sparse success | sparse collisions | dense success | dense collisions | dense timeouts |
+|---|---|---|---|---|---|
+| oracle, 2-step margin | 0.995 | 0.000 | 0.975 | 0.010 | 0.015 |
+| estimate, 2-step margin | 0.975 | 0.020 | 0.910 | 0.075 | 0.015 |
+| estimate, 4-step margin | 0.970 | 0.025 | 0.910 | 0.070 | 0.020 |
+
+**On dense clutter the estimate costs 0.065** against the oracle -- p = 0.001,
+14 episodes lost and 1 won, interval [−0.105, −0.030] -- and all of it
+is collisions (+0.065), with timeouts unchanged. On sparse worlds it
+costs 0.020, all four discordant episodes lost (p = 0.125,
+interval [−0.040, −0.005]): not significant, and not bounded-inert either.
+The registered rule returns COSTLY. **Doubling the margin recovers none of it**:
+four steps against two is +0.000 on dense clutter, interval
+[−0.025, +0.030].
+
+**The prediction was that estimation would cost nothing, and it failed.** It
+was arithmetic: a straight line drawn along the fastest mover's sinusoid drifts
+by at most about 0.1 m over the second executed between replans, inside the
+planner's 0.18 m safety margin. The clauses registered for the case it failed
+put the loss on dense clutter and said a wider margin would not recover it,
+both right, and named timeouts as the channel, which was wrong.
+
+**What the lost episodes share** -- described after the fact, not tested, by
+`scripts/estimate_diagnostic.py`. All 18 end in contact with a mover, none with a
+wall. The arithmetic was right: at contact, the estimate the plan rested on was
+a median 0.030 m from the truth, and at most 0.159 m. What it leaned on
+was not there: in 15 of the 18, the plan in force had been made at the bare
+robot radius, the last of the planner's three fallbacks, with no spatial margin
+at all. A plan with no margin is safe under exact prediction and unsafe under
+any error, and a temporal margin cannot supply what a spatial one lacks -- which
+fits every number above. But a planner also falls back when a mover is already
+close, so the bare-radius plan may be a symptom. The evidence either way is
+thin: before each episode's last two seconds, the estimating agent made
+reduced-radius plans more often than the oracle on dense clutter (median share
+0.116 against 0.000) but not on sparse worlds (0.033
+against 0.077), and 6 of the 18 episodes made none at all.
+Withholding the bare-radius fallback is the test.
+
+**What survives.** With the estimate, the motion cost is 0.075 on dense clutter
+and 0.020 on sparse worlds, against 0.145 and 0.140 for the spatial
+baseline without prediction: about half of the oracle's reduction on dense
+clutter and most of it on sparse worlds, from noise-free observations. The
+explanation of the motion cost stands. What it is worth to a robot without an
+oracle is about half as much on dense clutter, before any sensor noise.
+
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
 ones, where a correct map means the path is never blocked and it never fires.

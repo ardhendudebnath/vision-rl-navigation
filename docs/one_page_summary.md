@@ -90,8 +90,8 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of seventeen advance predictions, three derived from
-*measurements* held; seven failed outright and seven got part right and part
+pre-registered endpoints. Of eighteen advance predictions, three derived from
+*measurements* held; eight failed outright and seven got part right and part
 wrong, with identical confidence of expression
 throughout. The three failures that reasoned from a real measurement all
 carried it into a regime nothing had been measured in — and the one that

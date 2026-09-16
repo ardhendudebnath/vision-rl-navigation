@@ -1,0 +1,244 @@
+{
+  "late_s": 2.0,
+  "conditions": {
+    "dynamic": {
+      "episodes": {
+        "20": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.06666666666666667,
+            "contact": "mover",
+            "estimate_error_m": 0.07306227048484613,
+            "plan_radius": 0.22,
+            "plan_at_bare_radius": true
+          },
+          "oracle_reduced_share": 0.0625
+        },
+        "67": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.0,
+            "contact": "mover",
+            "estimate_error_m": 0.013468497856198103,
+            "plan_radius": 0.22,
+            "plan_at_bare_radius": true
+          },
+          "oracle_reduced_share": 0.0
+        },
+        "103": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.09090909090909091,
+            "contact": "mover",
+            "estimate_error_m": 0.03899063269196719,
+            "plan_radius": 0.22,
+            "plan_at_bare_radius": true
+          },
+          "oracle_reduced_share": 0.09090909090909091
+        },
+        "174": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.0,
+            "contact": "mover",
+            "estimate_error_m": 0.04036533188957599,
+            "plan_radius": 0.22,
+            "plan_at_bare_radius": true
+          },
+          "oracle_reduced_share": 0.35714285714285715
+        }
+      },
+      "lost": 4,
+      "no_early_fallback": 2,
+      "median_reduced_share_early_estimate": 0.03333333333333333,
+      "median_reduced_share_oracle": 0.07670454545454546
+    },
+    "dynamic_dense": {
+      "episodes": {
+        "39": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.1111111111111111,
+            "contact": "mover",
+            "estimate_error_m": 0.049004399671635696,
+            "plan_radius": 0.22,
+            "plan_at_bare_radius": true
+          },
+          "oracle_reduced_share": 0.06896551724137931
+        },
+        "49": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.0,
+            "contact": "mover",
+            "estimate_error_m": 0.02408108787394727,
+            "plan_radius": 0.22,
+            "plan_at_bare_radius": true
+          },
+          "oracle_reduced_share": 0.0
+        },
+        "51": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.0,
+            "contact": "mover",
+            "estimate_error_m": 0.03250162685656999,
+            "plan_radius": 0.22,
+            "plan_at_bare_radius": true
+          },
+          "oracle_reduced_share": 0.10638297872340426
+        },
+        "56": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.12,
+            "contact": "mover",
+            "estimate_error_m": 0.044307065554779236,
+            "plan_radius": 0.22,
+            "plan_at_bare_radius": true
+          },
+          "oracle_reduced_share": 0.0
+        },
+        "91": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 1.0,
+            "contact": "mover",
+            "estimate_error_m": 0.04332949346019184,
+            "plan_radius": 0.31,
+            "plan_at_bare_radius": false
+          },
+          "oracle_reduced_share": 0.35
+        },
+        "105": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.13333333333333333,
+            "contact": "mover",
+            "estimate_error_m": 0.15894805042764476,
+            "plan_radius": 0.4,
+            "plan_at_bare_radius": false
+          },
+          "oracle_reduced_share": 0.0625
+        },
+        "122": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.3902439024390244,
+            "contact": "mover",
+            "estimate_error_m": 0.02225387706510239,
+            "plan_radius": 0.22,
+            "plan_at_bare_radius": true
+          },
+          "oracle_reduced_share": 0.08823529411764706
+        },
+        "141": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.25,
+            "contact": "mover",
+            "estimate_error_m": 0.01756980494018568,
+            "plan_radius": 0.4,
+            "plan_at_bare_radius": false
+          },
+          "oracle_reduced_share": 0.0
+        },
+        "143": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.07142857142857142,
+            "contact": "mover",
+            "estimate_error_m": 0.0008493960147329325,
+            "plan_radius": 0.22,
+            "plan_at_bare_radius": true
+          },
+          "oracle_reduced_share": 0.0
+        },
+        "146": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.0,
+            "contact": "mover",
+            "estimate_error_m": 0.013133219845809294,
+            "plan_radius": 0.22,
+            "plan_at_bare_radius": true
+          },
+          "oracle_reduced_share": 0.0
+        },
+        "150": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.07692307692307693,
+            "contact": "mover",
+            "estimate_error_m": 0.027074688489931224,
+            "plan_radius": 0.22,
+            "plan_at_bare_radius": true
+          },
+          "oracle_reduced_share": 0.0
+        },
+        "156": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.125,
+            "contact": "mover",
+            "estimate_error_m": 0.020243425360316578,
+            "plan_radius": 0.22,
+            "plan_at_bare_radius": true
+          },
+          "oracle_reduced_share": 0.0
+        },
+        "163": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.0,
+            "contact": "mover",
+            "estimate_error_m": 0.015820551663405638,
+            "plan_radius": 0.22,
+            "plan_at_bare_radius": true
+          },
+          "oracle_reduced_share": 0.09090909090909091
+        },
+        "165": {
+          "estimate": {
+            "success": false,
+            "collision": true,
+            "reduced_share_early": 0.15384615384615385,
+            "contact": "mover",
+            "estimate_error_m": 0.08889435041193153,
+            "plan_radius": 0.22,
+            "plan_at_bare_radius": true
+          },
+          "oracle_reduced_share": 0.0
+        }
+      },
+      "lost": 14,
+      "no_early_fallback": 4,
+      "median_reduced_share_early_estimate": 0.11555555555555555,
+      "median_reduced_share_oracle": 0.0
+    }
+  },
+  "summary": {
+    "lost": 18,
+    "mover_contacts": 18,
+    "median_estimate_error_m": 0.029788157673250604,
+    "max_estimate_error_m": 0.15894805042764476,
+    "plans_at_bare_radius": 15
+  }
+}

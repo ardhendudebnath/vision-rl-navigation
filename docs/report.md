@@ -38,7 +38,8 @@ returns in full (−0.100, −0.202, both p = 0.031), so the parity is motion
 degrading the planner (−0.120 to −0.160) rather than the policy handling it
 (−0.048 to −0.068). Given the movers' exact trajectories, a planner reasoning in
 space-time with a small temporal margin removes that planner cost almost
-entirely.
+entirely; a constant-velocity estimate in their place keeps about half of that
+on dense clutter, and loses the rest to collisions.
 
 A reward ablation sharpens what "behavioural" means: the same 4:1 ratio also
 sets what *extra information* is worth. Frame stacking cuts collisions under
@@ -621,7 +622,13 @@ all collisions. A temporal safety margin of two plan steps removes that cost
 and keeps the dense gain, leaving a motion cost of 0.010 on dense clutter and
 0.000 on sparse worlds, against 0.145 and 0.140 for the spatial
 baseline. Every figure from the oracle onward assumes the movers' exact future
-positions, which no real robot has and the learned policy never had.
+positions, which no real robot has and the learned policy never had. Replacing
+the oracle with the simplest real estimate — constant velocity from the
+robot's own noise-free observations — costs 0.065 on dense clutter (p = 0.001, 14
+episodes lost and 1 won), all of it collisions and none recovered by doubling
+the margin. The motion cost becomes 0.075 there and 0.020 on sparse
+worlds: about half the oracle's reduction on dense clutter, most of it on
+sparse.
 
 **Recurrence is worse, and not because of motion.** An LSTM policy — the last
 untested way of supplying motion information, and the only one that learns what
@@ -696,17 +703,17 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of seventeen predictions made in advance, three derived from a
+**Calibration.** Of eighteen predictions made in advance, three derived from a
 *measurement* held — two to within 0.021 and 0.001, and one on both magnitude
-and mechanism; seven from extrapolation or intuition failed outright; seven got
-part right and part wrong. Confidence of expression was identical throughout.
-Three rules came out of them; the record of each prediction is in
-[`project_plan.md`](project_plan.md). The fifteenth also broke this report's own
-stated practice: its null was registered as an interval including zero, which
-intervals of ±0.4 satisfy whatever is true, so its conclusion rests on a sharper
-test added afterwards and labelled as such. The sixteenth was committed to the
-repository before its data existed, so its timing is checkable rather than
-asserted.
+and mechanism; eight from extrapolation, intuition or arithmetic failed
+outright; seven got part right and part wrong. Confidence of expression was
+identical throughout. Three rules came out of them; the record of each
+prediction is in [`project_plan.md`](project_plan.md). The fifteenth also broke
+this report's own stated practice: its null was registered as an interval
+including zero, which intervals of ±0.4 satisfy whatever is true, so its
+conclusion rests on a sharper test added afterwards and labelled as such. The
+sixteenth was committed to the repository before its data existed, so its
+timing is checkable rather than asserted.
 
 **A measurement predicts only where something has been measured.** Carried
 into regimes nothing had measured, measurement-derived forecasts failed like
@@ -723,7 +730,11 @@ differed. By the rule of three, 0 of 8 is compatible with a true rate near 37%.
 **A right number is not a right model.** The resolution forecast crossed no
 boundary and its number held (+0.032 against |Δ| < 0.03), but its reasoning was
 wrong: collisions improved by 0.058 where it said they would not. Only the
-discriminator registered beside it showed which.
+discriminator registered beside it showed which. The eighteenth is the same
+lesson from the other side: its calculated bound held — the estimate was
+0.03 m off at contact, inside the 0.1 m computed — and its conclusion failed,
+because the safety margin the bound was compared against was missing from the
+plan in force in 15 of 18 collisions.
 
 **A mechanism claim needs a cell where the mechanism should not act.** Churn and
 commitment length each fit every number available, and each was refuted by a
@@ -778,12 +789,13 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Replace the oracle with an estimate.** With exact mover trajectories, a
-   space-time planner and a two-step temporal margin remove the motion cost
-   almost entirely (§9.1). How much survives trajectories *estimated* from
-   successive scans — constant velocity, say — is what that result is worth to
-   a real robot, and the margin is the natural place for estimation error to be
-   absorbed.
+1. **Make the estimate safe.** A constant-velocity estimate keeps about half
+   of the oracle's gain on dense clutter and loses the rest to collisions that a
+   wider temporal margin does not prevent (§9.1). In 15 of the 18 lost episodes
+   the plan in force had been made at the bare robot radius, the planner's last
+   fallback, and the estimate was a median 0.03 m off at contact. Withholding that fallback
+   says whether it is the cause or a symptom, for a few CPU-hours; noise on the
+   observations is the step after.
 2. **Re-price the encoder cost.** §8.4 re-ran two perception results at 1:1
    and they came apart: coverage's effect survived unchanged while its
    mechanism moved, and resolution's reversed sign. The third, the
