@@ -451,17 +451,10 @@ number of episodes fail and what changes is *how*. The pre-registered null was
 about success and held; the prose generalised past it. §8.4 shows that
 behavioural effect reverses sign with the reward, and §8.5 what it means.
 
-### 8.2 The audit forecast both results before the policies existed
-
-The perception audit of §7 predicted the FOV sweep's two interior levels to
-within **+0.021 and +0.001**, from a measurement taken with no training and no
-seeds. (The tooling reports a mean absolute error of 0.006 across all four
-levels; that figure flatters the forecast, since two points were the anchors
-used to fit the slope. The honest out-of-sample figure is 0.011.)
-
-Two independent quantitative forecasts from the same training-free measurement
-is the strongest evidence in this report that the mechanism is real rather
-than fitted after the fact.
+The §7 audit forecast this sweep's two interior levels — the ones it was not
+fitted on — to within **+0.021 and +0.001**, untrained and unseeded: with §7.1,
+two independent forecasts from one measurement, and the strongest evidence here
+that the mechanism is real rather than fitted afterwards.
 
 ### 8.3 The pixels are the problem, not the geometry
 
@@ -482,7 +475,7 @@ collisions (+0.047,
 not significant).
 
 **A prediction that failed.** I forecast −0.05 to −0.10; the effect is two to
-three times that. Worth contrasting with §8.2: the forecasts that held were
+three times that. Worth contrasting with §8.1: the forecasts that held were
 derived from a measured quantity, this one was intuition in the same confident
 register.
 
