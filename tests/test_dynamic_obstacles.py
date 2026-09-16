@@ -719,3 +719,42 @@ def test_initial_sensing_reaches_the_grid_even_where_it_changes_no_plan():
     added = int(w.occupancy_at(r, include_dynamic=True).sum()
                 - w.occupancy_at(r, include_dynamic=False).sum())
     assert added > 0, "including movers did not change the first plan's grid"
+
+# ----------------------------------------------------------------------
+# Robot agility: report Section 12, item 1 -- the physical-limit explanation
+# ----------------------------------------------------------------------
+def test_speed_override_actually_changes_how_fast_the_robot_moves():
+    """The kinematic override must reach the env's robot, not merely validate.
+
+    This project has been bitten four times by an override accepted and
+    ignored. A speed experiment in which every arm secretly ran at 1x would
+    show exposure effects of exactly zero and read as a clean negative.
+    """
+    from speed_experiment import robot_overrides
+
+    from vision_nav.training.env_factory import build_env_config
+
+    travelled = {}
+    for factor in (1.0, 2.0):
+        cfg = build_env_config(dict(robot_overrides(factor)), split="test_ood",
+                               shift="dynamic_dense", n_worlds=1)
+        assert cfg.robot.max_linear_vel == pytest.approx(0.6 * factor)
+        env = ProceduralNavEnv(cfg)
+        env.reset(options={"world_seed": int(cfg.world_seeds[0])})
+        start = env.robot.position.copy()
+        for _ in range(8):  # full forward, no turning
+            env.step(np.array([1.0, 0.0], dtype=np.float32))
+        travelled[factor] = float(np.linalg.norm(env.robot.position - start))
+    assert travelled[2.0] > 1.5 * travelled[1.0], travelled
+
+
+def test_unit_speed_config_is_the_phase_5m_config():
+    """At 1x the speed experiment must run exactly what Phase 5m ran, or its
+    reproduction check compares two different experiments."""
+    from speed_experiment import config, robot_overrides
+
+    from vision_nav.agents.classical import PursuitConfig
+    from vision_nav.envs.robot import RobotConfig
+
+    assert config(1.0, 2.0) == PursuitConfig(replan_on_block=True, predict_horizon=2.0)
+    assert RobotConfig(**robot_overrides(1.0)["robot"]) == RobotConfig()

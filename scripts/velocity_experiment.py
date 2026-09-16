@@ -88,9 +88,17 @@ def mcnemar_p(a: np.ndarray, b: np.ndarray) -> tuple[float, int, int]:
     return min(1.0, 2 * tail), a_only, b_only
 
 
-def run_cell(condition: str, episodes: int, config: PursuitConfig) -> list[dict]:
+def run_cell(condition: str, episodes: int, config: PursuitConfig,
+             env_overrides: dict | None = None) -> list[dict]:
+    """One condition, per-episode outcomes.
+
+    ``env_overrides`` is merged into the env config -- Phase 5o uses it to
+    change the robot's kinematic limits. ``None`` reproduces every earlier run.
+    """
     split, shift, _ = DYNAMIC_CONDITIONS[condition]
     overrides = {"freeze_dynamic": True} if condition in FROZEN_CONDITIONS else {}
+    if env_overrides:
+        overrides.update(env_overrides)
     env_config = build_env_config(dict(overrides), split=split, shift=shift,
                                   n_worlds=episodes)
     env = ProceduralNavEnv(env_config)

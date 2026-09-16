@@ -462,6 +462,69 @@ oracle in space-time rather than as swept regions, or physical limits on
 evading a mover the robot has correctly anticipated. The second is testable by
 raising the robot's speed and acceleration limits and nothing else.
 
+### Is the rest physical? Doubling the robot's agility
+
+Two explanations survived for the remaining half: this planner uses a perfect
+input crudely, or the robot cannot physically evade a mover it has correctly
+anticipated. The second was tested by scaling the robot's velocity *and*
+acceleration limits together -- 0.75× to 2× -- so time-to-top-speed is unchanged
+and only agility differs, over all 200 test episodes.
+
+One fact shaped the expectation before anything ran. The `dynamic_dense` movers
+peak at 0.15-0.45 m/s, and only momentarily, while the robot does 0.6 m/s at
+1×: it already outruns every mover.
+
+Three confounds were handled rather than assumed away. A faster robot meets
+fewer movers, so episode length was logged. Controller distances are tuned at
+0.6 m/s, so a speed whose frozen-mover success falls more than 0.03 below 1× was
+declared uninterpretable in advance. And the replan trigger's look-ahead was
+scaled with speed so anticipation *time* stayed constant. At 1× the run
+reproduces Phase 5m on its first 100 episodes, and the frozen identity holds at
+every speed.
+
+| `dynamic_dense` | steps | cost | remaining with oracle | remaining, vs 1× (95% CI) | controller valid |
+|---|---|---|---|---|---|
+| 0.75× | 238 | +0.220 | +0.170 | [+0.030, +0.145] | **no** |
+| 1.0× | 188 | +0.145 | +0.085 | — | yes |
+| 1.5× | 132 | +0.150 | +0.105 | [-0.030, +0.070] | yes |
+| 2.0× | 98 | +0.135 | +0.090 | [-0.045, +0.055] | yes |
+
+**Doubling agility leaves the remaining cost where it was** --
++0.005, with an interval of [-0.045, +0.055].
+Removing it entirely would take −0.085, and
+the interval excludes removing more than about half. Time spent among movers
+halves, from 188 to
+98 steps, and the robot can evade twice as
+fast; neither touches it. A physical limit on evasion is not the main
+explanation for the dense remainder.
+
+Three things this does **not** show. `dynamic` is inconclusive: the remainder
+falls -0.030, not significantly, with an interval
+[-0.085, +0.025] that cannot exclude agility removing nearly
+all of it. The motion cost does not detectably shrink with halved exposure
+either (-0.010 on dense), but that interval,
+[-0.070, +0.050], is too wide to call the cost insensitive to
+exposure. And 0.75× on dense fails its validity check -- a slow robot times out
+in clutter -- so its rise is not a result. What survives is the planning
+explanation, which is a candidate left standing, not a confirmed one.
+
+**The oracle's benefit replicates at every speed**: +0.045
+to +0.060 on dense (p 0.004 to
+0.078) and +0.045
+to +0.060 on sparse, all significant but dense
+at 1.5×. These are paired comparisons within a speed, so the validity rule, which
+concerns the motion cost across speeds, does not bear on them. On all 200 episodes the Phase 5m effect is p = 0.004,
+where on its 100 it was a marginal 0.016.
+
+**The pre-registered criterion was the weak one, and the decisive test is post
+hoc.** It was registered as "the 2× − 1× recovery interval includes zero". Those
+intervals came out near ±0.4 -- wide enough to include zero *and* the +0.25 a
+physical limit was predicted to show -- so the criterion would have passed
+whatever was true. That is an unbounded null, the form Phase 3d warned against
+and this project lists as avoided practice. The interval on remaining cost above
+is sharper and is what the conclusion rests on, but it was added after the first
+run and is labelled so throughout; the registered prediction is unchanged.
+
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
 ones, where a correct map means the path is never blocked and it never fires.

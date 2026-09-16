@@ -414,6 +414,32 @@ def claims():
              ct["slow-down predicts"]["dynamic_dense"]["success_gain"]),
         ]
 
+    # --- robot agility, Phase 5o ---------------------------------------
+    # The conclusion rests on the post hoc interval on remaining cost, so both
+    # of its ends are pinned, alongside the exposure interval the writeup
+    # declines to draw a conclusion from.
+    sp = "results/speed_experiment.json"
+    if os.path.exists(sp):
+        spd = load(sp)
+        spc, bd, bs = spd["checks"], spd["by_speed"]["dynamic_dense"], spd["by_speed"]["dynamic"]
+        out += [
+            ("speed reproduces 5m", 1.0, float(spc["reproduces_phase_5m_first_100"])),
+            ("speed frozen identity", 1.0, float(spc["frozen_identity_every_speed"])),
+            ("speed dense 0.75x invalid", 0.0, float(bd["0.75"]["controller_valid"])),
+            ("speed dense 1x remaining", 0.085, bd["1.0"]["cost_remaining_with_prediction"]),
+            ("speed dense 2x remaining diff", 0.005, bd["2.0"]["remaining_minus_1x"]),
+            ("speed dense 2x remaining ci lo", -0.045, bd["2.0"]["remaining_minus_1x_ci95"][0]),
+            ("speed dense 2x remaining ci hi", 0.055, bd["2.0"]["remaining_minus_1x_ci95"][1]),
+            ("speed sparse 2x remaining diff", -0.030, bs["2.0"]["remaining_minus_1x"]),
+            ("speed sparse 2x remaining ci lo", -0.085, bs["2.0"]["remaining_minus_1x_ci95"][0]),
+            ("speed sparse 2x remaining ci hi", 0.025, bs["2.0"]["remaining_minus_1x_ci95"][1]),
+            ("speed dense 2x cost ci lo", -0.070, bd["2.0"]["cost_minus_1x_ci95"][0]),
+            ("speed dense 2x cost ci hi", 0.050, bd["2.0"]["cost_minus_1x_ci95"][1]),
+            ("speed dense 1x steps", 188, round(bd["1.0"]["mean_steps_no_prediction"])),
+            ("speed dense 2x steps", 98, round(bd["2.0"]["mean_steps_no_prediction"])),
+            ("speed dense 1x gain p", 0.004, bd["1.0"]["p"]),
+        ]
+
     # --- device benchmark, quoted in resolve_device's docstring -------
     # That docstring decides what every run in this project trains on, so its
     # table should not be able to drift from the measurement behind it.

@@ -41,6 +41,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5l | Re-price coverage at 1:1, 6 new depth arms | **Done** — **headline survives (+0.080, p = 0.032)**; mechanism moves stall -> crash |
 | 5m | Oracle motion prediction for the classical planner, 4 horizons | **Done** — **recovers 44% of the dense motion cost (p = 0.016)**; bounds better estimates for this planner |
 | 5n | Oracle prediction for the initial plan and the slow-down | **Done** — **recovers nothing further**; +0.090 remains, not an information problem within this architecture |
+| 5o | Robot agility 0.75x-2x, with and without the oracle | **Done** — **dense remainder unchanged at 2x (+0.005, CI [-0.045, +0.055])**; not a physical limit |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -1888,6 +1889,57 @@ failed and the intuition parts held.
 The lesson is distinct from the earlier three. A measurement can be taken in
 exactly the right regime and still not support a claim made at a resolution it
 never had.
+
+## Phase 5o — Agility: the dense remainder is not a physical limit
+
+Two explanations survived 5n for the half of the motion cost oracle prediction
+cannot recover: crude use of a perfect input by a planner that reasons only in
+space, or a robot that cannot physically evade a mover it has anticipated. Robot
+velocity and acceleration limits were scaled together from 0.75× to 2×, 200
+episodes each, with and without the 2 s oracle. Full treatment in
+`dynamic_obstacles.md`.
+
+Before running: the dense movers peak at 0.15-0.45 m/s and the robot does 0.6.
+It already outruns them, which made a physical limit the less likely answer.
+
+Checks: 1× reproduces Phase 5m on its first 100 episodes; the frozen identity
+holds at every speed; 0.75× on dense fails the pre-declared controller-validity
+rule (frozen success down 0.035, from timeouts) and is not interpreted.
+
+**Result.** On `dynamic_dense` the cost remaining with the oracle moves
++0.005 from 1× to 2×, 95% CI
+[-0.045, +0.055], against the −0.085
+that full removal would need. Doubled agility and halved exposure
+(188 to 98 steps)
+leave it unchanged; the interval excludes removing more than about half.
+`dynamic` is inconclusive (-0.030,
+[-0.085, +0.025]). The oracle's gain replicates at every
+speed, and Phase 5m's p = 0.016 on 100 episodes is p = 0.004 on 200.
+
+Not claimed: that the motion cost is insensitive to exposure (the interval on
+the no-oracle cost is [-0.070, +0.050]), or that the planner is
+therefore the cause -- that is what survives, not what is shown.
+
+### Calibration
+
+Prediction 15: "exposure, not a physical limit; the recovered fraction stays
+flat, its 2× − 1× interval including zero; remaining cost rises at 0.75×".
+
+- *Not a physical limit* -- held on dense, decisively; inconclusive on sparse.
+- *Exposure shrinks both arms alike* -- not supported. No detectable shrinkage
+  on either condition.
+- *Recovered fraction flat, interval includes zero* -- satisfied, and worthless.
+  The intervals were near ±0.4 and would have included zero whatever was true.
+- *Remaining cost rises at 0.75×* -- on dense, significantly, but in the cell the
+  validity rule excludes; not on sparse.
+
+The registered null was unbounded: the form Phase 3d named as compatible with
+any effect a design is too weak to see, and that the report lists among the
+practices it avoids. The conclusion rests instead on an interval on remaining
+cost, added after the first run -- the per-episode data needed for it had not
+been kept -- and labelled post hoc in the script, the result file and every
+document. The lesson is the oldest one in this record, repeated: a null has to
+say how big an effect it rules out.
 
 ## Hardware notes
 

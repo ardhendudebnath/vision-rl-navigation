@@ -36,7 +36,7 @@ decision below follows from wanting that comparison to be trustworthy.
 
 | Stage | State |
 |---|---|
-| Task, metrics, splits, 294-test suite | Done |
+| Task, metrics, splits, 296-test suite | Done |
 | Classical baseline (A* + pure pursuit, full map) | Done |
 | Privileged RL, robustness suite, distribution shifts | Done |
 | Four explanations for the gap, each tested and rejected | Done |
@@ -54,9 +54,10 @@ decision below follows from wanting that comparison to be trustworthy.
 | Coverage re-priced at 1:1: headline survives, mechanism moves stall to crash | Done |
 | Oracle motion prediction: recovers about half the motion cost | Done |
 | Prediction in the initial plan and controller: the other half does not move | Done |
+| Doubling robot agility: the remaining dense cost is not a physical limit | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Twenty-nine experiments, each pre-registered where it tests a hypothesis. The
+Thirty experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).
