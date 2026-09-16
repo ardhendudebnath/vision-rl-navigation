@@ -590,6 +590,51 @@ planner would be walled in and costs where it would not. A planner that keeps a
 temporal margin -- or chooses between the two by how blocked a corridor is -- is
 the obvious next test, and the sparse harm is the prediction it has to beat.
 
+### A temporal safety margin
+
+The cause offered for timing's harm on sparse worlds was that the planner
+threads gaps one 0.24 s plan step ahead of a mover, so any lag tracking the
+schedule puts the robot where the mover arrives. The test widens each mover's
+occupancy by a margin of plan steps either side. A frozen mover is the same at
+every step, so widening it changes nothing: margins 0 and 4 are bit-identical on
+frozen worlds, and the margin-0 and swept arms reproduce the previous
+experiment episode for episode. The prediction was committed before the run,
+with the primary margin fixed at two steps to match the tracker's 0.5 s lead.
+
+| margin | sparse success | sparse collisions | dense success |
+|---|---|---|---|
+| 0 (Phase 5p) | 0.945 | 0.050 | 0.960 |
+| 1 step | 0.980 | 0.015 | 0.970 |
+| 2 steps | 0.995 | 0.000 | 0.975 |
+| 4 steps | 0.995 | 0.000 | 0.970 |
+| swept, no timing | 0.995 | 0.000 | 0.910 |
+
+**Two steps removes the harm completely.** Against no margin it is
++0.050 on sparse worlds, p = 0.002, winning back all
+10 episodes and losing none, and the whole of it is collisions
+(−0.050). The response rises with the margin and stops at two
+steps, which is what the proposed cause predicts and hard to produce otherwise.
+The dense gain survives and grows slightly: +0.065 over the
+when-blind planner, p = 0.004.
+
+One registered clause failed. Four steps was predicted to make the planner
+cautious enough to drift back towards the when-blind one on dense clutter; it
+does not (0.970 against 0.910,
+still +0.060 ahead).
+
+**So the motion cost is explained.** With oracle trajectories, a planner that
+reasons in space-time and keeps a two-step margin loses
+0.010 to motion on dense clutter and 0.000 on sparse worlds, where
+the spatial baseline lost 0.145 and 0.140. What looked like an
+irreducible cost of moving obstacles was a planner that could not reason about
+time and, once it could, needed room for its own tracking error.
+
+The condition is not incidental. Every number in this section uses the movers'
+exact future positions, which no real robot has, and it says nothing about the
+learned policy, which never had them. What it settles is what a better
+*estimate* of motion could be worth to this stack: all of the motion cost, if
+the estimate is good enough -- which is now the question worth asking.
+
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
 ones, where a correct map means the path is never blocked and it never fires.

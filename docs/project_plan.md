@@ -43,6 +43,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5n | Oracle prediction for the initial plan and the slow-down | **Done** — **recovers nothing further**; +0.090 remains, not an information problem within this architecture |
 | 5o | Robot agility 0.75x-2x, with and without the oracle | **Done** — **dense remainder unchanged at 2x (+0.005, CI [-0.045, +0.055])**; not a physical limit |
 | 5p | Space-time A* with a when-blind ablation, 200 episodes | **Done** — **timing +0.050 on dense (p = 0.031), −0.050 on sparse (p = 0.002)**; access for robustness |
+| 5q | Temporal safety margin 0-4 steps on the space-time agent | **Done** — **FIXED: sparse harm removed (+0.050, p = 0.002)**; motion cost 0.010 dense given oracle trajectories |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -1994,6 +1995,50 @@ held; the mechanism did not -- it was timeouts. Derived from a 20-episode smoke
 test, where full showed no collisions and swept one; at 200 episodes that
 reading of mechanism did not survive, which is the Phase 5n lesson about small
 samples in a new form. Partial.
+
+## Phase 5q — A temporal safety margin: the motion cost, explained
+
+Phase 5p's untested cause for timing's sparse harm: the planner threads gaps one
+0.24 s step ahead of a mover, so tracking lag costs a collision. Tested with a
+margin of m plan steps either side of each mover's occupancy. Pre-registered in
+`2c2953e`, before the result file existed, with the primary margin fixed at two
+steps to match the tracker's 0.5 s lead. Full treatment in `dynamic_obstacles.md`.
+
+Checks: margins 0 and 4 bit-identical on frozen worlds; margin 0 and swept
+reproduce Phase 5p on every episode. Registered decision: **FIXED**.
+
+- H1, margin 2 against margin 0 on sparse: +0.050, p = 0.002,
+  10 won and 0 lost, collisions −0.050.
+  Dose-response 0 -> 1 -> 2 steps: 0.945, 0.980,
+  0.995, flat at 4.
+- H2, margin 2 against swept on dense: +0.065, p = 0.004 -- the
+  gain survives and grows.
+- Failed: four steps did not erode the dense gain towards swept.
+
+With the margin, the motion cost is 0.010 on dense clutter and 0.000 on
+sparse worlds, against 0.145 and 0.140 for the spatial baseline --
+with oracle trajectories throughout. (Margin-2 frozen success is not run: it
+equals margin 0 by the frozen identity, verified at margin 4 and unit-tested.)
+
+### Consequences
+
+The motion cost the report called unexplained was a planning problem: a planner
+that could not reason about time, and once it could, needed a margin for its own
+tracking error. That is conditional on perfect prediction, so the practical
+question moves to how good an *estimated* trajectory has to be.
+
+### Calibration
+
+Prediction 17. H1 held on magnitude (+0.050, at the top of its +0.03 to +0.05
+band), significance and mechanism; H2 held; the registered decision was reached.
+The secondary shape clause -- four steps eroding the dense gain -- failed.
+Partial, by the same standard that counted prediction 13 partial for a failed
+shape clause, though the primary held more completely here.
+
+Worth noting against the calibration rule: the magnitude came from a measurement
+in the regime tested, but the *mechanism* was a hypothesis nothing had measured,
+the crossing the rule says to distrust, and it held. One case does not revise a
+rule; it is recorded so a second can.
 
 ## Hardware notes
 

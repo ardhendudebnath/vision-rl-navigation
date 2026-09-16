@@ -483,6 +483,36 @@ def claims():
             out.append((f"spacetime registered label {key}", 1.0,
                         float(registered[key] == want)))
 
+    # --- temporal safety margin, Phase 5q ------------------------------
+    mg = "results/margin_experiment.json"
+    if os.path.exists(mg):
+        mj = load(mg)
+        mc, mcells, mx = mj["checks"], mj["cells"], mj["contrasts"]
+        mh1, mh2 = mx["m2_vs_m0"]["dynamic"], mx["m2_vs_swept"]["dynamic_dense"]
+        out += [
+            ("margin frozen identity", 1.0, float(mc["frozen_identity_m0_vs_m4"])),
+            ("margin reproduces 5p", 1.0, float(mc["reproduces_phase_5p"])),
+            ("margin decision FIXED", 1.0, float(mj["decision"] == "FIXED")),
+            ("margin H1 gain", 0.050, mh1["success_gain"]),
+            ("margin H1 p", 0.002, mh1["p"]),
+            ("margin H1 won", 10, mh1["episodes_won"]),
+            ("margin H1 lost", 0, mh1["episodes_lost"]),
+            ("margin H1 collision delta", -0.050, mh1["collision_delta"]),
+            ("margin H2 gain", 0.065, mh2["success_gain"]),
+            ("margin H2 p", 0.004, mh2["p"]),
+            ("margin sparse m0", 0.945, mcells["m0"]["dynamic"]["success"]),
+            ("margin sparse m1", 0.980, mcells["m1"]["dynamic"]["success"]),
+            ("margin sparse m2", 0.995, mcells["m2"]["dynamic"]["success"]),
+            ("margin dense m4", 0.970, mcells["m4"]["dynamic_dense"]["success"]),
+            ("margin dense swept", 0.910, mcells["swept"]["dynamic_dense"]["success"]),
+            # Derived: margin-2 frozen is margin-0 frozen, by the identity.
+            ("margin motion cost dense",  0.010,
+             mcells["m0"]["dynamic_dense_frozen"]["success"]
+             - mcells["m2"]["dynamic_dense"]["success"]),
+            ("margin motion cost sparse", 0.000,
+             mcells["m0"]["dynamic_frozen"]["success"] - mcells["m2"]["dynamic"]["success"]),
+        ]
+
     # --- device benchmark, quoted in resolve_device's docstring -------
     # That docstring decides what every run in this project trains on, so its
     # table should not be able to drift from the measurement behind it.

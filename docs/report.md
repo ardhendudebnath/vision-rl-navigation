@@ -36,7 +36,9 @@ sparse movers (−0.020, p = 0.219) but never reverses, and a controlled
 subtraction that freezes those movers shows why: the classical advantage
 returns in full (−0.100, −0.202, both p = 0.031), so the parity is motion
 degrading the planner (−0.120 to −0.160) rather than the policy handling it
-(−0.048 to −0.068).
+(−0.048 to −0.068). Given the movers' exact trajectories, a planner reasoning in
+space-time with a small temporal margin removes that planner cost almost
+entirely.
 
 A reward ablation sharpens what "behavioural" means: the same 4:1 ratio also
 sets what *extra information* is worth. Frame stacking cuts collisions under
@@ -596,9 +598,9 @@ learned policy only 0.048–0.068. The policy is behind in every regime; it is
 simply harder to disrupt, because one that never commits to a path has no plan
 to invalidate.
 
-**The motion cost is half explained.** Four candidate mechanisms were tested
-and eliminated: replanning churn (real, but a clutter pathology that leaves the
-cost unchanged), planning failure (A\* never fails to find a route), sensing
+**The motion cost is explained, given perfect prediction.** Four candidate
+mechanisms were tested and eliminated: replanning churn (real, but a clutter
+pathology that leaves the cost unchanged), planning failure (A\* never fails to find a route), sensing
 (the movers are fully visible), and commitment length (a 6× sweep of the
 controller's rollout horizon moves the cost by 0.040, inside noise, while
 moving absolute performance by 0.220). The fifth survived. Every actor treated
@@ -614,8 +616,12 @@ to 0.025. Against an ablation that knows where movers go but
 not when, timing is worth +0.050 on dense clutter
 (p = 0.031) — through fewer timeouts, not the fewer collisions
 predicted — and costs −0.050 on sparse worlds (p = 0.002),
-all collisions. It buys access where a cautious planner is walled in and spends
-robustness where it is not.
+all collisions. A temporal safety margin of two plan steps removes that cost
+(+0.050, p = 0.002, 10 episodes won and none lost)
+and keeps the dense gain, leaving a motion cost of 0.010 on dense clutter and
+0.000 on sparse worlds, against 0.145 and 0.140 for the spatial
+baseline. Every figure from the oracle onward assumes the movers' exact future
+positions, which no real robot has and the learned policy never had.
 
 **Recurrence is worse, and not because of motion.** An LSTM policy — the last
 untested way of supplying motion information, and the only one that learns what
@@ -690,9 +696,9 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of sixteen predictions made in advance, three derived from a
+**Calibration.** Of seventeen predictions made in advance, three derived from a
 *measurement* held — two to within 0.021 and 0.001, and one on both magnitude
-and mechanism; seven from extrapolation or intuition failed outright; six got
+and mechanism; seven from extrapolation or intuition failed outright; seven got
 part right and part wrong. Confidence of expression was identical throughout.
 Three rules came out of them; the record of each prediction is in
 [`project_plan.md`](project_plan.md). The fifteenth also broke this report's own
@@ -772,12 +778,12 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **A temporal safety margin.** Space-time planning closes most of the dense
-   motion cost but loses 0.050 on sparse worlds to collisions (§9.1), plausibly
-   because it threads gaps one plan step ahead of a mover and any tracking lag
-   costs a collision. A margin of a step or two either side of a mover's
-   occupancy is the test, and the sparse harm is what it has to remove without
-   giving back the dense gain.
+1. **Replace the oracle with an estimate.** With exact mover trajectories, a
+   space-time planner and a two-step temporal margin remove the motion cost
+   almost entirely (§9.1). How much survives trajectories *estimated* from
+   successive scans — constant velocity, say — is what that result is worth to
+   a real robot, and the margin is the natural place for estimation error to be
+   absorbed.
 2. **Re-price the encoder cost.** §8.4 re-ran two perception results at 1:1
    and they came apart: coverage's effect survived unchanged while its
    mechanism moved, and resolution's reversed sign. The third, the
