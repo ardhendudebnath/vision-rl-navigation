@@ -444,20 +444,12 @@ effect.** This sharpens the earlier framing rather than confirming it: "field
 of view beats angular resolution" implies a frontier where either knob buys
 performance. There is no such frontier — one knob is inert *in success rate*.
 
-That qualifier was added late. The sentence read "changes nothing", and for
-one of the two contrasts that is false: doubling beams at 360° moves
-collisions +0.083 (p = 0.006) and timeouts −0.080, so the same number of
-episodes fail and what changes is *how*. The 90° contrast is clean on every
-metric; §8.4 shows the behavioural effect is real and reverses sign with the
-reward. The pre-registered null was about success and held — the prose
-generalised past it, and `seed_analysis.py` was discarding the timeout rate,
-so the claim could not have been checked by the script that produced it.
-
-**Coverage pays out of timeouts, not collisions** — -0.127
-(p = 0.004) on `narrow` and
--0.108 (p = 0.013)
-on `dense`, with collisions unmoved. A robot that cannot see behind itself
-does not crash more; it gets stuck more.
+That qualifier was added late, and it matters. The sentence read "changes
+nothing", and for one of the two contrasts that is false: doubling beams at
+360° moves collisions +0.083 (p = 0.006) and timeouts −0.080, so the same
+number of episodes fail and what changes is *how*. The pre-registered null was
+about success and held; the prose generalised past it. §8.4 shows that
+behavioural effect reverses sign with the reward, and §8.5 what it means.
 
 ### 8.2 The audit forecast both results before the policies existed
 
@@ -479,10 +471,15 @@ representation changes: pixels a CNN must interpret, rather than a vector an
 MLP reads directly.
 
 It costs **0.16–0.24 success on every condition**, with every depth seed
-beating every RGB seed, and the encoder costs *reliability* too — seed spread
-roughly doubles for success and quadruples for collisions. Giving RGB **2.7×
-the compute** does not close it (−0.162, p = 0.030). The render is clean — no
-texture, lighting or sensor noise — so this is a lower bound.
+beating every RGB seed. Giving RGB **2.7× the compute** does not close it
+(−0.162, p = 0.030) — and that rejection is null on all three outcome channels,
+not just on success, which is a harder result to explain away. The render is
+clean — no texture, lighting or sensor noise — so this is a lower bound. The
+failure is indecision rather than recklessness: on `nominal` the encoder's cost
+lands in timeouts (+0.115,
+p = 0.011) rather than
+collisions (+0.047,
+not significant).
 
 **A prediction that failed.** I forecast −0.05 to −0.10; the effect is two to
 three times that. Worth contrasting with §8.2: the forecasts that held were
@@ -520,6 +517,31 @@ not generalise to static clutter.** And on `nominal`, where the policy already
 succeeds 93% of the time, the 1:1 resolution delta is +0.000 on success and
 −0.002 on collisions: the control cell that a general property of the reward
 change would have moved.
+
+### 8.5 What a perception deficit actually does
+
+`seed_analysis.py` recorded success, SPL and collisions and discarded the
+timeout rate, which is how §8.1's null came to be overstated. Re-running all
+nine perception comparisons with the repaired tool reproduced every published
+number exactly, to 0.00e+00, and turned up no further overstatement. It also
+recovered a pattern none of them could show alone:
+
+| Manipulation | Success | Collision | Timeout |
+|---|---|---|---|
+| coverage ↑ (90° → 360°, matched resolution) | +0.095 | +0.032 | **-0.127** |
+| coverage ↓ (360° → 90°), `dense` | -0.130 | +0.008 | **+0.122** |
+| resolution ↑ from inadequate (16 → 64), `dense` | +0.115 | **-0.087** | -0.028 |
+
+Bold marks p < 0.05. **Coverage deficits make the robot get stuck; sensing
+deficits make it crash.** Both directions of the coverage manipulation agree,
+and collisions never approach significance in either — on the same six seeds
+that make the timeout shift significant, so this is a contrast between channels
+rather than an argument from low power. Below adequacy the pattern inverts:
+16 beams is too few to see obstacles, and fixing that cuts collisions with
+timeouts unmoved.
+
+The intuition that a worse sensor means more crashes is right only at the
+bottom of the range. Over most of it, a worse sensor means a robot that stops.
 
 ## 9. Results 11–12: where the map is wrong
 

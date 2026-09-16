@@ -268,6 +268,47 @@ def claims():
              st.mean(load(rp)["conditions"]["nominal"]["per_arm"]["b64i"]["success"])),
         ]
 
+    # --- 8.5, the recovered timeout column ----------------------------
+    # The claim is a contrast *between channels within a comparison*:
+    # timeouts significant where collisions are not, on the same six seeds.
+    # Both halves are pinned, since the finding is the pair.
+    audit = [
+        ("8.5 coverage narrow timeout", -0.127,
+         "results/seed_3d_coverage_isores.json", "narrow", "timeout", "delta"),
+        ("8.5 coverage narrow collision", 0.032,
+         "results/seed_3d_coverage_isores.json", "narrow", "collision", "delta"),
+        ("8.5 FOV loss dense timeout", 0.122,
+         "results/seed_analysis_depth.json", "dense", "timeout", "delta"),
+        ("8.5 FOV loss dense timeout p", 0.004,
+         "results/seed_analysis_depth.json", "dense", "timeout", "p"),
+        ("8.5 FOV loss dense collision", 0.008,
+         "results/seed_analysis_depth.json", "dense", "collision", "delta"),
+        ("8.5 FOV loss dense success", -0.130,
+         "results/seed_analysis_depth.json", "dense", "success", "delta"),
+        ("8.5 16v64 dense collision", -0.087,
+         "results/seed_analysis_16v64.json", "dense", "collision", "delta"),
+        ("8.5 16v64 dense collision p", 0.039,
+         "results/seed_analysis_16v64.json", "dense", "collision", "p"),
+        ("8.5 16v64 dense timeout", -0.028,
+         "results/seed_analysis_16v64.json", "dense", "timeout", "delta"),
+        ("8.5 16v64 dense success", 0.115,
+         "results/seed_analysis_16v64.json", "dense", "success", "delta"),
+        ("8.3 rgb nominal timeout", 0.115,
+         "results/seed_3e_rgb_vs_depth.json", "nominal", "timeout", "delta"),
+        ("8.3 rgb nominal timeout p", 0.011,
+         "results/seed_3e_rgb_vs_depth.json", "nominal", "timeout", "p"),
+        ("8.3 rgb nominal collision", 0.047,
+         "results/seed_3e_rgb_vs_depth.json", "nominal", "collision", "delta"),
+        # 3f's rejection, now null on all three channels rather than one.
+        ("8.3 rgb compute narrow timeout", 0.015,
+         "results/seed_3f_rgb_compute.json", "narrow", "timeout", "delta"),
+        ("8.3 rgb compute narrow collision", -0.072,
+         "results/seed_3f_rgb_compute.json", "narrow", "collision", "delta"),
+    ]
+    for label, expect, path, cond, metric, field in audit:
+        if os.path.exists(path):
+            out.append((label, expect, cmp_cell(path, cond, metric, field)))
+
     # --- suite size, quoted in three documents ------------------------
     n_tests = collected_tests()
     if n_tests is not None:

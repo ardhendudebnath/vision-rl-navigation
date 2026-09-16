@@ -96,7 +96,12 @@ got a mechanism or a magnitude right and the other wrong, with identical
 confidence of expression throughout — including three that reasoned from a real
 measurement but carried it across a boundary the measurement never spanned. Both the false positive and a
 later harness bug that inverted a result are documented in the report rather
-than quietly corrected.
+than quietly corrected. So is a third: the seed-comparison tool discarded the
+timeout rate for the whole perception study, which turned one measured
+behavioural shift into a published "changes nothing". Re-running all nine
+comparisons with the repaired tool reproduced every number exactly and
+recovered a result none of them could show alone — coverage deficits make the
+robot get stuck, sensing deficits make it crash.
 
 ## What it demonstrates
 

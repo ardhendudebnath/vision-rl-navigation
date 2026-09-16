@@ -5,52 +5,44 @@
       {
         "run": "runs\\ppo_dr",
         "seed": 0,
-        "n_beams": 32,
-        "max_range": 6.0
+        "sensor": "lidar 32 beams @ 360deg"
       },
       {
         "run": "runs\\b32_s1",
         "seed": 1,
-        "n_beams": 32,
-        "max_range": 6.0
+        "sensor": "lidar 32 beams @ 360deg"
       },
       {
         "run": "runs\\b32_s2",
         "seed": 2,
-        "n_beams": 32,
-        "max_range": 6.0
+        "sensor": "lidar 32 beams @ 360deg"
       },
       {
         "run": "runs\\b32_s3",
         "seed": 3,
-        "n_beams": 32,
-        "max_range": 6.0
+        "sensor": "lidar 32 beams @ 360deg"
       }
     ],
     "b64": [
       {
         "run": "runs\\beams64",
         "seed": 0,
-        "n_beams": 64,
-        "max_range": 6.0
+        "sensor": "lidar 64 beams @ 360deg"
       },
       {
         "run": "runs\\b64_s1",
         "seed": 1,
-        "n_beams": 64,
-        "max_range": 6.0
+        "sensor": "lidar 64 beams @ 360deg"
       },
       {
         "run": "runs\\b64_s2",
         "seed": 2,
-        "n_beams": 64,
-        "max_range": 6.0
+        "sensor": "lidar 64 beams @ 360deg"
       },
       {
         "run": "runs\\b64_s3",
         "seed": 3,
-        "n_beams": 64,
-        "max_range": 6.0
+        "sensor": "lidar 64 beams @ 360deg"
       }
     ]
   },
@@ -75,6 +67,12 @@
             0.05,
             0.07,
             0.08
+          ],
+          "timeout": [
+            0.26,
+            0.27,
+            0.27,
+            0.4
           ]
         },
         "b64": {
@@ -95,6 +93,12 @@
             0.11,
             0.05,
             0.13
+          ],
+          "timeout": [
+            0.27,
+            0.31,
+            0.31,
+            0.13
           ]
         }
       },
@@ -110,6 +114,10 @@
         "collision": {
           "delta": 0.0025000000000000022,
           "p": 1.0
+        },
+        "timeout": {
+          "delta": -0.04500000000000004,
+          "p": 0.5714285714285714
         }
       }
     },
@@ -133,6 +141,12 @@
             0.07,
             0.14,
             0.17
+          ],
+          "timeout": [
+            0.22,
+            0.34,
+            0.12,
+            0.29
           ]
         },
         "b64": {
@@ -153,6 +167,12 @@
             0.14,
             0.07,
             0.11
+          ],
+          "timeout": [
+            0.16,
+            0.22,
+            0.23,
+            0.14
           ]
         }
       },
@@ -168,6 +188,10 @@
         "collision": {
           "delta": -0.0175,
           "p": 0.5428571428571428
+        },
+        "timeout": {
+          "delta": -0.05499999999999999,
+          "p": 0.37142857142857144
         }
       }
     },
@@ -191,6 +215,12 @@
             0.02,
             0.01,
             0.06
+          ],
+          "timeout": [
+            0.03,
+            0.05,
+            0.01,
+            0.05
           ]
         },
         "b64": {
@@ -211,6 +241,12 @@
             0.01,
             0.04,
             0.04
+          ],
+          "timeout": [
+            0.01,
+            0.06,
+            0.04,
+            0.0
           ]
         }
       },
@@ -226,6 +262,10 @@
         "collision": {
           "delta": 0.0,
           "p": 1.0
+        },
+        "timeout": {
+          "delta": -0.007500000000000007,
+          "p": 0.7714285714285715
         }
       }
     }

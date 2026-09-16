@@ -5,64 +5,64 @@
       {
         "run": "runs\\rgb_s0",
         "seed": 0,
-        "sensor": "lidar 32 beams @ 360deg"
+        "sensor": "rgb 64x48px @ 90deg"
       },
       {
         "run": "runs\\rgb_s1",
         "seed": 1,
-        "sensor": "lidar 32 beams @ 360deg"
+        "sensor": "rgb 64x48px @ 90deg"
       },
       {
         "run": "runs\\rgb_s2",
         "seed": 2,
-        "sensor": "lidar 32 beams @ 360deg"
+        "sensor": "rgb 64x48px @ 90deg"
       },
       {
         "run": "runs\\rgb_s3",
         "seed": 3,
-        "sensor": "lidar 32 beams @ 360deg"
+        "sensor": "rgb 64x48px @ 90deg"
       },
       {
         "run": "runs\\rgb_s4",
         "seed": 4,
-        "sensor": "lidar 32 beams @ 360deg"
+        "sensor": "rgb 64x48px @ 90deg"
       },
       {
         "run": "runs\\rgb_s5",
         "seed": 5,
-        "sensor": "lidar 32 beams @ 360deg"
+        "sensor": "rgb 64x48px @ 90deg"
       }
     ],
     "rgb40": [
       {
         "run": "runs\\rgb_long_s0",
         "seed": 0,
-        "sensor": "lidar 32 beams @ 360deg"
+        "sensor": "rgb 64x48px @ 90deg"
       },
       {
         "run": "runs\\rgb_long_s1",
         "seed": 1,
-        "sensor": "lidar 32 beams @ 360deg"
+        "sensor": "rgb 64x48px @ 90deg"
       },
       {
         "run": "runs\\rgb_long_s2",
         "seed": 2,
-        "sensor": "lidar 32 beams @ 360deg"
+        "sensor": "rgb 64x48px @ 90deg"
       },
       {
         "run": "runs\\rgb_long_s3",
         "seed": 3,
-        "sensor": "lidar 32 beams @ 360deg"
+        "sensor": "rgb 64x48px @ 90deg"
       },
       {
         "run": "runs\\rgb_long_s4",
         "seed": 4,
-        "sensor": "lidar 32 beams @ 360deg"
+        "sensor": "rgb 64x48px @ 90deg"
       },
       {
         "run": "runs\\rgb_long_s5",
         "seed": 5,
-        "sensor": "lidar 32 beams @ 360deg"
+        "sensor": "rgb 64x48px @ 90deg"
       }
     ]
   },
@@ -93,6 +93,14 @@
             0.18,
             0.32,
             0.08
+          ],
+          "timeout": [
+            0.14,
+            0.69,
+            0.26,
+            0.54,
+            0.39,
+            0.45
           ]
         },
         "rgb40": {
@@ -119,6 +127,14 @@
             0.23,
             0.13,
             0.12
+          ],
+          "timeout": [
+            0.39,
+            0.65,
+            0.36,
+            0.31,
+            0.62,
+            0.23
           ]
         }
       },
@@ -134,6 +150,10 @@
         "collision": {
           "delta": -0.07166666666666668,
           "p": 0.3333333333333333
+        },
+        "timeout": {
+          "delta": 0.015000000000000013,
+          "p": 0.9004329004329005
         }
       }
     },
@@ -163,6 +183,14 @@
             0.11,
             0.2,
             0.08
+          ],
+          "timeout": [
+            0.04,
+            0.29,
+            0.07,
+            0.28,
+            0.08,
+            0.17
           ]
         },
         "rgb40": {
@@ -189,6 +217,14 @@
             0.11,
             0.06,
             0.09
+          ],
+          "timeout": [
+            0.11,
+            0.25,
+            0.02,
+            0.06,
+            0.31,
+            0.04
           ]
         }
       },
@@ -204,6 +240,10 @@
         "collision": {
           "delta": -0.04166666666666666,
           "p": 0.3484848484848485
+        },
+        "timeout": {
+          "delta": -0.023333333333333317,
+          "p": 0.7337662337662337
         }
       }
     }

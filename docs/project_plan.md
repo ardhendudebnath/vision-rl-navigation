@@ -37,6 +37,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5h | Indifference reward (collision 5 == timeout 5), 2 arms x 6 seeds | **Done** — **stacking works at 1:1 (+0.033, p = 0.019, 6/6)**; the reward was hiding it |
 | 5i | Recurrence (RecurrentPPO, 256-unit LSTM), 2 arms x 6 seeds | **Done** — **worse everywhere (-0.068 fast, -0.078 slow)**; the control refuses the motion reading |
 | 5j | Re-price angular resolution at 1:1, 2 arms x 6 seeds | **Done** — **the reward flips the sign (interaction -0.142, p = 0.0043)**; 3d's null was success-only |
+| 5k | Timeout audit of all six remaining seed_analysis results | **Done** — all reproduce exactly; **coverage deficits stall, sensing deficits crash** |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -1612,6 +1613,87 @@ The report's perception findings stand as success-rate results -- coverage is
 causal, resolution is inert in success -- but "resolution is inert" now needs
 its qualifier, because what resolution does to *behaviour* is significant,
 reward-dependent, and reverses sign.
+
+## Phase 5k — The audit completed: perception deficits make it stall, not crash
+
+Phase 5j found `seed_analysis.py` discarding the timeout rate, which is how
+Phase 3d came to report "doubling the sample count changes nothing" over a
+significant collision shift. That tool produced six other published results.
+Leaving those unchecked would have made the correction a lucky catch rather
+than a fixed problem, so all six were re-run with the repaired tool.
+
+**Every one reproduces its published success, SPL and collision numbers
+exactly, to 0.00e+00.** The numbers were never wrong; one reading of them was.
+No further overstatement turned up: Phase 3d was the only case.
+
+Two nulls come out *stronger* than published. Phase 3f rejected the "the CNN
+just needed more compute" objection on success alone; it is now null on all
+three channels (+0.057,
+-0.072,
++0.015, none significant),
+which is a much harder thing to explain away. Phase 2g's non-replication is
+likewise null on behaviour, not merely on the headline.
+
+### What the recovered column shows
+
+| Contrast | Condition | Success | Collision | Timeout |
+|---|---|---|---|---|
+| 16 -> 64 beams | `dense` | +0.115* (p 0.002) | -0.087* (p 0.039) | -0.028 (p 0.457) |
+| 16 -> 64 beams | `narrow` | +0.085* (p 0.035) | -0.050 (p 0.175) | -0.035 (p 0.515) |
+| 64 -> 128 beams | `narrow` | -0.003 (p 0.955) | +0.083* (p 0.006) | -0.080 (p 0.113) |
+| 32 -> 64 px at 90 deg | `narrow` | +0.002 (p 1.000) | -0.040 (p 0.517) | +0.038 (p 0.294) |
+| 90 deg depth -> 360 deg lidar | `narrow` | +0.095* (p 0.024) | +0.032 (p 0.543) | -0.127* (p 0.004) |
+| 90 deg depth -> 360 deg lidar | `dense` | +0.088* (p 0.028) | +0.020 (p 0.667) | -0.108* (p 0.013) |
+| lidar -> depth (FOV loss) | `dense` | -0.130* (p 0.004) | +0.008 (p 0.859) | +0.122* (p 0.004) |
+| lidar -> depth (FOV loss) | `narrow` | -0.097* (p 0.019) | +0.012 (p 0.714) | +0.085 (p 0.097) |
+| depth -> RGB (encoder) | `nominal` | -0.162* (p 0.002) | +0.047 (p 0.227) | +0.115* (p 0.011) |
+| depth -> RGB (encoder) | `narrow` | -0.218* (p 0.002) | +0.105 (p 0.158) | +0.113 (p 0.214) |
+| RGB at 2.7x compute | `narrow` | +0.057 (p 0.524) | -0.072 (p 0.333) | +0.015 (p 0.900) |
+| 32 -> 64 beams (Phase 2g) | `narrow` | +0.042 (p 0.457) | +0.003 (p 1.000) | -0.045 (p 0.571) |
+
+`*` marks p < 0.05, exact permutation, seed as the unit.
+
+Read down the collision and timeout columns and the perception section
+reorganises itself:
+
+**Coverage deficits make the robot get stuck.** Both directions of the same
+manipulation agree. Going from a 90 deg camera to a 360 deg lidar at matched
+angular resolution cuts timeouts
+-0.127 and
+-0.108; going the
+other way raises them +0.122.
+Collisions never move in any of these cells and never approach significance,
+on the same six seeds that make the timeout shift significant -- so this is a
+contrast between channels within a comparison, not a power argument.
+
+**Sensing deficits make it crash.** At the bottom of the range the story
+inverts: 16 to 64 beams cuts collisions
+-0.087 (p =
+0.039) with timeouts flat.
+Below adequacy the robot cannot see obstacles and hits them; above adequacy
+more samples buy no competence, and Phase 5j shows the reward decides whether
+they buy aggression or caution instead.
+
+**A bad encoder does both**, and on `nominal` the stalling dominates
+(+0.115, p =
+0.011, against
++0.047 on collisions,
+not significant). The CNN policy is not reckless with the same geometry; it is
+indecisive with it.
+
+### Consequences
+
+Nothing in the report's success-rate conclusions changes. What changes is that
+they now have a mechanism, and it is not the obvious one: the intuition that a
+worse sensor means more crashes is right only at the bottom of the range. Over
+most of it, a worse sensor means a robot that stops.
+
+This also puts a floor under the original error. A tool that discarded one of
+three outcome channels ran for the entire perception study; the claim it
+misled was caught only because a later phase made that exact failure mode
+salient. **The check that finds this class of error is re-reading old result
+files after learning something new, and it is worth doing deliberately rather
+than by luck.**
 
 ## Hardware notes
 
