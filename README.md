@@ -49,9 +49,10 @@ decision below follows from wanting that comparison to be trustworthy.
 | Faster movers and an explicit velocity channel: both inert | Done |
 | The reward prices information: stacking pays at 1:1, not at 4:1 | Done |
 | Recurrence: worse everywhere, and the control says not about motion | Done |
+| Re-pricing perception at 1:1: the reward flips what resolution does | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Twenty-four experiments, each pre-registered where it tests a hypothesis. The
+Twenty-five experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).
@@ -128,7 +129,7 @@ those 25 recovered episodes become timeouts, not successes.
 **2. Sensor coverage is causal; angular resolution is not.** A training-free
 audit of the sensor predicted this before any policy was trained, then
 forecast two subsequent training experiments to within 0.021 and 0.001.
-Doubling the sample count at fixed field of view changes nothing (+0.002,
+Doubling the sample count at fixed field of view changes nothing in success (+0.002,
 −0.003, inside a pre-registered ±0.01 bound); quadrupling coverage at
 identical resolution produces the entire effect (+0.095, p = 0.024).
 

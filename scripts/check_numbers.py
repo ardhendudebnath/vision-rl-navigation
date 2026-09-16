@@ -170,6 +170,104 @@ def claims():
              load(rm)["conditions"]["dynamic_fast"]["p"]),
         ]
 
+    # --- report section 8.1, the perception table ---------------------
+    # None of these five rows was checked until now. The row for "samples at
+    # fixed FOV" is the one that matters most: its success deltas are the
+    # evidence for a claim the prose then generalised past, so the collision
+    # and timeout deltas are pinned alongside them.
+    def cmp_cell(path, cond, metric, field):
+        return load(path)["conditions"][cond]["comparisons"][metric][field]
+
+    perception = [
+        ("8.1 depth vs lidar narrow", -0.097,
+         "results/seed_analysis_depth.json", "narrow", "success", "delta"),
+        ("8.1 depth vs lidar p", 0.019,
+         "results/seed_analysis_depth.json", "narrow", "success", "p"),
+        ("8.1 samples at 90 narrow", 0.002,
+         "results/seed_3d_samples_at_90.json", "narrow", "success", "delta"),
+        ("8.1 samples at 90 p", 1.000,
+         "results/seed_3d_samples_at_90.json", "narrow", "success", "p"),
+        ("8.1 samples at 360 narrow", -0.003,
+         "results/seed_3d_samples_at_360.json", "narrow", "success", "delta"),
+        ("8.1 samples at 360 p", 0.955,
+         "results/seed_3d_samples_at_360.json", "narrow", "success", "p"),
+        # The delta the success-only reading missed.
+        ("8.1 samples at 360 collision", 0.083,
+         "results/seed_3d_samples_at_360.json", "narrow", "collision", "delta"),
+        ("8.1 samples at 360 collision p", 0.006,
+         "results/seed_3d_samples_at_360.json", "narrow", "collision", "p"),
+        # The 90-degree contrast is the clean one: nothing moves on any metric
+        # or condition, which is what makes the 360-degree result specific
+        # rather than a general property of adding samples.
+        ("8.1 samples at 90 timeout", 0.038,
+         "results/seed_3d_samples_at_90.json", "narrow", "timeout", "delta"),
+        ("8.1 samples at 90 timeout p", 0.294,
+         "results/seed_3d_samples_at_90.json", "narrow", "timeout", "p"),
+        ("8.1 samples at 360 timeout", -0.080,
+         "results/seed_3d_samples_at_360.json", "narrow", "timeout", "delta"),
+        ("8.1 coverage narrow", 0.095,
+         "results/seed_3d_coverage_isores.json", "narrow", "success", "delta"),
+        ("8.1 coverage p", 0.024,
+         "results/seed_3d_coverage_isores.json", "narrow", "success", "p"),
+        # How coverage pays: timeouts become successes, collisions unmoved.
+        ("8.1 coverage narrow timeout", -0.127,
+         "results/seed_3d_coverage_isores.json", "narrow", "timeout", "delta"),
+        ("8.1 coverage narrow timeout p", 0.004,
+         "results/seed_3d_coverage_isores.json", "narrow", "timeout", "p"),
+        ("8.1 coverage dense timeout", -0.108,
+         "results/seed_3d_coverage_isores.json", "dense", "timeout", "delta"),
+        ("8.1 coverage dense timeout p", 0.013,
+         "results/seed_3d_coverage_isores.json", "dense", "timeout", "p"),
+        ("8.1 coverage narrow collision", 0.032,
+         "results/seed_3d_coverage_isores.json", "narrow", "collision", "delta"),
+        ("8.1 representation narrow", -0.218,
+         "results/seed_3e_rgb_vs_depth.json", "narrow", "success", "delta"),
+        ("8.1 representation p", 0.002,
+         "results/seed_3e_rgb_vs_depth.json", "narrow", "success", "p"),
+    ]
+    for label, expect, path, cond, metric, field in perception:
+        if os.path.exists(path):
+            out.append((label, expect, cmp_cell(path, cond, metric, field)))
+
+    if os.path.exists("results/trend_fov_narrow.json"):
+        fov = load("results/trend_fov_narrow.json")
+        out.append(("8.1 FOV sweep rho", 0.508, fov["spearman_rho"]))
+        out.append(("8.1 FOV sweep p", 0.013, fov["p_value"]))
+
+    # --- report 8.4, the re-pricing interaction -----------------------
+    # The interaction is the claim: neither single-reward comparison states
+    # it, so neither can be checked in place of it.
+    rp, rpi = ("results/repricing_resolution.json",
+               "results/repricing_interaction.json")
+    if os.path.exists(rp) and os.path.exists(rpi):
+        narrow = load(rpi)["conditions"]["narrow"]
+        for metric, expect_i, expect_p in (("success", 0.035, 0.262),
+                                           ("collision", -0.142, 0.0043),
+                                           ("timeout", 0.107, 0.0087)):
+            out.append((f"8.4 {metric} interaction", expect_i,
+                        narrow[metric]["interaction"]))
+            out.append((f"8.4 {metric} interaction p", expect_p,
+                        narrow[metric]["p"]))
+        out += [
+            ("8.4 1:1 success delta", 0.032,
+             cmp_cell(rp, "narrow", "success", "delta")),
+            ("8.4 1:1 collision delta", -0.058,
+             cmp_cell(rp, "narrow", "collision", "delta")),
+            # The control cell: nominal must not move.
+            ("8.4 nominal success delta", 0.000,
+             cmp_cell(rp, "nominal", "success", "delta")),
+            ("8.4 nominal collision delta", -0.002,
+             cmp_cell(rp, "nominal", "collision", "delta")),
+            # The absolute cost of indifference on static clutter, which the
+            # interaction alone would hide.
+            ("8.4 b64 narrow success at 1:1", 0.598,
+             st.mean(load(rp)["conditions"]["narrow"]["per_arm"]["b64i"]["success"])),
+            ("8.4 b128 narrow success at 1:1", 0.630,
+             st.mean(load(rp)["conditions"]["narrow"]["per_arm"]["b128i"]["success"])),
+            ("8.4 nominal success b64i", 0.927,
+             st.mean(load(rp)["conditions"]["nominal"]["per_arm"]["b64i"]["success"])),
+        ]
+
     # --- suite size, quoted in three documents ------------------------
     n_tests = collected_tests()
     if n_tests is not None:

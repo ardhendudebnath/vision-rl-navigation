@@ -438,11 +438,26 @@ sample count turns that into a monotone curve.
 
 The decisive test pins *resolution* instead and varies coverage — the two
 cannot both be held, since resolution = FOV/samples. **Doubling the sample
-count changes nothing, twice, at both ends of the range. Quadrupling coverage
-at identical angular resolution produces the entire effect.** This sharpens
-the earlier framing rather than confirming it: "field of view beats angular
-resolution" implies a frontier where either knob buys performance. There is no
-such frontier — one knob is inert.
+count changes nothing in success, twice, at both ends of the range.
+Quadrupling coverage at identical angular resolution produces the entire
+effect.** This sharpens the earlier framing rather than confirming it: "field
+of view beats angular resolution" implies a frontier where either knob buys
+performance. There is no such frontier — one knob is inert *in success rate*.
+
+That qualifier was added late. The sentence read "changes nothing", and for
+one of the two contrasts that is false: doubling beams at 360° moves
+collisions +0.083 (p = 0.006) and timeouts −0.080, so the same number of
+episodes fail and what changes is *how*. The 90° contrast is clean on every
+metric; §8.4 shows the behavioural effect is real and reverses sign with the
+reward. The pre-registered null was about success and held — the prose
+generalised past it, and `seed_analysis.py` was discarding the timeout rate,
+so the claim could not have been checked by the script that produced it.
+
+**Coverage pays out of timeouts, not collisions** — -0.127
+(p = 0.004) on `narrow` and
+-0.108 (p = 0.013)
+on `dense`, with collisions unmoved. A robot that cannot see behind itself
+does not crash more; it gets stuck more.
 
 ### 8.2 The audit forecast both results before the policies existed
 
@@ -473,6 +488,38 @@ texture, lighting or sensor noise — so this is a lower bound.
 three times that. Worth contrasting with §8.2: the forecasts that held were
 derived from a measured quantity, this one was intuition in the same confident
 register.
+
+### 8.4 The reward prices perception too
+
+Every result above was measured under the 4:1 reward, and §9.1 shows that
+ratio deciding what an observation channel is worth. Re-running the 360°
+resolution contrast under indifference — `collision_penalty` 5 against a
+500-step timeout at 0.01/step, one field changed, six seeds per arm — asks
+whether these perception findings are about perception or about pricing. The
+quantity of interest is the **interaction**, over twelve index-paired per-seed
+deltas:
+
+| b128 − b64, `narrow` | at 4:1 | at 1:1 | interaction | p |
+|---|---|---|---|---|
+| success | -0.003 | +0.032 | +0.035 | 0.262 |
+| collision | +0.083 | -0.058 | **-0.142** | **0.0043** |
+| timeout | -0.080 | +0.027 | **+0.107** | **0.0087** |
+
+**The sign reverses.** Extra beams raise collisions under 4:1 on 6 of 6 seeds
+and lower them under 1:1 on 5 of 6, while success stays insensitive to both —
+which is why reading success alone found nothing. When stalling is cheap,
+extra resolution is spent attempting more passages and crashing on some; when
+stalling costs what crashing costs, the same resolution is spent getting
+through more safely. The sensor did not change; what the objective let the
+policy do with it did.
+
+Two guards. The reward change is not free — on `narrow` both arms are *worse*
+in absolute success at 1:1, collisions roughly tripling as timeouts collapse,
+so **§9.1's "stacking works at 1:1" was specific to moving obstacles and does
+not generalise to static clutter.** And on `nominal`, where the policy already
+succeeds 93% of the time, the 1:1 resolution delta is +0.000 on success and
+−0.002 on collisions: the control cell that a general property of the reward
+change would have moved.
 
 ## 9. Results 11–12: where the map is wrong
 
@@ -573,14 +620,15 @@ Two asymmetries in the comparison **favour** the learned side, and it still
 lost: the classical planner has no training distribution, so the shifts are
 not shifts for it; and two learned arms received 2.7× the compute.
 
-**The reward decides what information is worth.** Section 5.3 found the
-4:1 collision-to-timeout ratio makes the policy stall rather than get through.
-Section 9.1 finds the same ratio also decides what *extra* information buys:
-frame stacking cuts collisions under either reward, but at 4:1 the saving is
-swallowed by timeouts and net success falls, while at indifference it becomes
-successes. An observation channel is worth only what the objective lets the
-policy do with it — which is worth knowing before concluding that a sensor or
-a representation is useless.
+**The reward decides what information is worth.** Section 5.3 found the 4:1
+collision-to-timeout ratio makes the policy stall rather than get through. The
+same ratio also sets what *extra* information buys, for a learned channel
+(§9.1: frame stacking's collision saving is swallowed by timeouts at 4:1 and
+becomes successes at 1:1) and for a sensor parameter alike (§8.4: doubling
+angular resolution raises collisions at 4:1 and lowers them at 1:1, the
+interaction significant at p = 0.004 while success moves in neither). A
+channel is worth only what the objective lets the policy do with it — worth
+establishing before concluding that a sensor or a representation is useless.
 
 **Where the learned side earns its keep** is narrow and not what it first
 appeared. It is indistinguishable from *both* classical stacks on `dynamic`,
@@ -599,27 +647,36 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of ten predictions made in advance, the two derived from a
+**Calibration.** Of eleven predictions made in advance, the two derived from a
 *measurement* held, to within 0.021 and 0.001; seven from extrapolation or
-intuition failed outright; one got its mechanism right and its magnitude wrong
-(+0.033 against a predicted +0.05). Confidence of expression was identical
-throughout. Three failures sharpened the rule rather than breaking it.
+intuition failed outright; two got a mechanism or a magnitude right and the
+other wrong. Confidence of expression was identical throughout. Three failures
+sharpened the rule rather than breaking it.
 
-Predicting Nav2 ≥ 0.92 on `dynamic` extrapolated a *measured* collision
-reduction, which by the rule above should have been reliable — but it crossed
-from static clutter to moving obstacles, a boundary the measurement never
-spanned. **Measurement-derived predictions hold within the regime measured and
-become intuition outside it.**
+Three failures share one cause. Predicting Nav2 ≥ 0.92 on `dynamic`
+extrapolated a *measured* collision reduction, but carried it from static
+clutter to moving obstacles, a boundary the measurement never spanned. The
+recurrence prediction did it twice in one sitting: registered as a null on the
+strength of three measured nulls, then *amended* before evaluation — on the
+strength of a fourth measurement — to predict collisions falling while success
+stayed flat. Recurrence was significantly worse (-0.068, p = 0.017) and
+collisions *rose*. Both versions crossed from fixed hand-designed windows to
+learned memory, exactly as the Nav2 prediction crossed from static to moving.
+**Measurement-derived predictions hold within the regime measured and become
+intuition outside it — and reasoning carefully from the measurement does not
+extend its reach, it only makes the overreach harder to notice.**
 
-The recurrence prediction broke that rule twice in one sitting. Registered as a
-null on the strength of three measured nulls, it was then *amended* before any
-evaluation ran — on the strength of a fourth measurement — to predict collisions
-falling while success stayed flat. Recurrence was significantly worse
-(-0.068, p = 0.017) and collisions *rose*. Both versions extrapolated across a
-mechanism boundary, from fixed hand-designed windows to learned memory, exactly
-as the Nav2 prediction crossed from static to moving. **Reasoning carefully
-from a measurement does not extend its reach; it only makes the overreach
-harder to notice.**
+The eleventh was the first that crossed no boundary at all — same arms, same
+seeds, same condition, derived from that contrast's own breakdown — and its
+number essentially held (+0.032 against a predicted
+|Δ| < 0.03, not significant as predicted) while the *reasoning* behind it was
+wrong. It argued that extra resolution buys aggression rather than accuracy, so
+the 1:1 collision delta should not improve; it improved by
+-0.058, and the interaction is significant. What
+saved the result was the discriminator registered alongside it, which named in
+advance the observation that would tell the two mechanisms apart.
+**A right number is not a right model, and only a pre-registered discriminator
+tells you which one you had.**
 
 The churn and horizon experiments each proposed a mechanism, each named a
 control cell where that mechanism should not act, and each was refuted by the

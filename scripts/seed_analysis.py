@@ -119,7 +119,7 @@ def main(argv=None) -> int:
         per_arm: dict[str, dict[str, list[float]]] = {}
 
         for name, runs in arms.items():
-            succ, spl, coll = [], [], []
+            succ, spl, coll, tmo = [], [], [], []
             for run in runs:
                 cfg = build_env_config(
                     env_overrides_for_run(run), split=split, shift=shift,
@@ -132,7 +132,16 @@ def main(argv=None) -> int:
                 succ.append(metrics.success_rate)
                 spl.append(metrics.spl)
                 coll.append(metrics.collision_rate)
-            per_arm[name] = {"success": succ, "spl": spl, "collision": coll}
+                # Recorded because its absence produced a published overstatement.
+                # Phase 3d concluded "doubling the sample count changes nothing"
+                # from a flat success rate, and one of those two contrasts moved
+                # collisions by 0.083 at p = 0.007 -- an equal number of episodes
+                # ending in a crash instead of a timeout, at identical net
+                # success. This tool could not see it, because it threw the
+                # timeout rate away.
+                tmo.append(metrics.timeout_rate)
+            per_arm[name] = {"success": succ, "spl": spl, "collision": coll,
+                             "timeout": tmo}
 
             seeds = [run_seed(r) for r in runs]
             print(f"  {name}: seeds {seeds}")
@@ -148,13 +157,17 @@ def main(argv=None) -> int:
                 f"    collision per-seed {[round(v, 3) for v in coll]}"
                 f"  mean {np.mean(coll):.3f} +/- {np.std(coll, ddof=1):.3f}"
             )
+            print(
+                f"    timeout   per-seed {[round(v, 3) for v in tmo]}"
+                f"  mean {np.mean(tmo):.3f} +/- {np.std(tmo, ddof=1):.3f}"
+            )
 
         names = list(per_arm)
         comparisons = {}
         if len(names) == 2:
             a_name, b_name = names
             print(f"  {b_name} vs {a_name} (exact permutation, seed as unit):")
-            for metric in ("success", "spl", "collision"):
+            for metric in ("success", "spl", "collision", "timeout"):
                 a = np.array(per_arm[a_name][metric])
                 b = np.array(per_arm[b_name][metric])
                 delta = float(b.mean() - a.mean())

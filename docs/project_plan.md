@@ -36,6 +36,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5g | Explicit velocity channel vs frame_stack=2, 6 seeds/arm | **Done** — velocity inert in every encoding; extraction explanation dead too |
 | 5h | Indifference reward (collision 5 == timeout 5), 2 arms x 6 seeds | **Done** — **stacking works at 1:1 (+0.033, p = 0.019, 6/6)**; the reward was hiding it |
 | 5i | Recurrence (RecurrentPPO, 256-unit LSTM), 2 arms x 6 seeds | **Done** — **worse everywhere (-0.068 fast, -0.078 slow)**; the control refuses the motion reading |
+| 5j | Re-price angular resolution at 1:1, 2 arms x 6 seeds | **Done** — **the reward flips the sign (interaction -0.142, p = 0.0043)**; 3d's null was success-only |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -1498,6 +1499,119 @@ wall clock for the same samples, which is the number to weigh before reaching
 for recurrence on a task like this one.
 
 Phase 5h remains the load-bearing result. Nothing here touches it.
+
+## Phase 5j — The reward prices perception too, and Phase 3d overstated a null
+
+Phase 5h showed the reward decides what an observation *channel* is worth.
+Every perception result in this project was measured under the same 4:1
+reward, so each was a statement about what the objective let the policy do
+with a sensor rather than about the sensor. This tests that on the sharpest
+case, and re-reading Phase 3d's own result files first turned up a correction
+that needed no new training at all.
+
+### The correction
+
+Phase 3d concluded **"doubling the sample count changes nothing, twice"**. For
+one of the two contrasts that is not true:
+
+| 64 -> 128 beams @ 360 deg, `narrow` | delta | p |
+|---|---|---|
+| success | -0.003 | 0.955 |
+| collision | **+0.083** | **0.006** |
+| timeout | -0.080 | 0.113 |
+
+Collisions and timeouts move by equal and opposite amounts. The same number of
+episodes fail; what changes is *how*. The pre-registered prediction was a
+success-rate null with a +/-0.01 bound and it held -- the overstatement is in
+the prose, which generalised "success did not move" into "nothing happened".
+
+The other contrast (depth 32 -> 64 @ 90 deg) is clean on every metric and all
+three conditions, so this is specific rather than a general property of adding
+samples: collision -0.040
+(p = 0.517), timeout
++0.038 (p = 0.294).
+
+**The cause was a tool, not a slip.** `seed_analysis.py` recorded success, SPL
+and collision and discarded the timeout rate, so the claim could never have
+been checked by the script that produced it. It records timeouts now, and
+re-running all three Phase 3d contrasts reproduced every published number
+exactly -- the numbers were right, the reading of them was not.
+
+### Coverage, better characterised
+
+The same re-run explains *how* the coverage result pays, which was never
+reported. 32 samples @ 90 deg against 128 @ 360 deg, identical 2.81 deg/sample:
+
+| condition | success | collision | timeout |
+|---|---|---|---|
+| narrow | **+0.095** (p = 0.024) | +0.032 (p = 0.543) | **-0.127** (p = 0.004) |
+| dense | **+0.088** (p = 0.028) | +0.020 (p = 0.667) | **-0.108** (p = 0.013) |
+
+Coverage buys successes out of **timeouts**, with collisions unmoved. A robot
+that cannot see behind itself does not crash more; it gets stuck more.
+
+### The re-pricing
+
+Two arms, six seeds, identical to `b64`/`b128` in every field except
+`collision_penalty` 20 -> 5, which makes a crash cost exactly what a full
+500-step timeout costs. Verified by diffing the saved configs: one field
+differs from the 4:1 arms, and the two 1:1 arms differ only in `n_beams`.
+
+| `narrow` | success | collision | timeout |
+|---|---|---|---|
+| 4:1, 64 beams | 0.682 | 0.105 | 0.213 |
+| 4:1, 128 beams | 0.678 | 0.188 | 0.133 |
+| 1:1, 64 beams | 0.598 | 0.390 | 0.012 |
+| 1:1, 128 beams | 0.630 | 0.332 | 0.038 |
+
+The quantity of interest is the **interaction** -- not "does resolution help"
+but "does the reward decide what resolution does" -- and neither single-reward
+comparison can express it. Seeds are index-paired across all four cells, so
+the per-seed delta is well defined within each reward and the interaction is
+an exact permutation test over those twelve numbers.
+
+| metric | 4:1 | 1:1 | interaction | p |
+|---|---|---|---|---|
+| success | -0.003 | +0.032 | +0.035 | 0.262 |
+| collision | +0.083 | -0.058 | **-0.142** | **0.0043** |
+| timeout | -0.080 | +0.027 | **+0.107** | **0.0087** |
+
+**The sign reverses.** Under 4:1 the extra beams raise collisions, on 6 of 6
+seeds. Under 1:1 the same extra beams lower them, on 5 of 6. Success moves by
++0.035 and is not significant under either reward,
+which is precisely why reading success alone found nothing.
+
+Read behaviourally: when stalling is cheap, extra resolution is spent
+attempting more passages and crashing on some of them. When stalling costs the
+same as crashing and the policy must commit anyway, the same extra resolution
+is spent getting through more safely. **The sensor did not change. What the
+objective let the policy do with it did.**
+
+### Two guards on the reading
+
+The reward change is not free, and reporting only the interaction would hide
+it. On `narrow` at 1:1 both arms do *worse* in absolute terms --
+0.682 to 0.598
+for 64 beams and 0.678 to
+0.630 for 128 -- with collisions roughly
+tripling as timeouts collapse to near zero. **Phase 5h's "1:1 is better" was
+specific to moving obstacles and does not generalise to static clutter.**
+
+And the effect is confined to where resolution has work to do. On `nominal`,
+where the 4:1 policy already succeeds 0.927
+of the time, the 1:1 resolution delta is
++0.000 on success and
+-0.002 on collisions. That is the
+control cell: a general property of the reward change would have moved it too.
+
+### Consequences
+
+Result 2 was stated for an observation *channel*. It holds for a perception
+*parameter* as well, which is a wider claim than Phase 5h licensed on its own.
+The report's perception findings stand as success-rate results -- coverage is
+causal, resolution is inert in success -- but "resolution is inert" now needs
+its qualifier, because what resolution does to *behaviour* is significant,
+reward-dependent, and reverses sign.
 
 ## Hardware notes
 

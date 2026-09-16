@@ -39,7 +39,10 @@ nothing.
 2. **A training-free audit of the sensor** quantified a geometric limit, then
    forecast two later training experiments to within 0.021 and 0.001. It
    separates coverage (causal: +0.095, p = 0.024) from angular resolution
-   (inert: ±0.003 against a pre-registered ±0.01 bound).
+   (inert in success: ±0.003 against a pre-registered ±0.01 bound). Resolution
+   is not behaviourally inert, though: whether it raises or lowers collisions
+   is decided by the reward, and the sign reverses
+   (interaction -0.142, p = 0.004).
 3. **Representation, not information, is the cost of vision.** Rendering the
    same geometry as pixels for a CNN rather than a vector for an MLP costs
    0.16–0.24 success on every condition, and survives giving the CNN 2.7× the
@@ -87,10 +90,10 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of ten advance predictions, the two derived from
-*measurements* held to within 0.021 and 0.001; seven failed outright and an
-eighth got the mechanism right and the magnitude wrong, with identical
-confidence of expression throughout — including two that reasoned from a real
+pre-registered endpoints. Of eleven advance predictions, the two derived from
+*measurements* held to within 0.021 and 0.001; seven failed outright and two
+got a mechanism or a magnitude right and the other wrong, with identical
+confidence of expression throughout — including three that reasoned from a real
 measurement but carried it across a boundary the measurement never spanned. Both the false positive and a
 later harness bug that inverted a result are documented in the report rather
 than quietly corrected.
