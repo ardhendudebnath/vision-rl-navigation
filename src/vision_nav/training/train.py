@@ -42,10 +42,30 @@ def set_seed(seed: int) -> None:
 def resolve_device(requested: str) -> str:
     """Pick the training device.
 
-    For a small MLP policy on a fast CPU-side simulator, CPU usually *beats*
-    GPU: the per-batch host-device transfer costs more than the matmuls save.
-    ``auto`` therefore prefers CPU for MLP policies, which is the opposite of
-    the usual default and worth stating explicitly.
+    ``auto`` resolves to CPU, which is the opposite of the usual default and so
+    is stated explicitly -- and, since this claim shaped every run in the
+    project, measured rather than asserted. ``scripts/device_benchmark.py``,
+    one run per cell on an RTX 5070 Ti laptop, steps/second excluding process
+    and CUDA start-up:
+
+        cell                 cpu    cuda
+        MLP, 32 beams       1986    1598   CPU wins 1.24x
+        MLP, 128 beams      1956    1702   CPU wins 1.15x
+        RecurrentPPO, LSTM   129     163   CUDA wins 1.26x
+
+    So CPU is right for the MLP policies, but **not for the reason this
+    docstring used to give**. It claimed the per-batch host-device transfer
+    outweighs the matmuls; if that were the binding cost, quadrupling the
+    observation would make the GPU relatively worse. It makes it better -- the
+    CPU advantage narrows from 1.24x to 1.15x. The cost that actually bites is
+    per-launch overhead on minibatches too small to amortise it, which is why
+    it shrinks as the arithmetic per launch grows, and why an LSTM
+    backpropagating through 2048 timesteps crosses over and wins.
+
+    ``auto`` is left at CPU regardless, because it is also what every existing
+    run used and changing it silently would make new runs incomparable with
+    them on anything timing-sensitive. Recurrent and CNN policies should pass
+    ``train.device=cuda`` explicitly; train() says so when it sees one on CPU.
     """
     if requested != "auto":
         return requested
@@ -156,6 +176,21 @@ def train(cfg: DictConfig) -> dict:
     # and a recurrent policy can integrate over a longer history than any of
     # them. Default false, so every earlier run is unaffected.
     recurrent = bool(algo.pop("recurrent", False))
+
+    # The measurement in resolve_device says CPU wins for MLP policies and
+    # loses for recurrent ones. Saying so here rather than only in a docstring:
+    # the recurrent arm of Section 9.1 ran 1.5M steps on CPU at 78 steps/second,
+    # 5.3 hours a seed, because nothing pointed this out at launch.
+    heavy = recurrent or str(cfg.env.get("obs_mode", "")) == "rgb"
+    if heavy and device == "cpu":
+        kind = "a recurrent" if recurrent else "a CNN"
+        print(
+            f"[hint] training {kind} policy on CPU. Measured on this class of "
+            "policy, CUDA is roughly 1.26x faster (scripts/device_benchmark.py); "
+            "MLP policies are the ones CPU wins. Pass train.device=cuda to "
+            "switch, or set it explicitly to silence this.",
+            flush=True,
+        )
 
     resume_from = cfg.train.get("resume_from", None)
     if resume_from:

@@ -350,6 +350,20 @@ def claims():
              cx["dense"]["timeout"]["interaction"]),
         ]
 
+    # --- device benchmark, quoted in resolve_device's docstring -------
+    # That docstring decides what every run in this project trains on, so its
+    # table should not be able to drift from the measurement behind it.
+    db = "results/device_benchmark.json"
+    if os.path.exists(db):
+        s = load(db)["summary"]
+        # Rounded, because the docstring quotes whole steps per second and a
+        # 0.0005 tolerance on a four-digit rate would fail on the decimals.
+        for cell, cpu, cuda in (("mlp", 1986, 1598), ("mlp128", 1956, 1702),
+                                ("lstm", 129, 163)):
+            if cell in s:
+                out.append((f"device {cell} cpu", cpu, round(s[cell]["cpu_fps"])))
+                out.append((f"device {cell} cuda", cuda, round(s[cell]["cuda_fps"])))
+
     # --- suite size, quoted in three documents ------------------------
     n_tests = collected_tests()
     if n_tests is not None:

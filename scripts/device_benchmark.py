@@ -1,4 +1,4 @@
-"""Does CPU actually beat GPU here, or was that only ever asserted?
+﻿"""Does CPU actually beat GPU here, or was that only ever asserted?
 
 ``resolve_device`` maps ``auto`` to CPU for every policy in this project, on
 the stated grounds that "for a small MLP policy on a fast CPU-side simulator,
@@ -25,7 +25,6 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import statistics as st
 import subprocess
 import sys
 from pathlib import Path
@@ -39,11 +38,23 @@ CELLS = {
 }
 
 
-def marginal_fps(run_dir: Path) -> tuple[float, int]:
-    """Steps/second between logger dumps, excluding the first iteration.
+def marginal_fps(run_dir: Path) -> tuple[float, float]:
+    """Steps/second over the whole run, excluding the first iteration.
 
     The first dump includes process start, env construction and -- on CUDA --
-    context creation, none of which are per-step costs.
+    context creation, none of which are per-step costs, so it is dropped.
+
+    Rated across the entire remaining span rather than per interval, because
+    SB3 logs ``time/time_elapsed`` as an integer number of seconds. At ~8 s an
+    iteration, a per-interval rate can only take the values 16384/8 = 2048,
+    16384/9 = 1820, 16384/10 = 1638 ... and a median over those locks onto one
+    of them. The first version of this script did exactly that and reported the
+    MLP and the 128-beam MLP as *identical* to four figures, which is the
+    quantisation showing through rather than a result. Rating one long span
+    applies the same one-second uncertainty to a much larger denominator.
+
+    Returns the rate and the span in seconds, so the resolution is auditable:
+    the relative error is about 1/span.
     """
     path = run_dir / "logs" / "progress.csv"
     with open(path, newline="") as fh:
@@ -51,33 +62,39 @@ def marginal_fps(run_dir: Path) -> tuple[float, int]:
                 if r.get("time/total_timesteps") and r.get("time/time_elapsed")]
     steps = [int(r["time/total_timesteps"]) for r in rows]
     secs = [float(r["time/time_elapsed"]) for r in rows]
-    rates = []
-    for i in range(2, len(steps)):  # skip iteration 1 entirely
-        dt = secs[i] - secs[i - 1]
-        if dt > 0:
-            rates.append((steps[i] - steps[i - 1]) / dt)
-    if not rates:
+    if len(steps) < 3:
         raise ValueError(f"not enough logger dumps in {path}; raise --steps")
-    return st.median(rates), len(rates)
+    span = secs[-1] - secs[1]
+    if span <= 0:
+        raise ValueError(f"degenerate timing span in {path}; raise --steps")
+    return (steps[-1] - steps[1]) / span, span
 
 
-def run_cell(name: str, device: str, steps: int, seed: int) -> dict:
+def run_cell(name: str, device: str, steps: int, seed: int,
+             reuse: bool = False) -> dict:
     run_name = f"bench_{name}_{device}"
-    args = [sys.executable, "-m", "vision_nav.training.train", *CELLS[name],
-            f"train.run_name={run_name}", f"train.seed={seed}",
-            f"train.device={device}", f"train.total_timesteps={steps}",
-            "train.progress_bar=false", "train.eval_freq=100000000",
-            "train.checkpoint_freq=100000000"]
+    run_dir = Path("runs", run_name)
     print(f"  {name} on {device} ...", end="", flush=True)
-    r = subprocess.run(args, capture_output=True, text=True)
-    if r.returncode != 0:
-        print(" FAILED")
-        print(r.stdout[-1500:])
-        print(r.stderr[-1500:])
-        return {"cell": name, "device": device, "error": r.stderr[-400:]}
-    fps, n = marginal_fps(Path("runs", run_name))
-    print(f" {fps:.0f} steps/s (median of {n} intervals)")
-    return {"cell": name, "device": device, "fps": fps, "intervals": n}
+
+    if reuse and (run_dir / "logs" / "progress.csv").exists():
+        print(" (reusing timings)", end="")
+    else:
+        args = [sys.executable, "-m", "vision_nav.training.train", *CELLS[name],
+                f"train.run_name={run_name}", f"train.seed={seed}",
+                f"train.device={device}", f"train.total_timesteps={steps}",
+                "train.progress_bar=false", "train.eval_freq=100000000",
+                "train.checkpoint_freq=100000000"]
+        r = subprocess.run(args, capture_output=True, text=True)
+        if r.returncode != 0:
+            print(" FAILED")
+            print(r.stdout[-1500:])
+            print(r.stderr[-1500:])
+            return {"cell": name, "device": device, "error": r.stderr[-400:]}
+
+    fps, span = marginal_fps(run_dir)
+    print(f" {fps:.0f} steps/s (over {span:.0f}s, ~{100 / span:.1f}% resolution)")
+    return {"cell": name, "device": device, "fps": fps, "span_seconds": span,
+            "resolution_pct": 100 / span}
 
 
 def parse_args(argv=None):
@@ -86,8 +103,10 @@ def parse_args(argv=None):
                    choices=sorted(CELLS))
     p.add_argument("--devices", nargs="+", default=["cpu", "cuda"])
     p.add_argument("--steps", type=int, default=150_000,
-                   help="per cell; needs enough logger dumps to take a median")
+                   help="per cell; the timing span must be long enough that a one-second clock resolves it")
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--reuse", action="store_true",
+                   help="re-analyse existing bench runs instead of re-timing")
     p.add_argument("--out", default="results/device_benchmark.json")
     return p.parse_args(argv)
 
@@ -108,7 +127,7 @@ def main(argv=None) -> int:
     rows = []
     for cell in args.cells:
         for device in args.devices:
-            rows.append(run_cell(cell, device, args.steps, args.seed))
+            rows.append(run_cell(cell, device, args.steps, args.seed, args.reuse))
 
     print(f"\n{'cell':10s} {'cpu':>10s} {'cuda':>10s} {'speedup':>10s}")
     summary = {}

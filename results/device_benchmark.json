@@ -1,0 +1,66 @@
+{
+  "gpu": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+  "steps_per_cell": 150000,
+  "seed": 0,
+  "runs": [
+    {
+      "cell": "mlp",
+      "device": "cpu",
+      "fps": 1985.939393939394,
+      "span_seconds": 66.0,
+      "resolution_pct": 1.5151515151515151
+    },
+    {
+      "cell": "mlp",
+      "device": "cuda",
+      "fps": 1598.439024390244,
+      "span_seconds": 82.0,
+      "resolution_pct": 1.2195121951219512
+    },
+    {
+      "cell": "mlp128",
+      "device": "cpu",
+      "fps": 1956.2985074626865,
+      "span_seconds": 67.0,
+      "resolution_pct": 1.492537313432836
+    },
+    {
+      "cell": "mlp128",
+      "device": "cuda",
+      "fps": 1702.2337662337663,
+      "span_seconds": 77.0,
+      "resolution_pct": 1.2987012987012987
+    },
+    {
+      "cell": "lstm",
+      "device": "cpu",
+      "fps": 129.26232741617358,
+      "span_seconds": 1014.0,
+      "resolution_pct": 0.09861932938856016
+    },
+    {
+      "cell": "lstm",
+      "device": "cuda",
+      "fps": 163.02487562189054,
+      "span_seconds": 804.0,
+      "resolution_pct": 0.12437810945273632
+    }
+  ],
+  "summary": {
+    "mlp": {
+      "cpu_fps": 1985.939393939394,
+      "cuda_fps": 1598.439024390244,
+      "cuda_speedup": 0.8048780487804879
+    },
+    "mlp128": {
+      "cpu_fps": 1956.2985074626865,
+      "cuda_fps": 1702.2337662337663,
+      "cuda_speedup": 0.8701298701298702
+    },
+    "lstm": {
+      "cpu_fps": 129.26232741617358,
+      "cuda_fps": 163.02487562189054,
+      "cuda_speedup": 1.2611940298507462
+    }
+  }
+}
