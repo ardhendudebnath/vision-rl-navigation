@@ -90,11 +90,15 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of eleven advance predictions, the two derived from
-*measurements* held to within 0.021 and 0.001; seven failed outright and two
-got a mechanism or a magnitude right and the other wrong, with identical
-confidence of expression throughout — including three that reasoned from a real
-measurement but carried it across a boundary the measurement never spanned. Both the false positive and a
+pre-registered endpoints. Of twelve advance predictions, three derived from
+*measurements* held; seven failed outright and two got a mechanism or a
+magnitude right and the other wrong, with identical confidence of expression
+throughout. The three failures that reasoned from a real measurement all
+carried it into a regime nothing had been measured in — and the one that
+crossed the same boundary *with* the far side already measured held on both
+its magnitude and its mechanism (+0.080,
+collision interaction -0.133,
+p = 0.024). Both the false positive and a
 later harness bug that inverted a result are documented in the report rather
 than quietly corrected. So is a third: the seed-comparison tool discarded the
 timeout rate for the whole perception study, which turned one measured

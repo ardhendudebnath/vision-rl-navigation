@@ -51,9 +51,10 @@ decision below follows from wanting that comparison to be trustworthy.
 | Recurrence: worse everywhere, and the control says not about motion | Done |
 | Re-pricing perception at 1:1: the reward flips what resolution does | Done |
 | Timeout audit of every perception result: all reproduce; deficits stall, not crash | Done |
+| Coverage re-priced at 1:1: headline survives, mechanism moves stall to crash | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Twenty-six experiments, each pre-registered where it tests a hypothesis. The
+Twenty-seven experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).

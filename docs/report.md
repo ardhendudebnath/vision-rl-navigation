@@ -24,9 +24,11 @@ policy correctly learns to stall rather than crash.
 Turning to perception, a **training-free audit of the sensor** quantifies a
 real geometric limit and then forecasts two subsequent training experiments to
 within 0.021 and 0.001. It shows coverage is causal while angular resolution
-is inert: doubling sample count at fixed field of view changes nothing
-(±0.003, inside a pre-registered ±0.01 bound), while quadrupling coverage at
-identical resolution produces the whole effect (+0.095, p = 0.024). Holding
+is inert *in success*: doubling sample count at fixed field of view changes
+nothing (±0.003, inside a pre-registered ±0.01 bound), while quadrupling
+coverage at identical resolution produces the whole effect (+0.095, p = 0.024).
+Re-pricing both under an indifferent reward separates them: coverage's effect
+survives unchanged, resolution's reverses sign. Holding
 information constant and changing only the *representation* — the same
 geometry as pixels for a CNN rather than a vector for an MLP — costs 0.16–0.24
 success. Where the map is wrong the gap narrows to statistical parity with
@@ -511,6 +513,20 @@ succeeds 93% of the time, the 1:1 resolution delta is +0.000 on success and
 −0.002 on collisions: the control cell that a general property of the reward
 change would have moved.
 
+**Coverage was re-priced too, and it survives.** §8.1's headline was the
+exposed one: §8.5 shows its entire benefit sitting in the timeout channel, and
+indifference nearly closes that channel. Repeating the contrast at 1:1 keeps
+the effect — +0.080 (p = 0.032)
+on `narrow`, +0.107 (p = 0.004)
+on `dense`, against +0.095 and +0.088 at 4:1 — with a success interaction that
+is null on both conditions. What moves is the mechanism: collisions
+-0.133 (p = 0.024)
+and timeouts +0.148
+(p = 0.0022). **Coverage buys the same amount under
+either reward; only the failure it prevents changes.** Resolution did not
+survive this test and coverage did, which is the sharpest statement of the
+difference between them in this report.
+
 ### 8.5 What a perception deficit actually does
 
 `seed_analysis.py` recorded success, SPL and collisions and discarded the
@@ -525,16 +541,21 @@ recovered a pattern none of them could show alone:
 | coverage ↓ (360° → 90°), `dense` | -0.130 | +0.008 | **+0.122** |
 | resolution ↑ from inadequate (16 → 64), `dense` | +0.115 | **-0.087** | -0.028 |
 
-Bold marks p < 0.05. **Coverage deficits make the robot get stuck; sensing
-deficits make it crash.** Both directions of the coverage manipulation agree,
-and collisions never approach significance in either — on the same six seeds
-that make the timeout shift significant, so this is a contrast between channels
-rather than an argument from low power. Below adequacy the pattern inverts:
-16 beams is too few to see obstacles, and fixing that cuts collisions with
-timeouts unmoved.
+Bold marks p < 0.05. **Under this reward, coverage deficits make the robot get
+stuck; sensing deficits make it crash.** Both directions of the coverage
+manipulation agree, and collisions never approach significance in either — on
+the same six seeds that make the timeout shift significant, so this is a
+contrast between channels rather than an argument from low power. Below
+adequacy the pattern inverts: 16 beams is too few to see obstacles, and fixing
+that cuts collisions with timeouts unmoved.
 
-The intuition that a worse sensor means more crashes is right only at the
-bottom of the range. Over most of it, a worse sensor means a robot that stops.
+The qualifier is not decoration. Every row above was measured at 4:1, and §8.4
+shows that at 1:1 the same coverage deficit costs the same success through
+*collisions* instead (-0.133 interaction,
+p = 0.024). Getting stuck is what a coverage
+deficit looks like under a reward that prices stalling cheaply. What the
+deficit reliably costs is success; how it spends that cost is the objective's
+decision, not the sensor's.
 
 ## 9. Results 11–12: where the map is wrong
 
@@ -662,11 +683,11 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of eleven predictions made in advance, the two derived from a
-*measurement* held, to within 0.021 and 0.001; seven from extrapolation or
-intuition failed outright; two got a mechanism or a magnitude right and the
-other wrong. Confidence of expression was identical throughout. Three failures
-sharpened the rule rather than breaking it.
+**Calibration.** Of twelve predictions made in advance, three derived from a
+*measurement* held — two to within 0.021 and 0.001, and one on both its
+magnitude and its mechanism; seven from extrapolation or intuition failed
+outright; two got a mechanism or a magnitude right and the other wrong.
+Confidence of expression was identical throughout.
 
 Three failures share one cause. Predicting Nav2 ≥ 0.92 on `dynamic`
 extrapolated a *measured* collision reduction, but carried it from static
@@ -677,9 +698,17 @@ strength of a fourth measurement — to predict collisions falling while success
 stayed flat. Recurrence was significantly worse (-0.068, p = 0.017) and
 collisions *rose*. Both versions crossed from fixed hand-designed windows to
 learned memory, exactly as the Nav2 prediction crossed from static to moving.
-**Measurement-derived predictions hold within the regime measured and become
-intuition outside it — and reasoning carefully from the measurement does not
-extend its reach, it only makes the overreach harder to notice.**
+**Measurement-derived predictions become intuition where nothing has been
+measured — and reasoning carefully from the measurement does not extend its
+reach, it only makes the overreach harder to notice.**
+
+The twelfth prediction is why that is phrased as it is. It crossed the same
+4:1 → 1:1 boundary, and held on both its magnitude and its mechanism, because
+§8.4 had already measured the far side: with the timeout channel known to
+close at 1:1, "coverage must then pay through collisions or not at all" is
+deduction from two measurements bracketing the new cell rather than
+extrapolation past one. **A crossing is only extrapolation while the far side
+is unmeasured.**
 
 The eleventh was the first that crossed no boundary at all — same arms, same
 seeds, same condition, derived from that contrast's own breakdown — and its

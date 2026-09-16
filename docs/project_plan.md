@@ -38,6 +38,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5i | Recurrence (RecurrentPPO, 256-unit LSTM), 2 arms x 6 seeds | **Done** — **worse everywhere (-0.068 fast, -0.078 slow)**; the control refuses the motion reading |
 | 5j | Re-price angular resolution at 1:1, 2 arms x 6 seeds | **Done** — **the reward flips the sign (interaction -0.142, p = 0.0043)**; 3d's null was success-only |
 | 5k | Timeout audit of all six remaining seed_analysis results | **Done** — all reproduce exactly; **coverage deficits stall, sensing deficits crash** |
+| 5l | Re-price coverage at 1:1, 6 new depth arms | **Done** — **headline survives (+0.080, p = 0.032)**; mechanism moves stall -> crash |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -1694,6 +1695,77 @@ misled was caught only because a later phase made that exact failure mode
 salient. **The check that finds this class of error is re-reading old result
 files after learning something new, and it is worth doing deliberately rather
 than by luck.**
+
+## Phase 5l — Coverage re-priced: the finding survives, the mechanism moves
+
+Phase 5k found coverage's entire benefit sitting in the timeout channel, and
+Phase 5j found indifference collapsing timeouts to near zero. Together those
+say the report's strongest perception claim -- coverage is causal, +0.095 at
+p = 0.024 -- had only ever been measured under a reward that leaves its
+mechanism room to operate. Six depth arms at `collision_penalty` 5 close that;
+the lidar half (`b128i`) already existed from 5j.
+
+| `narrow` | success | collision | timeout |
+|---|---|---|---|
+| 4:1, 32 px @ 90 deg | 0.583 | 0.157 | 0.260 |
+| 4:1, 128 beams @ 360 deg | 0.678 | 0.188 | 0.133 |
+| 1:1, 32 px @ 90 deg | 0.550 | 0.433 | 0.017 |
+| 1:1, 128 beams @ 360 deg | 0.630 | 0.332 | 0.038 |
+
+Coverage still pays: +0.080
+(p = 0.032) on `narrow` and
++0.107 (p = 0.004)
+on `dense`, against +0.095 and
++0.088 at 4:1.
+
+### The interaction
+
+| metric | 4:1 | 1:1 | interaction | p |
+|---|---|---|---|---|
+| success | +0.095 | +0.080 | -0.015 | 0.7706 |
+| collision | +0.032 | -0.102 | **-0.133** | **0.0238** |
+| timeout | -0.127 | +0.022 | **+0.148** | **0.0022** |
+
+`dense` agrees: success interaction +0.018
+(p = 0.708), collision
+-0.133
+(p = 0.030), timeout
++0.115 (p = 0.009).
+
+**The size of the effect is invariant and its mechanism is not.** The success
+interaction is null on both conditions -- coverage buys the same amount under
+either reward -- while the collision and timeout interactions are significant
+on both. At 4:1 the narrow-FOV policy stalls; at 1:1, forced to commit, it
+drives into what it cannot see. Same sensor deficit, same cost, different
+failure.
+
+### Consequences
+
+The report's strongest perception claim survives re-pricing, which is worth
+more than it sounds: angular resolution did not (Phase 5j), and coverage was
+tested precisely because it looked equally exposed.
+
+Phase 5k's summary sentence needs its qualifier, though. "Coverage deficits
+make the robot get stuck; sensing deficits make it crash" was measured
+entirely at 4:1. Getting stuck is what a coverage deficit looks like *under a
+reward that prices stalling cheaply*. What a coverage deficit reliably costs is
+success; how it spends that cost is the reward's decision.
+
+### Calibration
+
+Prediction 12 held on both halves: success in the registered +0.05 to +0.12
+band, and the mechanism relocating with a collision delta at or below -0.05.
+It was registered with **low** confidence, because it crossed the 4:1 -> 1:1
+boundary and predictions 2 and 10 both died at exactly that kind of crossing.
+
+So the rule as stated was wrong, and this is the counterexample that fixes it.
+The failures extrapolated a magnitude into a regime where **nothing had been
+measured**. Here Phase 5j had already measured the far side -- timeouts
+collapse at 1:1 -- so the prediction was not extrapolation but deduction from
+two measurements that jointly bracket the new cell: if the timeout channel is
+closed and coverage still helps, it must help through another channel.
+**What matters is whether some measurement covers the new regime, not whether
+a boundary is crossed.** Given both sides, the crossing is interpolation.
 
 ## Hardware notes
 

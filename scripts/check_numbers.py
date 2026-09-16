@@ -309,6 +309,47 @@ def claims():
         if os.path.exists(path):
             out.append((label, expect, cmp_cell(path, cond, metric, field)))
 
+    # --- coverage re-priced at 1:1 ------------------------------------
+    # The report's strongest perception claim, re-measured under the reward
+    # that closes the channel it was paying through. Success and mechanism are
+    # pinned separately because the finding is that one held and one moved.
+    cov1, covx = ("results/repricing_coverage.json",
+                  "results/repricing_coverage_interaction.json")
+    if os.path.exists(cov1) and os.path.exists(covx):
+        cx = load(covx)["conditions"]
+        out += [
+            ("coverage 1:1 narrow success", 0.080,
+             cmp_cell(cov1, "narrow", "success", "delta")),
+            ("coverage 1:1 narrow success p", 0.032,
+             cmp_cell(cov1, "narrow", "success", "p")),
+            ("coverage 1:1 dense success", 0.107,
+             cmp_cell(cov1, "dense", "success", "delta")),
+            ("coverage 1:1 dense success p", 0.004,
+             cmp_cell(cov1, "dense", "success", "p")),
+            ("coverage 1:1 narrow collision", -0.102,
+             cmp_cell(cov1, "narrow", "collision", "delta")),
+            ("coverage 1:1 narrow timeout", 0.022,
+             cmp_cell(cov1, "narrow", "timeout", "delta")),
+            # The effect is invariant: this interaction must stay null.
+            ("coverage interaction narrow success", -0.015,
+             cx["narrow"]["success"]["interaction"]),
+            ("coverage interaction narrow success p", 0.771,
+             cx["narrow"]["success"]["p"]),
+            # The mechanism is not: these must not.
+            ("coverage interaction narrow collision", -0.133,
+             cx["narrow"]["collision"]["interaction"]),
+            ("coverage interaction narrow collision p", 0.024,
+             cx["narrow"]["collision"]["p"]),
+            ("coverage interaction narrow timeout", 0.148,
+             cx["narrow"]["timeout"]["interaction"]),
+            ("coverage interaction narrow timeout p", 0.0022,
+             cx["narrow"]["timeout"]["p"]),
+            ("coverage interaction dense collision", -0.133,
+             cx["dense"]["collision"]["interaction"]),
+            ("coverage interaction dense timeout", 0.115,
+             cx["dense"]["timeout"]["interaction"]),
+        ]
+
     # --- suite size, quoted in three documents ------------------------
     n_tests = collected_tests()
     if n_tests is not None:
