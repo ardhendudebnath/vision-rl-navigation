@@ -796,3 +796,92 @@ def test_a_cap_reaches_the_planner_on_moving_worlds():
     uncapped = agent._mover_occupancy(radius, 30)
     agent.config.extrapolation_cap_s = 1.0
     assert not np.array_equal(uncapped, agent._mover_occupancy(radius, 30))
+
+# ============================================================================
+# The harmonic estimator: fitting the oscillation instead of drawing a line
+# ============================================================================
+def _sine_history(centre, direction, amplitude, omega, times):
+    """Observations of one mover on centre + dir * A sin(w t), as the agent sees them."""
+    out = []
+    for t in times:
+        offset = amplitude * np.sin(omega * t)
+        pos = np.asarray(centre, dtype=float) + np.asarray(direction, dtype=float) * offset
+        out.append((float(t), np.array([[pos[0], pos[1], 0.3]])))
+    return out
+
+
+def test_the_harmonic_fit_recovers_an_oscillation_it_was_never_told():
+    """The fit sees positions only: no amplitude, no frequency, no centre."""
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+
+    agent = SpaceTimeAgent(SpaceTimeConfig(predictor="harmonic"))
+    centre, direction, amplitude, omega = (4.0, 5.0), (0.6, 0.8), 2.0, 0.35
+    times = np.arange(0.0, 3.01, 0.1)
+    seen = _sine_history(centre, direction, amplitude, omega, times)
+    for horizon in (1.0, 3.0, 7.0):
+        t = times[-1] + horizon
+        truth = np.asarray(centre) + np.asarray(direction) * amplitude * np.sin(omega * t)
+        got = agent._harmonic_discs(seen, t)
+        assert got is not None
+        assert np.linalg.norm(got[0, :2] - truth) < 1e-3, horizon
+        assert got[0, 2] == 0.3, "radius must not be fitted"
+
+
+def test_the_harmonic_fit_follows_its_observations_not_the_world():
+    """The causality control. Given a history that disagrees with the world, the
+    estimate must track the history -- an estimator reading the truth would not."""
+    agent, env = _cv_agent_on("dynamic")
+    agent.config.predictor = "harmonic"
+    times = np.arange(env.world._t, env.world._t + 3.01, 0.1)
+    invented = _sine_history((1.0, 1.0), (1.0, 0.0), 1.5, 0.5, times)
+    t = times[-1] + 2.0
+    got = agent._predicted_discs(t, observations=invented)
+    expected = 1.0 + 1.5 * np.sin(0.5 * t)
+    assert abs(got[0, 0] - expected) < 1e-3
+    assert not np.allclose(got[0, :2], env.world.dynamic_at(t)[0, :2])
+
+
+def test_too_little_track_falls_back_to_the_straight_line():
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+
+    agent = SpaceTimeAgent(SpaceTimeConfig(predictor="harmonic"))
+    short = _sine_history((4.0, 5.0), (1.0, 0.0), 2.0, 0.35, np.arange(0.0, 0.31, 0.1))
+    assert agent._harmonic_discs(short, 3.0) is None
+    line = agent._constant_velocity_discs(short, 3.0)
+    np.testing.assert_array_equal(agent._predicted_discs(3.0, observations=short), line)
+
+
+def test_a_frozen_mover_has_no_oscillation_to_fit():
+    """Degenerate by construction, so the fit declines and the frozen identity
+    holds: harmonic drives frozen worlds exactly as the oracle does."""
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+
+    agent = SpaceTimeAgent(SpaceTimeConfig(predictor="harmonic"))
+    still = _sine_history((4.0, 5.0), (1.0, 0.0), 0.0, 0.35, np.arange(0.0, 3.01, 0.1))
+    assert agent._harmonic_discs(still, 5.0) is None
+
+
+@pytest.mark.parametrize("seed", [0, 3])
+def test_the_harmonic_estimate_is_exact_on_frozen_worlds(seed):
+    oracle, _, _ = _episode("dynamic_dense_frozen", seed, True, margin=2, predictor="oracle")
+    fitted, _, _ = _episode("dynamic_dense_frozen", seed, True, margin=2, predictor="harmonic")
+    assert oracle.shape == fitted.shape and np.array_equal(oracle, fitted)
+
+
+def test_the_harmonic_estimate_reaches_the_planner():
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+
+    agent, env = _cv_agent_on("dynamic")
+    for _ in range(40):
+        env.step(agent.act(env.robot.pose))
+    radius = env.world.config.robot_radius + agent.config.safety_margin
+    line = agent._mover_occupancy(radius, 30)
+    fitted = SpaceTimeAgent(SpaceTimeConfig(predictor="harmonic"), robot=env.config.robot)
+    fitted._world = env.world
+    fitted._observations = [(t, p.copy()) for t, p in agent._observations]
+    assert len(fitted._observations) >= 2
+    fitted._observations = []
+    for _ in range(35):
+        fitted._observe()
+        env.world.set_time(env.world._t + 0.1)
+    assert not np.array_equal(line, fitted._mover_occupancy(radius, 30))

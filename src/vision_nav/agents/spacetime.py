@@ -99,7 +99,19 @@ class SpaceTimeConfig:
     #: they curve and reverse -- from sensing error, which is a second question.
     #: A frozen mover has zero velocity, so its estimate is exact and the
     #: estimated planner must be bit-identical to the oracle on frozen worlds.
+    #: ``"harmonic"`` fits each mover's own oscillation to the track it has been
+    #: seen to follow and carries that forward. Four changes to how the planner
+    #: *uses* a straight-line estimate (Phases 5r to 5w) failed to recover its
+    #: dense-clutter cost; none of them changed the line itself.
+    #:
+    #: It is matched to how these movers move, which is the easiest case an
+    #: estimator can be given: noise-free observations of a world that really is
+    #: harmonic. It bounds what a better model is worth here; it is not a claim
+    #: about a real sensor.
     predictor: str = "oracle"
+    #: Seconds of mover track the harmonic fit reads. Other predictors keep two
+    #: observations, whatever this says, so their results cannot move.
+    history_s: float = 3.0
     #: Fraction of ``safety_margin`` that movers are always inflated by, however
     #: far the planner falls back. ``0.0`` lets the last fallback plan at the
     #: bare robot radius around movers too, which is what Phase 5r ran.
@@ -232,11 +244,80 @@ class SpaceTimeAgent:
             out = dilate_in_time(out, self.config.temporal_margin_steps)
         return out.reshape(steps, n_rows, n_cols)
 
+    @property
+    def _history_needed(self) -> int:
+        """Observations kept. Two is all a straight line can use; the harmonic
+        estimator needs a stretch of track to read curvature off."""
+        if self.config.predictor != "harmonic":
+            return 2
+        return max(3, int(round(self.config.history_s / self.robot.dt)) + 1)
+
     def _observe(self) -> None:
         """Record where the movers are now -- what the robot's sensors see."""
         w = self._world
         self._observations.append((w._t, w._dyn_now.copy()))
-        del self._observations[:-2]
+        del self._observations[:-self._history_needed]
+
+    def _harmonic_discs(self, seen, t: float) -> np.ndarray | None:
+        """Where a fitted oscillation puts the movers at ``t``, or ``None`` if the
+        history cannot support the fit.
+
+        Every mover here runs ``centre + dir * A sin(w t)``, so each obeys
+        ``a = -w^2 (p - c)``: linear in ``w^2`` and ``w^2 c``, which is a
+        three-unknown least squares over the observed track and needs no
+        knowledge of any mover's parameters. The prediction is then the exact
+        solution of that equation from the current position and velocity,
+        ``c + (p - c) cos(w tau) + (v / w) sin(w tau)``.
+
+        A frozen mover has no curvature to read, so the fit is degenerate and
+        this returns ``None`` -- which is what keeps the frozen identity.
+        """
+        times = np.array([s[0] for s in seen])
+        if len(seen) < 5 or len({len(p) for _, p in seen}) != 1:
+            return None
+        dt = float(np.diff(times).mean())
+        if dt <= 0 or not np.allclose(np.diff(times), dt, atol=1e-9):
+            return None
+        track = np.stack([p[:, :2] for _, p in seen])  # (N, M, 2)
+        pos = track[1:-1]
+        vel = (track[2:] - track[:-2]) / (2.0 * dt)
+        acc = (track[2:] - 2.0 * track[1:-1] + track[:-2]) / (dt * dt)
+
+        out = seen[-1][1].copy()
+        # Propagate from the last sample where position *and* velocity are both
+        # known at the same instant. A central difference gives the velocity at
+        # the middle sample, and pairing it with the newest position instead
+        # starts the prediction a step out of step -- worth 0.06 m at two
+        # seconds when this was first written.
+        tau = t - times[-2]
+        for m in range(track.shape[1]):
+            # Rows [-p_x, -p_y stacked]: a = -k p + u, unknowns (k, u_x, u_y).
+            n = len(pos)
+            design = np.zeros((2 * n, 3))
+            design[0::2, 0] = -pos[:, m, 0]
+            design[1::2, 0] = -pos[:, m, 1]
+            design[0::2, 1] = 1.0
+            design[1::2, 2] = 1.0
+            target = acc[:, m, :].reshape(-1)
+            (k, ux, uy), *_ = np.linalg.lstsq(design, target, rcond=None)
+            omega = math.sqrt(k) if k > 1e-9 else 0.0
+            if omega <= 0.0 or not np.isfinite(omega):
+                return None
+            centre = np.array([ux, uy]) / k
+            p_ref, v_ref = track[-2, m], vel[-1, m]
+            out[m, :2] = (centre + (p_ref - centre) * math.cos(omega * tau)
+                          + v_ref / omega * math.sin(omega * tau))
+        return out
+
+    def _constant_velocity_discs(self, seen, t: float) -> np.ndarray:
+        t1, p1 = seen[-1]
+        out = p1.copy()
+        if len(seen) >= 2:
+            t0, p0 = seen[-2]
+            if t1 > t0 and len(p0) == len(p1):
+                velocity = (p1[:, :2] - p0[:, :2]) / (t1 - t0)
+                out[:, :2] = p1[:, :2] + velocity * min(t - t1, self.config.extrapolation_cap_s)
+        return out
 
     def _predicted_discs(self, t: float,
                          observations: list[tuple[float, np.ndarray]] | None = None) -> np.ndarray:
@@ -248,17 +329,14 @@ class SpaceTimeAgent:
         w = self._world
         if self.config.predictor == "oracle":
             return w.dynamic_at(t)
-        if self.config.predictor != "constant_velocity":
+        if self.config.predictor not in ("constant_velocity", "harmonic"):
             raise ValueError(f"unknown predictor {self.config.predictor!r}")
         seen = self._observations if observations is None else observations
-        t1, p1 = seen[-1]
-        out = p1.copy()
-        if len(seen) >= 2:
-            t0, p0 = seen[-2]
-            if t1 > t0 and len(p0) == len(p1):
-                velocity = (p1[:, :2] - p0[:, :2]) / (t1 - t0)
-                out[:, :2] = p1[:, :2] + velocity * min(t - t1, self.config.extrapolation_cap_s)
-        return out
+        if self.config.predictor == "harmonic":
+            fitted = self._harmonic_discs(seen, t)
+            if fitted is not None:
+                return fitted
+        return self._constant_velocity_discs(seen, t)
 
     def _innovation(self) -> float:
         """Largest distance between a mover as observed now and where the
