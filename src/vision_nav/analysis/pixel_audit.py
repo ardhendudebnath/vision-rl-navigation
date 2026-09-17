@@ -37,8 +37,8 @@ from vision_nav.analysis.perception import traversable_mask
 from vision_nav.envs.rgb_camera import RGBCameraConfig
 from vision_nav.envs.robot import wrap_angle
 
-__all__ = ["column_signature", "depth_ambiguity", "stall_steps", "stall_geometry",
-           "STALL_CLASSES"]
+__all__ = ["column_signature", "depth_ambiguity", "stall_steps", "stalled_now",
+           "stall_geometry", "STALL_CLASSES"]
 
 STALL_CLASSES = ("goal_open", "detour", "boxed")
 
@@ -96,6 +96,23 @@ def stall_steps(positions: np.ndarray, dt: float, window_s: float = 3.0,
         if np.linalg.norm(segment - segment[0], axis=1).max() < min_displacement:
             stalled[i:i + k + 1] = True
     return stalled
+
+
+def stalled_now(positions: np.ndarray, dt: float, window_s: float = 3.0,
+                min_displacement: float = 0.15) -> bool:
+    """Whether the robot has gone nowhere over the last ``window_s`` seconds.
+
+    The causal half of :func:`stall_steps`: it looks only backwards, so a
+    controller can act on it mid-episode. Anything a controller does with it
+    therefore starts ``window_s`` late, which :func:`stall_steps` -- labelling a
+    whole window once it has passed -- does not.
+    """
+    positions = np.asarray(positions, dtype=np.float64)
+    k = max(1, int(round(window_s / dt)))
+    if len(positions) < k + 1:
+        return False
+    recent = positions[-(k + 1):]
+    return bool(np.linalg.norm(recent - recent[0], axis=1).max() < min_displacement)
 
 
 def stall_geometry(world, pose: np.ndarray, fov: float, columns: int,

@@ -15,6 +15,7 @@ from vision_nav.analysis.pixel_audit import (
     depth_ambiguity,
     stall_geometry,
     stall_steps,
+    stalled_now,
 )
 from vision_nav.envs.rgb_camera import RGBCamera, RGBCameraConfig
 from vision_nav.envs.world import World, WorldConfig, generate_world
@@ -67,6 +68,28 @@ def test_stall_steps_counts_going_nowhere_however_it_is_done():
     assert not stall_steps(straight, dt).any()
     dither = np.hstack([2.0 + 0.05 * np.sin(t), np.full((n, 1), 2.0)])
     assert stall_steps(dither, dt).all()
+
+
+def test_the_causal_detector_agrees_with_the_labeller_once_a_window_has_passed():
+    """stalled_now at step i must be exactly "the window ending at i is a stall"
+    -- never true earlier, since it cannot see the future."""
+    dt, k = 0.1, 30
+    rng = np.random.default_rng(3)
+    moving = np.cumsum(rng.normal(0.0, 0.03, size=(60, 2)), axis=0)
+    parked = np.tile(moving[-1], (50, 1))
+    path = np.vstack([moving, parked, parked[-1] + np.cumsum(np.full((40, 2), 0.05), axis=0)])
+    labels = stall_steps(path, dt)
+    for i in range(len(path)):
+        now = stalled_now(path[:i + 1], dt)
+        if i < k:
+            assert not now
+        window = path[i - k:i + 1] if i >= k else None
+        if window is not None:
+            expected = np.linalg.norm(window - window[0], axis=1).max() < 0.15
+            assert now == expected, i
+            if now:
+                assert labels[i - k:i + 1].all()
+    assert any(stalled_now(path[:i + 1], dt) for i in range(len(path)))
 
 
 def _open_world(boxes=()):
