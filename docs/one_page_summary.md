@@ -67,7 +67,16 @@ nothing.
    found the baseline a better replanning policy, which removed the last of
    the parity on cluttered dynamic worlds (−0.110, p = 0.031). All three came
    from deliberately re-testing the claim that most flattered the work.
-6. **The reward decides what information is worth.** Frame stacking looked
+6. **What motion costs the planner is a planning problem.**
+   Given the movers' exact future positions, a planner that reasons in
+   space-time and keeps a small temporal margin loses 0.010 to motion on dense
+   clutter where the original lost 0.145. No robot has those positions:
+   with the simplest real estimate, constant velocity from the robot's own
+   observations, about half of that recovery survives on dense clutter and most
+   of it on sparse. Four further changes to how the planner uses the estimate
+   each failed to recover the rest, which leaves the estimator itself as the
+   thing to improve.
+7. **The reward decides what information is worth.** Frame stacking looked
    useless across three encodings and a 3× mover-speed range. It is not: the
    reward priced a collision at four times a timeout, and making the two equal
    turns stacking into a significant gain (+0.033, p = 0.019, 6 of 6 seeds)
@@ -75,7 +84,7 @@ nothing.
    reward — the information was always used — but at 4:1 the saving becomes
    timeouts and at 1:1 it becomes successes. An observation channel is worth
    only what the objective lets the policy do with it.
-7. **A causal test that failed usefully.** The explanation offered for the
+8. **A causal test that failed usefully.** The explanation offered for the
    above — that replanning churn was the culprit — was pre-registered with a
    treated cell and a control. The treated cell moved exactly as predicted
    (+0.070) and the control moved by the same amount, which refutes the
@@ -145,7 +154,7 @@ committee can tell the difference.
 **~60 words, for a CV entry or the opening of an email.**
 
 > Vision + RL autonomous navigation (Python, PyTorch, Stable-Baselines3,
-> ROS 2 / Nav2): a twenty-three-experiment controlled study of learned versus
+> ROS 2 / Nav2): a thirty-nine-experiment controlled study of learned versus
 > classical navigation under distribution shift, with seed-level significance
 > testing, pre-registered predictions, a real Nav2 baseline over a ROS 2
 > bridge, and a 418-test suite. Includes a documented false positive I caught

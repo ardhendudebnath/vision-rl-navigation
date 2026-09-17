@@ -52,18 +52,10 @@ decision below follows from wanting that comparison to be trustworthy.
 | Re-pricing perception at 1:1: the reward flips what resolution does | Done |
 | Timeout audit of every perception result: all reproduce; deficits stall, not crash | Done |
 | Coverage re-priced at 1:1: headline survives, mechanism moves stall to crash | Done |
-| Oracle motion prediction: recovers about half the motion cost | Done |
-| Prediction in the initial plan and controller: the other half does not move | Done |
-| Doubling robot agility: the remaining dense cost is not a physical limit | Done |
-| Space-time planning: timing helps dense clutter, harms sparse worlds | Done |
-| Temporal safety margin: removes the harm; motion cost ~0 given oracle trajectories | Done |
-| Constant-velocity estimate for the oracle: about half survives on dense; the loss is collisions | Done |
+| Motion cost traced to planning: oracle prediction, space-time planning, a temporal margin — ~0 given exact trajectories | Done |
+| With a real estimate instead: about half survives, and four changes to how the planner uses it recover none of the rest | Done |
 | Encoder cost re-priced at 1:1: survives (−0.180 narrow), and still fails by stalling | Done |
-| Withholding the estimate's zero-margin fallback: a symptom, recovers nothing | Done |
-| Replanning on a contradicted estimate: closes sparse, unresolved on dense | Done |
-| Capping the estimate's reach: recovers nothing on dense; the far end is used | Done |
-| Pixel stall audit: the image carries the depth; RGB stalls facing openings its features see | Done |
-| Velocity latch: holds the RGB stall; released, stalls become crashes | Done |
+| Why the pixel policy stalls: the image carries the depth, and a velocity latch holds the stall — released, it crashes | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
 Thirty-nine experiments, each pre-registered where it tests a hypothesis. The

@@ -3,7 +3,7 @@
 Phase 3e held information constant -- a CNN reading a 64x48 render of the same
 geometry a 64-column depth vector measures, same 90 degree FOV -- and found
 reading pixels costs 0.16-0.24 success. That was measured under the 4:1 reward
-alone. Section 8.4 re-priced the other two perception headlines at 1:1 and they
+alone. Section 8.3 re-priced the other two perception headlines at 1:1 and they
 came apart: coverage's effect survived while its mechanism moved (Phase 5l), and
 resolution's collision effect reversed sign while success moved in neither
 (Phase 5j). This re-prices the third.

@@ -421,11 +421,12 @@ Stated plainly because p = 0.035 would *not* survive correction if `narrow`
 were treated as one of nine exploratory tests. Per-seed values and the full
 table are in [Phase 2i](project_plan.md).
 
-## 8. Results 7–10: what the sensor and its representation cost
+## 8. Results 7–11: what the sensor and its representation cost
 
-§7 established that sensor geometry is a real constraint. Four further
+§7 established that sensor geometry is a real constraint. Five further
 experiments, each pre-registered with six seeds per arm, establish *which*
-property matters and what it costs to change the representation.
+property matters, what it costs to change the representation, and how much of
+either survives a reward that prices a crash like a stall.
 
 | Experiment | Comparison | Δ `narrow` success | p |
 |---|---|---|---|
@@ -460,7 +461,7 @@ fitted on — to within **+0.021 and +0.001**, untrained and unseeded: with §7.
 two independent forecasts from one measurement, and the strongest evidence here
 that the mechanism is real rather than fitted afterwards.
 
-### 8.3 The pixels are the problem, not the geometry
+### 8.2 The pixels are the problem, not the geometry
 
 The RGB camera renders the *same* geometry the depth camera measures — same
 90° FOV, same 64 columns, goal vector bit-identical between modes. Only the
@@ -471,7 +472,7 @@ It costs **0.16–0.24 success on every condition**, with every depth seed
 beating every RGB seed. Giving RGB **2.7× the compute** does not close it
 (−0.162, p = 0.030) — and that rejection is null on all three outcome channels,
 not just on success, which is a harder result to explain away. Nor does a
-reward that prices a crash like a stall (§8.4). The render is
+reward that prices a crash like a stall (§8.3). The render is
 clean — no texture, lighting or sensor noise — so this is a lower bound. The
 failure is indecision rather than recklessness: on `nominal` the encoder's cost
 lands in timeouts (+0.115,
@@ -484,7 +485,7 @@ three times that. Worth contrasting with §8.1: the forecasts that held were
 derived from a measured quantity, this one was intuition in the same confident
 register.
 
-### 8.4 The reward prices perception too
+### 8.3 The reward prices perception too
 
 Every result above was measured under the 4:1 reward, and §9.1 shows that
 ratio deciding what an observation channel is worth. Re-running the 360°
@@ -517,7 +518,7 @@ succeeds 93% of the time, the 1:1 resolution delta is +0.000 on success and
 change would have moved.
 
 **Coverage was re-priced too, and it survives.** §8.1's headline was the
-exposed one: §8.5 shows its entire benefit sitting in the timeout channel, and
+exposed one: §8.4 shows its entire benefit sitting in the timeout channel, and
 indifference nearly closes that channel. Repeating the contrast at 1:1 keeps
 the effect — +0.080 (p = 0.032)
 on `narrow`, +0.107 (p = 0.004)
@@ -531,7 +532,7 @@ survive this test and coverage did, which is the sharpest statement of the
 difference between them in this report.
 
 **The encoder cost was re-priced last. It survives, and its failure does not
-move.** Twelve new runs, seed-paired with §8.3's and differing only in the
+move.** Twelve new runs, seed-paired with §8.2's and differing only in the
 reward, put the cost of reading pixels at −0.180 on `narrow` and −0.193 on
 `dense` at 1:1, every depth seed still above every RGB seed (p = 0.002 on
 both), against −0.218 and −0.238 at 4:1. The success interactions are +0.038
@@ -547,7 +548,7 @@ deficit keeps stalling.** On `nominal` the cost roughly halves, −0.162 to
 named `narrow` and `dense`, and not significant once corrected for three
 conditions, so it is reported and not claimed.
 
-### 8.5 What a perception deficit actually does
+### 8.4 What a perception deficit actually does
 
 `seed_analysis.py` recorded success, SPL and collisions and discarded the
 timeout rate, which is how §8.1's null came to be overstated. Re-running all
@@ -569,14 +570,14 @@ contrast between channels rather than an argument from low power. Below
 adequacy the pattern inverts: 16 beams is too few to see obstacles, and fixing
 that cuts collisions with timeouts unmoved.
 
-The qualifier matters: every row was measured at 4:1, and §8.4 shows the same
+The qualifier matters: every row was measured at 4:1, and §8.3 shows the same
 coverage deficit costing the same success through *collisions* at 1:1 — and
 the encoding deficit, alone of the three, still costing it through timeouts,
-for reasons §8.6 traces.
+for reasons §8.5 traces.
 
-### 8.6 Why the pixel policy stalls
+### 8.5 Why the pixel policy stalls
 
-§8.4 left the encoding deficit as the one whose failure the reward does not
+§8.3 left the encoding deficit as the one whose failure the reward does not
 move. A training-free audit of the twelve 1:1 policies asks why, in two parts.
 
 **The information is there.** The render's premise was that pixels carry the
@@ -627,7 +628,7 @@ Every clause of it held, and its headline — a policy blind to the detour — i
 contradicted by the splits added afterwards. It is recorded as a forecast
 whose clauses were too coarse to tell its story from the true one.
 
-## 9. Results 11–12: where the map is wrong
+## 9. Results 12–13: where the map is wrong
 
 Every condition so far hands the classical planner a **perfect, current,
 static map** — its largest privilege and the one real deployments lack. Adding
@@ -675,42 +676,36 @@ to invalidate.
 
 **The motion cost is explained, given perfect prediction.** Four candidate
 mechanisms were tested and eliminated: replanning churn (real, but a clutter
-pathology that leaves the cost unchanged), planning failure (A\* never fails to find a route), sensing
-(the movers are fully visible), and commitment length (a 6× sweep of the
-controller's rollout horizon moves the cost by 0.040, inside noise, while
-moving absolute performance by 0.220). The fifth survived. Every actor treated
-a mover as a snapshot where it stood; giving the planner **oracle** knowledge
-of where movers are going recovers 44% of the dense motion cost (+0.070,
-p = 0.016 against a threshold of 0.017 corrected for three horizons; 7
-episodes won and 0 lost), through collisions (−0.100). The same oracle fed to the initial plan and the
-controller's slow-down recovers nothing further, and doubling the robot's
-agility leaves the dense remainder unchanged (+0.005,
-95% CI [−0.045, +0.055]). A planner reasoning in space-time with
-the same oracle does close most of the dense remainder, from 0.085
-to 0.025. Against an ablation that knows where movers go but
-not when, timing is worth +0.050 on dense clutter
-(p = 0.031) — through fewer timeouts, not the fewer collisions
-predicted — and costs −0.050 on sparse worlds (p = 0.002),
-all collisions. A temporal safety margin of two plan steps removes that cost
-(+0.050, p = 0.002, 10 episodes won and none lost)
-and keeps the dense gain, leaving a motion cost of 0.010 on dense clutter and
-0.000 on sparse worlds, against 0.145 and 0.140 for the spatial
-baseline. Every figure from the oracle onward assumes the movers' exact future
-positions, which no real robot has and the learned policy never had. Replacing
-the oracle with the simplest real estimate — constant velocity from the
-robot's own noise-free observations — costs 0.065 on dense clutter (p = 0.001, 14
-episodes lost and 1 won), all of it collisions and none recovered by doubling
-the margin. The motion cost becomes 0.075 there and 0.020 on sparse
-worlds: about half the oracle's reduction on dense clutter, most of it on
-sparse. The lost episodes mostly end under a plan made with no spatial margin,
-but withholding such plans recovers nothing (+0.010, a bounded null): the
-fallback is where a robot already too close ends up, not how it got there.
-Replanning the moment an observation contradicts the estimate matches the
-oracle's success on every sparse episode but leaves 0.050 on dense clutter
-(p = 0.002), and its own gain there is unresolved. Capping how far the
-estimate reaches recovers nothing on dense clutter either, and capping it at
-1 s costs sparse worlds 0.085 (p = 0.0005): the far end of a wrong
-straight line is still worth having.
+pathology that leaves the cost unchanged), planning failure (A\* never fails to
+find a route), sensing (the movers are fully visible), and commitment length (a
+6× sweep of the controller's rollout horizon moves the cost by 0.040, inside
+noise, while moving absolute performance by 0.220). The fifth survived: every
+actor treated a mover as a snapshot where it stood. Given the movers' exact
+future positions, a planner that reasons in space-time and keeps a two-step
+temporal margin loses 0.010 to motion on dense clutter and 0.000 on
+sparse worlds, where the spatial baseline lost 0.145 and 0.140. What
+looked like an irreducible cost of moving obstacles was a planner that could not
+reason about time and, once it could, needed room for its own tracking error.
+The route there — oracle prediction recovering 44% of the dense cost
+(+0.070, p = 0.016), the initial plan and the controller's slow-down
+recovering nothing further, agility ruled out, and timing buying access on dense
+clutter (+0.050, p = 0.031) at the price of robustness on sparse
+worlds (−0.050, p = 0.002) until the margin removes it — is in
+[`dynamic_obstacles.md`](dynamic_obstacles.md).
+
+**No real robot has those trajectories, and the learned policy never had them.**
+Replacing the oracle with the simplest real estimate — constant velocity from
+the robot's own noise-free observations — costs 0.065 on dense clutter
+(p = 0.001, 14 episodes lost and 1 won), all of it collisions. The
+motion cost becomes 0.075 on dense clutter and 0.020 on sparse worlds:
+about half of the oracle's reduction survives on dense clutter and most of it on
+sparse. Four changes to how the planner *uses* that estimate — a wider temporal
+margin, withholding plans made with no spatial margin, replanning the moment an
+observation contradicts it, capping how far it reaches — each failed to recover
+the dense remainder, and the last shows the far end of a wrong line is worth
+having: cut to 1 s, the estimate loses 0.085 on sparse worlds
+(p = 0.0005). None of them changed the model, a straight line drawn along a
+sinusoid, which is where §12 goes next.
 
 **Recurrence is worse, and not because of motion.** An LSTM policy — the last
 untested way of supplying motion information, and the only one that learns what
@@ -762,7 +757,7 @@ not shifts for it; and two learned arms received 2.7× the compute.
 collision-to-timeout ratio makes the policy stall rather than get through. The
 same ratio also sets what *extra* information buys, for a learned channel
 (§9.1: frame stacking's collision saving is swallowed by timeouts at 4:1 and
-becomes successes at 1:1) and for a sensor parameter alike (§8.4: doubling
+becomes successes at 1:1) and for a sensor parameter alike (§8.3: doubling
 angular resolution raises collisions at 4:1 and lowers them at 1:1, the
 interaction significant at p = 0.004 while success moves in neither). A
 channel is worth only what the objective lets the policy do with it — worth
@@ -884,7 +879,7 @@ In order of expected information per GPU-hour:
    rarely bound inside ±0.03, so the test needs more.
 2. **Why going on crashes.** Released from the latch its own velocity input
    holds it in, the RGB policy crashes about as often as it had stalled
-   (§8.6), though at the stalls specific to it the route is open and its camera
+   (§8.5), though at the stalls specific to it the route is open and its camera
    features say so. Where those crashes happen — at the opening it had stopped
    in front of, or later — is one more replay; whether its features encode the
    geometry *around* an opening, which fitting through it needs, is a probe on
