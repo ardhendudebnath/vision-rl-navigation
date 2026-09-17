@@ -1,0 +1,339 @@
+{
+  "prediction": "Part 1 -- INFORMATION HELD: the widest span of distances rendering to an identical column is at most 0.15 m for every surface kind between 0.2 m and 6 m, including below 1.2 m. Part 2 -- BLIND DETOUR: rgbi stalls on a larger share of steps than depthi (exact permutation over seeds, p < 0.05); over half of rgbi's stall steps are `detour`, and `detour` is a larger share of its stall steps than of its moving steps; `goal_open` is under a quarter of them. The probe decodes `goal_open` from rgbi's actor layer at a balanced accuracy at least 0.05 below depthi's (p < 0.05). Decision for Part 2 -- the class holding over half of rgbi's pooled stall steps: PHANTOM (goal_open), BLIND DETOUR (detour), BOXED (boxed); MIXED if none does.",
+  "worlds": 50,
+  "part1": {
+    "wall": {
+      "max_m": 0.06850000000000006,
+      "median_m": 0.04550000000000004,
+      "max_below_1p2_m": 0.06850000000000006,
+      "median_below_1p2_m": 0.050000000000000044
+    },
+    "circle": {
+      "max_m": 0.1140000000000001,
+      "median_m": 0.05950000000000005,
+      "max_below_1p2_m": 0.1135000000000001,
+      "median_below_1p2_m": 0.05550000000000005
+    },
+    "box": {
+      "max_m": 0.09100000000000008,
+      "median_m": 0.04800000000000004,
+      "max_below_1p2_m": 0.08850000000000008,
+      "median_below_1p2_m": 0.05450000000000005
+    },
+    "max_over_kinds_m": 0.1140000000000001
+  },
+  "part1_decision": "INFORMATION HELD",
+  "per_seed": {
+    "depthi": [
+      {
+        "seed": 0,
+        "steps": 6476,
+        "stall_share": 0.0,
+        "stall_classes": [
+          0,
+          0,
+          0
+        ],
+        "moving_classes": [
+          3615,
+          2718,
+          143
+        ],
+        "probe_balanced_accuracy": 0.8949854556652806,
+        "sensor_probe_balanced_accuracy": 0.6058478039432382,
+        "goal_open_share": 0.5582149474984558,
+        "timeout_rate": 0.0,
+        "collision_rate": 0.4,
+        "success_rate": 0.6
+      },
+      {
+        "seed": 1,
+        "steps": 7079,
+        "stall_share": 0.05014832603475067,
+        "stall_classes": [
+          0,
+          349,
+          6
+        ],
+        "moving_classes": [
+          3641,
+          2932,
+          151
+        ],
+        "probe_balanced_accuracy": 0.9167469126659902,
+        "sensor_probe_balanced_accuracy": 0.6800128265780501,
+        "goal_open_share": 0.5143381833592315,
+        "timeout_rate": 0.0,
+        "collision_rate": 0.36,
+        "success_rate": 0.64
+      },
+      {
+        "seed": 2,
+        "steps": 6320,
+        "stall_share": 0.0,
+        "stall_classes": [
+          0,
+          0,
+          0
+        ],
+        "moving_classes": [
+          3752,
+          2418,
+          150
+        ],
+        "probe_balanced_accuracy": 0.8664500428431938,
+        "sensor_probe_balanced_accuracy": 0.6446941693402148,
+        "goal_open_share": 0.5936708860759494,
+        "timeout_rate": 0.0,
+        "collision_rate": 0.36,
+        "success_rate": 0.64
+      },
+      {
+        "seed": 3,
+        "steps": 9628,
+        "stall_share": 0.2667220606564188,
+        "stall_classes": [
+          0,
+          2521,
+          47
+        ],
+        "moving_classes": [
+          3534,
+          3287,
+          239
+        ],
+        "probe_balanced_accuracy": 0.9206718308098607,
+        "sensor_probe_balanced_accuracy": 0.6663133545032744,
+        "goal_open_share": 0.3670544245949314,
+        "timeout_rate": 0.12,
+        "collision_rate": 0.3,
+        "success_rate": 0.58
+      },
+      {
+        "seed": 4,
+        "steps": 7283,
+        "stall_share": 0.13826719758341344,
+        "stall_classes": [
+          0,
+          919,
+          88
+        ],
+        "moving_classes": [
+          3528,
+          2495,
+          253
+        ],
+        "probe_balanced_accuracy": 0.9160615400176937,
+        "sensor_probe_balanced_accuracy": 0.5909141175333871,
+        "goal_open_share": 0.48441576273513665,
+        "timeout_rate": 0.04,
+        "collision_rate": 0.4,
+        "success_rate": 0.56
+      },
+      {
+        "seed": 5,
+        "steps": 6425,
+        "stall_share": 0.0,
+        "stall_classes": [
+          0,
+          0,
+          0
+        ],
+        "moving_classes": [
+          3746,
+          2562,
+          117
+        ],
+        "probe_balanced_accuracy": 0.8966399794968558,
+        "sensor_probe_balanced_accuracy": 0.6453520061812357,
+        "goal_open_share": 0.5830350194552529,
+        "timeout_rate": 0.0,
+        "collision_rate": 0.4,
+        "success_rate": 0.6
+      }
+    ],
+    "rgbi": [
+      {
+        "seed": 0,
+        "steps": 7557,
+        "stall_share": 0.15482334259626837,
+        "stall_classes": [
+          5,
+          1165,
+          0
+        ],
+        "moving_classes": [
+          3157,
+          3014,
+          216
+        ],
+        "probe_balanced_accuracy": 0.8471244492512408,
+        "sensor_probe_balanced_accuracy": 0.7279778210965109,
+        "goal_open_share": 0.4184200079396586,
+        "timeout_rate": 0.04,
+        "collision_rate": 0.62,
+        "success_rate": 0.34
+      },
+      {
+        "seed": 1,
+        "steps": 7255,
+        "stall_share": 0.09028256374913853,
+        "stall_classes": [
+          0,
+          648,
+          7
+        ],
+        "moving_classes": [
+          3356,
+          2974,
+          270
+        ],
+        "probe_balanced_accuracy": 0.8268136889719285,
+        "sensor_probe_balanced_accuracy": 0.6406626909317232,
+        "goal_open_share": 0.46257753273604413,
+        "timeout_rate": 0.02,
+        "collision_rate": 0.54,
+        "success_rate": 0.44
+      },
+      {
+        "seed": 2,
+        "steps": 9578,
+        "stall_share": 0.2959908122781374,
+        "stall_classes": [
+          4,
+          2827,
+          4
+        ],
+        "moving_classes": [
+          3100,
+          3472,
+          171
+        ],
+        "probe_balanced_accuracy": 0.8686334851698627,
+        "sensor_probe_balanced_accuracy": 0.705242311434477,
+        "goal_open_share": 0.324076007517227,
+        "timeout_rate": 0.14,
+        "collision_rate": 0.44,
+        "success_rate": 0.42
+      },
+      {
+        "seed": 3,
+        "steps": 13196,
+        "stall_share": 0.6014701424674144,
+        "stall_classes": [
+          1727,
+          6208,
+          2
+        ],
+        "moving_classes": [
+          2792,
+          2411,
+          56
+        ],
+        "probe_balanced_accuracy": 0.7942017980859273,
+        "sensor_probe_balanced_accuracy": 0.7089541365853567,
+        "goal_open_share": 0.3424522582600788,
+        "timeout_rate": 0.36,
+        "collision_rate": 0.24,
+        "success_rate": 0.4
+      },
+      {
+        "seed": 4,
+        "steps": 12469,
+        "stall_share": 0.5329216456812896,
+        "stall_classes": [
+          460,
+          6182,
+          3
+        ],
+        "moving_classes": [
+          2587,
+          3087,
+          150
+        ],
+        "probe_balanced_accuracy": 0.822495769072335,
+        "sensor_probe_balanced_accuracy": 0.6850612950703605,
+        "goal_open_share": 0.24436602774881708,
+        "timeout_rate": 0.32,
+        "collision_rate": 0.32,
+        "success_rate": 0.36
+      },
+      {
+        "seed": 5,
+        "steps": 10996,
+        "stall_share": 0.4270643870498363,
+        "stall_classes": [
+          2270,
+          2409,
+          17
+        ],
+        "moving_classes": [
+          3464,
+          2770,
+          66
+        ],
+        "probe_balanced_accuracy": 0.716721670745241,
+        "sensor_probe_balanced_accuracy": 0.5664944822915104,
+        "goal_open_share": 0.5214623499454347,
+        "timeout_rate": 0.22,
+        "collision_rate": 0.26,
+        "success_rate": 0.52
+      }
+    ]
+  },
+  "summary": {
+    "depthi": {
+      "stall_share_mean": 0.07585626404576382,
+      "stall_class_shares": {
+        "goal_open": 0.0,
+        "detour": 0.9641221374045802,
+        "boxed": 0.03587786259541985
+      },
+      "moving_class_shares": {
+        "goal_open": 0.5553830095975153,
+        "detour": 0.417810137216466,
+        "boxed": 0.026806853186018685
+      },
+      "stall_steps": 3930,
+      "probe_balanced_accuracy_mean": 0.9019259602498124,
+      "goal_open_stalls": 0,
+      "goal_open_stalls_probe_says_blocked": 0,
+      "detour_stalls": 3789,
+      "detour_stalls_goal_out_of_view": 3789,
+      "goal_open_moving": 21816,
+      "goal_open_moving_probe_says_blocked": 1714,
+      "sensor_probe_balanced_accuracy_mean": 0.6388557130132334,
+      "goal_open_stalls_sensor_probe_says_blocked": 0,
+      "goal_open_moving_sensor_probe_says_blocked": 6479,
+      "timeout_rate_mean": 0.02666666666666667
+    },
+    "rgbi": {
+      "stall_share_mean": 0.35042548230368076,
+      "stall_class_shares": {
+        "goal_open": 0.18656529367532793,
+        "detour": 0.8120561450413568,
+        "boxed": 0.001378561283315231
+      },
+      "moving_class_shares": {
+        "goal_open": 0.4972920539972516,
+        "detour": 0.4776762859375421,
+        "boxed": 0.02503166006520626
+      },
+      "stall_steps": 23938,
+      "probe_balanced_accuracy_mean": 0.8126651435494225,
+      "goal_open_stalls": 4466,
+      "goal_open_stalls_probe_says_blocked": 2281,
+      "detour_stalls": 19439,
+      "detour_stalls_goal_out_of_view": 16649,
+      "goal_open_moving": 18456,
+      "goal_open_moving_probe_says_blocked": 2764,
+      "sensor_probe_balanced_accuracy_mean": 0.6723987895683231,
+      "goal_open_stalls_sensor_probe_says_blocked": 1090,
+      "goal_open_moving_sensor_probe_says_blocked": 6462,
+      "timeout_rate_mean": 0.18333333333333335
+    },
+    "stall_share_p": 0.021645021645021644,
+    "probe_p": 0.004329004329004329
+  },
+  "part2_decision": "BLIND DETOUR"
+}

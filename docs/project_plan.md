@@ -47,6 +47,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5r | Constant-velocity estimate in place of the oracle, 200 episodes | **Done** — **COSTLY: −0.065 on dense (p = 0.001), all collisions**; a 4-step margin recovers none |
 | 5s | Re-price the encoder cost at 1:1, 12 new runs | **Done** — **SURVIVES (−0.180 narrow, p = 0.002)**; the failure stays in timeouts, unlike coverage's |
 | 5t | Withhold the zero-margin fallback from the estimating agent | **Done** — **SYMPTOM: +0.010 on dense, bounded null**; the robot gets close before it falls back |
+| 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -2187,6 +2188,64 @@ The description has held up -- the estimate really does reach the fallback five
 times as often -- and the inference drawn from it did not. Describing what
 failures share is not measuring what causes them, which is the point of
 registering a test before reading the description as an answer.
+
+## Phase 5v — The pixel stall audit: the opening is seen, and not taken
+
+Phase 5s left the encoding deficit as the one perception deficit whose failure
+the 1:1 reward does not move. A training-free audit of the twelve Phase 5s
+policies (`scripts/pixel_stall_audit.py`, `vision_nav.analysis.pixel_audit`).
+
+**Not pre-registered.** The forecast in the script was written before any
+result, but a smoke test printed output before it was committed (`32e1a27`
+says so), and three descriptive fields were added after runs, each re-run and
+checked to reproduce every earlier number exactly. Not counted in the
+calibration record.
+
+**Part 1, information.** Widest span of distances rendering to an identical
+image column: walls 0.069 m, boxes 0.091 m, circles 0.114 m; medians
+0.046, 0.048 and 0.060 m. The same below 1.2 m, where slice height
+saturates and only shading carries distance. Information held, to about a
+tenth of a metre.
+
+**Part 2, anatomy**, 50 `narrow` worlds per policy:
+
+| | depthi | rgbi |
+|---|---|---|
+| share of steps stalled | 0.076 | 0.350 |
+| stall steps: goal route open and in view | 0.000 | 0.187 |
+| stall steps: opening in view, goal route not | 0.964 | 0.812 |
+| ... of which the goal is out of view | 1.000 | 0.856 |
+| final-layer probe, balanced accuracy | 0.902 | 0.813 |
+
+Stall share p = 0.022; probe p = 0.004 (exact permutation over seeds). The
+registered rule returns BLIND DETOUR, and the label is wrong about what it
+names: the depth policy's stalls look the same, and nearly all are a goal
+outside the field of view. The RGB-specific stall is in front of an open route
+to a visible goal, concentrated in seeds 3-5.
+
+At those stalls the final-layer probe reads *blocked* 51% of the time
+(2281 of 4466), against 15% on open-route steps while moving -- a
+phantom obstacle, apparently. The same probe on the CNN's image features alone
+reads blocked 24% of the time at those stalls and 35% while moving.
+The final layer also takes the robot's own velocity, near zero at any stall.
+The image features see the opening; the policy does not take it.
+
+### Consequences
+
+The encoder's cost is not lost information and, at the stalls that are
+specific to it, not a failure to see the way on. Something downstream of the
+features holds a stopped policy stopped. The velocity input is the obvious
+candidate and can be tested without training: replay the stall states with it
+set to a moving value.
+
+### Calibration
+
+Not counted. Recorded anyway: every clause of the forecast held -- information
+within 0.15 m, more stalling, detour over half the stalls and over-represented,
+goal_open under a quarter, a probe gap of at least 0.05 -- and the story it
+told, a policy blind to the detour, is contradicted by the splits added
+afterwards. Clauses that all hold can still be too coarse to tell the right
+story from the wrong one.
 
 ## Hardware notes
 

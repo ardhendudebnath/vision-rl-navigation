@@ -66,6 +66,14 @@ NEAR = 1.2  # wall_scale: below it a surface fills its column
 #: afterwards. One field was added after the smoke test and is outside every
 #: decision: whether the goal was in view, because `detour` lumps "the goal-ward
 #: route is blocked" together with "the goal is behind the robot".
+#:
+#: Two more were added after full runs, each re-run and checked to reproduce
+#: every earlier number exactly. After the first: the probe's error on
+#: `goal_open` steps where the robot was moving, the base rate without which its
+#: error at stalls cannot be read. After the second: the same probe on the
+#: sensor pathway alone, because the actor layer also takes the robot's own
+#: velocity, which is near zero at a stall by definition -- and that turned out
+#: to be what the actor-layer probe was reading.
 PREDICTION = (
     "Part 1 -- INFORMATION HELD: the widest span of distances rendering to an "
     "identical column is at most 0.15 m for every surface kind between 0.2 m and "
@@ -111,6 +119,7 @@ def drive(job):
     """One policy over the audit worlds. Runs in a worker process."""
     arm, seed, n_worlds = job
     import torch
+    from stable_baselines3.common.preprocessing import preprocess_obs
 
     from vision_nav.envs.nav_env import ProceduralNavEnv
     from vision_nav.training.actors import build_actor
@@ -128,6 +137,11 @@ def drive(job):
     columns = cfg.camera.width if cfg.obs_mode == "depth" else cfg.rgb_camera.width
 
     latents, classes, stalled, episode, outcomes, in_view = [], [], [], [], [], []
+    # What the sensor pathway alone carries, before the goal and velocity vector
+    # joins it: the CNN's image features for RGB, the depth vector itself for
+    # depth. Added after the second run -- the actor layer mixes in the robot's
+    # own velocity, which is near zero at a stall by definition.
+    sensor = []
     for ep, world_seed in enumerate(cfg.world_seeds):
         obs, _ = env.reset(options={"world_seed": int(world_seed)})
         actor.reset(env, obs)
@@ -143,6 +157,12 @@ def drive(job):
                 obs_t, _ = policy.obs_to_tensor(obs)
                 feats = policy.extract_features(obs_t, policy.pi_features_extractor)
                 latents.append(policy.mlp_extractor.forward_actor(feats)[0].numpy())
+                if cfg.obs_mode == "rgb":
+                    image = preprocess_obs(obs_t, policy.observation_space,
+                                           normalize_images=policy.normalize_images)["image"]
+                    sensor.append(policy.features_extractor.extractors["image"](image)[0].numpy())
+                else:
+                    sensor.append(np.asarray(obs[:columns], dtype=np.float32))
             obs, _, term, trunc, info = env.step(actor.act(env, obs))
             if term or trunc:
                 break
@@ -151,7 +171,8 @@ def drive(job):
         outcomes.append("success" if info.get("is_success") else
                         "collision" if info.get("collision") else "timeout")
     return (arm, seed, np.asarray(latents, dtype=np.float32), np.asarray(classes),
-            np.asarray(stalled), np.asarray(episode), outcomes, np.asarray(in_view))
+            np.asarray(stalled), np.asarray(episode), outcomes, np.asarray(in_view),
+            np.asarray(sensor, dtype=np.float32))
 
 
 def probe(latents, target, episode, folds=5, ridge=1.0):
@@ -197,8 +218,12 @@ def main(argv=None) -> int:
     per_seed = {arm: [] for arm in ARMS}
     pooled = {arm: {"stall": np.zeros(3), "moving": np.zeros(3), "goal_open_stalls": 0,
                     "goal_open_stalls_probe_says_blocked": 0, "detour_stalls": 0,
-                    "detour_stalls_goal_out_of_view": 0} for arm in ARMS}
-    for arm, seed, latents, classes, stalled, episode, outcomes, in_view in results:
+                    "detour_stalls_goal_out_of_view": 0, "goal_open_moving": 0,
+                    "goal_open_moving_probe_says_blocked": 0,
+                    "goal_open_stalls_sensor_probe_says_blocked": 0,
+                    "goal_open_moving_sensor_probe_says_blocked": 0} for arm in ARMS}
+    for arm, seed, latents, classes, stalled, episode, outcomes, in_view, sensor in results:
+        sensor_pred, sensor_bal = probe(sensor, classes == 0, episode)
         detour_stalls = stalled & (classes == 1)
         pooled[arm]["detour_stalls"] += int(detour_stalls.sum())
         pooled[arm]["detour_stalls_goal_out_of_view"] += int((detour_stalls & ~in_view).sum())
@@ -210,10 +235,19 @@ def main(argv=None) -> int:
         open_stalls = stalled & (classes == 0)
         pooled[arm]["goal_open_stalls"] += int(open_stalls.sum())
         pooled[arm]["goal_open_stalls_probe_says_blocked"] += int((open_stalls & ~pred).sum())
+        # The base rate that count needs, added after the first full run.
+        open_moving = ~stalled & (classes == 0)
+        pooled[arm]["goal_open_moving"] += int(open_moving.sum())
+        pooled[arm]["goal_open_moving_probe_says_blocked"] += int((open_moving & ~pred).sum())
+        pooled[arm]["goal_open_stalls_sensor_probe_says_blocked"] += int(
+            (stalled & (classes == 0) & ~sensor_pred).sum())
+        pooled[arm]["goal_open_moving_sensor_probe_says_blocked"] += int(
+            (open_moving & ~sensor_pred).sum())
         entry = {"seed": seed, "steps": int(len(classes)),
                  "stall_share": float(stalled.mean()),
                  "stall_classes": stall_classes.tolist(), "moving_classes": moving_classes.tolist(),
                  "probe_balanced_accuracy": bal,
+                 "sensor_probe_balanced_accuracy": sensor_bal,
                  "goal_open_share": float((classes == 0).mean()),
                  "timeout_rate": outcomes.count("timeout") / len(outcomes),
                  "collision_rate": outcomes.count("collision") / len(outcomes),
@@ -241,6 +275,16 @@ def main(argv=None) -> int:
             # Added after the smoke test; descriptive, outside every decision.
             "detour_stalls": pooled[arm]["detour_stalls"],
             "detour_stalls_goal_out_of_view": pooled[arm]["detour_stalls_goal_out_of_view"],
+            # Added after the first full run, as the base rate for the count above.
+            "goal_open_moving": pooled[arm]["goal_open_moving"],
+            "goal_open_moving_probe_says_blocked": pooled[arm]["goal_open_moving_probe_says_blocked"],
+            # Added after the second run: the same probe on the sensor pathway alone.
+            "sensor_probe_balanced_accuracy_mean": float(np.mean(
+                [e["sensor_probe_balanced_accuracy"] for e in per_seed[arm]])),
+            "goal_open_stalls_sensor_probe_says_blocked":
+                pooled[arm]["goal_open_stalls_sensor_probe_says_blocked"],
+            "goal_open_moving_sensor_probe_says_blocked":
+                pooled[arm]["goal_open_moving_sensor_probe_says_blocked"],
             "timeout_rate_mean": float(np.mean([e["timeout_rate"] for e in per_seed[arm]])),
         }
     summary["stall_share_p"] = permutation_p(

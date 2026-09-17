@@ -47,7 +47,9 @@ nothing.
    same geometry as pixels for a CNN rather than a vector for an MLP costs
    0.16–0.24 success on every condition, and survives both 2.7× the compute
    and a reward that prices a crash like a stall — under which, unlike a
-   coverage deficit, it still fails by stalling.
+   coverage deficit, it still fails by stalling. An audit found the image
+   carries depth to within 0.114 m, and the policy stopping in front of
+   openings its own camera features mostly encode as open.
 4. **Nav2 corrected the baseline rather than confirming it.** The hand-written
    stack matches a production one to within 0.03 where clutter is not binding,
    but is 0.06–0.08 worse in tight corridors — so the published gap there was

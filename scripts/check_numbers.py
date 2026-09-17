@@ -614,6 +614,51 @@ def claims():
                  fcells[arm]["dynamic_dense"]["collision"]),
             ]
 
+    # --- pixel stall audit, Phase 5v --------------------------------------
+    pa = "results/pixel_stall_audit.json"
+    if os.path.exists(pa):
+        aj = load(pa)
+        p1, ps = aj["part1"], aj["summary"]
+        rg, dp = ps["rgbi"], ps["depthi"]
+        out += [
+            ("pixel wall max", 0.069, p1["wall"]["max_m"]),
+            ("pixel box max", 0.091, p1["box"]["max_m"]),
+            ("pixel circle max", 0.114, p1["circle"]["max_m"]),
+            ("pixel wall median", 0.046, p1["wall"]["median_m"]),
+            ("pixel box median", 0.048, p1["box"]["median_m"]),
+            ("pixel circle median", 0.060, p1["circle"]["median_m"]),
+            ("pixel circle max below 1.2", 0.114, p1["circle"]["max_below_1p2_m"]),
+            ("pixel decision BLIND DETOUR", 1.0, float(aj["part2_decision"] == "BLIND DETOUR")),
+            ("pixel rgbi stall share", 0.350, rg["stall_share_mean"]),
+            ("pixel depthi stall share", 0.076, dp["stall_share_mean"]),
+            ("pixel stall share p", 0.022, ps["stall_share_p"]),
+            ("pixel rgbi stalls goal_open", 0.187, rg["stall_class_shares"]["goal_open"]),
+            ("pixel rgbi stalls detour", 0.812, rg["stall_class_shares"]["detour"]),
+            ("pixel depthi stalls goal_open", 0.000, dp["stall_class_shares"]["goal_open"]),
+            ("pixel depthi stalls detour", 0.964, dp["stall_class_shares"]["detour"]),
+            ("pixel rgbi detour out of view", 0.856,
+             rg["detour_stalls_goal_out_of_view"] / rg["detour_stalls"]),
+            ("pixel depthi detour out of view", 1.000,
+             dp["detour_stalls_goal_out_of_view"] / dp["detour_stalls"]),
+            ("pixel rgbi probe", 0.813, rg["probe_balanced_accuracy_mean"]),
+            ("pixel depthi probe", 0.902, dp["probe_balanced_accuracy_mean"]),
+            ("pixel probe p", 0.004, ps["probe_p"]),
+            ("pixel rgbi open stalls read blocked", 2281, rg["goal_open_stalls_probe_says_blocked"]),
+            ("pixel rgbi open stalls", 4466, rg["goal_open_stalls"]),
+            ("pixel rgbi open stalls blocked share", 0.511,
+             rg["goal_open_stalls_probe_says_blocked"] / rg["goal_open_stalls"]),
+            ("pixel rgbi open moving blocked share", 0.150,
+             rg["goal_open_moving_probe_says_blocked"] / rg["goal_open_moving"]),
+            ("pixel rgbi sensor open stalls blocked share", 0.244,
+             rg["goal_open_stalls_sensor_probe_says_blocked"] / rg["goal_open_stalls"]),
+            ("pixel rgbi sensor open moving blocked share", 0.350,
+             rg["goal_open_moving_sensor_probe_says_blocked"] / rg["goal_open_moving"]),
+        ]
+        # "Concentrated in seeds 3-5".
+        seeds = {e["seed"]: e["stall_classes"][0] for e in aj["per_seed"]["rgbi"]}
+        out.append(("pixel rgbi open stalls in seeds 3-5 share", 0.998,
+                    sum(seeds[s] for s in (3, 4, 5)) / sum(seeds.values())))
+
     # --- encoder cost re-priced at 1:1, Phase 5s -------------------------
     ri, rl = "results/repricing_encoder_interaction.json", "results/repricing_encoder.json"
     if os.path.exists(ri) and os.path.exists(rl):

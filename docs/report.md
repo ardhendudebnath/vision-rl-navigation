@@ -571,7 +571,48 @@ that cuts collisions with timeouts unmoved.
 
 The qualifier matters: every row was measured at 4:1, and §8.4 shows the same
 coverage deficit costing the same success through *collisions* at 1:1 — and
-the encoding deficit, alone of the three, still costing it through timeouts.
+the encoding deficit, alone of the three, still costing it through timeouts,
+for reasons §8.6 traces.
+
+### 8.6 Why the pixel policy stalls
+
+§8.4 left the encoding deficit as the one whose failure the reward does not
+move. A training-free audit of the twelve 1:1 policies asks why, in two parts.
+
+**The information is there.** The render's premise was that pixels carry the
+geometry the depth vector does, and it is only approximately true: a surface
+nearer than 1.2 m fills its image column, so distance survives there only as
+eight-bit shading. Measured exactly, the widest span of distances that render
+to an identical column is 0.069 m for walls, 0.091 m for boxes and
+0.114 m for circles, the same below 1.2 m as above it. The encoder's cost is
+not information the render threw away.
+
+**Where it stalls.** Over 50 `narrow` worlds per policy, every step spent going
+nowhere (under 0.15 m in 3 s) was classified by the true geometry. The RGB
+policies spend 0.350 of their steps stalled against the depth policies'
+0.076 (p = 0.022). Most stalls of *both* arms come after turning away
+from the goal: 81% of RGB stall steps and 96% of depth's have an opening in
+view and the goal-ward route blocked or out of sight, and in 86% and 100% of
+those the goal is simply outside the field of view. What only the RGB policy
+does is stop facing an open route to a goal in plain view — 19% of its
+stall steps, none of the depth policy's.
+
+**And at those stops its camera features see the route as open.** A linear
+probe on each policy's final layer reads "goal route open" less well for RGB
+than for depth (0.813 against 0.902 balanced accuracy, p = 0.004), and
+at the RGB policy's open-route stalls it reads *blocked* 51% of the time,
+against 15% while moving — which looked like a phantom obstacle. It was
+not. The final layer also takes the robot's own velocity, near zero at any
+stall, and the same probe on the CNN's image features alone reads blocked at
+those stalls *less* often than while moving (24% against 35%).
+The policy stops with the opening visible in its features; whatever holds it
+there is downstream of the camera.
+
+The forecast registered in the audit script is not counted in §10's record: a
+smoke test printed results before it was committed, and the commit says so.
+Every clause of it held, and its headline — a policy blind to the detour — is
+contradicted by the splits added afterwards. It is recorded as a forecast
+whose clauses were too coarse to tell its story from the true one.
 
 ## 9. Results 11–12: where the map is wrong
 
@@ -822,12 +863,13 @@ In order of expected information per GPU-hour:
    contradicts the estimate is the next test — and since the oracle is never
    contradicted, it comes with a bit-identical control. Noise on the
    observations is the step after.
-2. **Why an encoding deficit stalls.** Of the three perception deficits
-   re-priced at 1:1, the one that keeps the information and changes only its
-   encoding is the one whose failure the reward does not move (§8.4). The
-   training-free audit of §7 measured what a sensor can see; the same audit on
-   the CNN's features, asking what they fail to separate, would say what the
-   RGB policy is uncertain about when it stops.
+2. **Break the stall.** At the RGB policy's stalls in front of an open,
+   visible route, its camera features read the route as open more reliably
+   than while it is moving, and its final layer reads it as blocked (§8.6). The
+   robot's own velocity, near zero at every stall, is the obvious difference.
+   Replaying those states with the velocity input set to a moving value asks,
+   without training, whether the policy has learned a stopped state it cannot
+   leave.
 3. **A recurrent policy that was actually tuned.** §9.1 tested one and it was
    worse everywhere, but it ran on hyperparameters chosen for an MLP so the
    comparison would be algorithm-only. That makes the result a statement about
