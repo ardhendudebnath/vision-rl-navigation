@@ -692,6 +692,38 @@ clutter and most of it on sparse worlds, from noise-free observations. The
 explanation of the motion cost stands. What it is worth to a robot without an
 oracle is about half as much on dense clutter, before any sensor noise.
 
+### Withholding the zero-margin fallback
+
+The lost episodes left two readings of that fallback: the cause of the contact,
+or where a robot already too close ends up. The test withholds the bare radius
+from movers -- the static map may still use it for a tight passage -- on the
+estimating agent and, as a control, on the oracle, where a zero-margin plan is
+safe. Until an episode first reaches that fallback the setting cannot change
+anything, and all 745 such episodes across the four cells are bit-identical to
+their unfloored twins. The prediction, CAUSE, was pushed before the run in
+`df8088e`.
+
+| 200 episodes | reach bare radius, sparse | reach it, dense | dense success | dense collisions |
+|---|---|---|---|---|
+| oracle | 2 | 6 | 0.975 | 0.010 |
+| oracle, fallback withheld | 2 | 6 | 0.970 | 0.015 |
+| estimate | 16 | 31 | 0.910 | 0.075 |
+| estimate, fallback withheld | 16 | 31 | 0.920 | 0.065 |
+
+**It is a symptom.** The estimate does drive the planner into its last fallback
+five times as often as the oracle on dense clutter, 31 episodes against 6. But
+withholding it changes 2 dense outcomes, both to wins: +0.010, p = 0.5,
+interval [+0.000, +0.025], a bounded null. On sparse worlds, of the 16 episodes
+that reach the fallback, not one outcome changes. The oracle control is bounded
+null on both conditions, as registered. With the fallback withheld the estimate
+still trails the oracle by 0.055 on dense clutter (p = 0.003, 12 episodes
+lost and 1 won).
+
+So the post hoc description was right about what the lost episodes shared and
+wrong about what it meant. A plan with no margin is what the planner makes once
+a mover is already close; the robot gets close earlier, on an estimate acted on
+for up to a second between replans. That is the next place to look.
+
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
 ones, where a correct map means the path is never blocked and it never fires.

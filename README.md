@@ -59,9 +59,10 @@ decision below follows from wanting that comparison to be trustworthy.
 | Temporal safety margin: removes the harm; motion cost ~0 given oracle trajectories | Done |
 | Constant-velocity estimate for the oracle: about half survives on dense; the loss is collisions | Done |
 | Encoder cost re-priced at 1:1: survives (−0.180 narrow), and still fails by stalling | Done |
+| Withholding the estimate's zero-margin fallback: a symptom, recovers nothing | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Thirty-four experiments, each pre-registered where it tests a hypothesis. The
+Thirty-five experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).

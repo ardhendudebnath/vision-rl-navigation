@@ -648,7 +648,9 @@ robot's own noise-free observations — costs 0.065 on dense clutter (p = 0.001,
 episodes lost and 1 won), all of it collisions and none recovered by doubling
 the margin. The motion cost becomes 0.075 there and 0.020 on sparse
 worlds: about half the oracle's reduction on dense clutter, most of it on
-sparse.
+sparse. The lost episodes mostly end under a plan made with no spatial margin,
+but withholding such plans recovers nothing (+0.010, a bounded null): the
+fallback is where a robot already too close ends up, not how it got there.
 
 **Recurrence is worse, and not because of motion.** An LSTM policy — the last
 untested way of supplying motion information, and the only one that learns what
@@ -723,16 +725,16 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of nineteen predictions made in advance, three derived from a
+**Calibration.** Of twenty predictions made in advance, three derived from a
 *measurement* held — two to within 0.021 and 0.001, and one on both magnitude
-and mechanism; eight from extrapolation, intuition or arithmetic failed
-outright; eight got part right and part wrong. Confidence of expression was
-identical throughout. Three rules came out of them; the record of each
-prediction is in [`project_plan.md`](project_plan.md). The fifteenth also broke
-this report's own stated practice: its null was registered as an interval
-including zero, which intervals of ±0.4 satisfy whatever is true, so its
-conclusion rests on a sharper test added afterwards and labelled as such. The
-sixteenth was committed to the repository before its data existed, so its
+and mechanism; nine from extrapolation, intuition, arithmetic or a post hoc
+description failed outright; eight got part right and part wrong. Confidence of
+expression was identical throughout. Three rules came out of them; the record
+of each prediction is in [`project_plan.md`](project_plan.md). The fifteenth
+also broke this report's own stated practice: its null was registered as an
+interval including zero, which intervals of ±0.4 satisfy whatever is true, so
+its conclusion rests on a sharper test added afterwards and labelled as such.
+The sixteenth was committed to the repository before its data existed, so its
 timing is checkable rather than asserted.
 
 **A measurement predicts only where something has been measured.** Carried
@@ -811,13 +813,15 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Make the estimate safe.** A constant-velocity estimate keeps about half
-   of the oracle's gain on dense clutter and loses the rest to collisions that a
-   wider temporal margin does not prevent (§9.1). In 15 of the 18 lost episodes
-   the plan in force had been made at the bare robot radius, the planner's last
-   fallback, and the estimate was a median 0.03 m off at contact. Withholding
-   that fallback says whether it is the cause or a symptom, for a few
-   CPU-hours; noise on the observations is the step after.
+1. **Find how the estimate lets movers close in.** A constant-velocity
+   estimate keeps about half of the oracle's gain on dense clutter and loses
+   the rest to contact with movers (§9.1). Neither a wider temporal margin nor
+   withholding zero-margin plans recovers it: the robot is already too close
+   by the time the planner falls back. Between replans the agent acts on an
+   estimate up to a second old, so a replan triggered when an observation
+   contradicts the estimate is the next test — and since the oracle is never
+   contradicted, it comes with a bit-identical control. Noise on the
+   observations is the step after.
 2. **Why an encoding deficit stalls.** Of the three perception deficits
    re-priced at 1:1, the one that keeps the information and changes only its
    encoding is the one whose failure the reward does not move (§8.4). The

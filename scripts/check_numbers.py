@@ -568,6 +568,52 @@ def claims():
         ):
             out.append((f"estimate {arm} {cond} {key}", want, ecells[arm][cond][key]))
 
+    # --- zero-margin fallback withheld, Phase 5t -------------------------
+    fl = "results/floor_experiment.json"
+    if os.path.exists(fl):
+        fj = load(fl)
+        fc, fcells, fx = fj["checks"], fj["cells"], fj["contrasts"]
+        treated = fx["cv_floor_vs_cv_m2"]
+        control = fx["oracle_floor_vs_oracle_m2"]["dynamic_dense"]
+        remaining = fx["cv_floor_vs_oracle_m2"]["dynamic_dense"]
+        identity = [fc[f"identity_{arm}_{cond}"] for arm in ("cv_floor", "oracle_floor")
+                    for cond in ("dynamic", "dynamic_dense")]
+        out += [
+            ("floor decision SYMPTOM", 1.0, float(fj["decision"] == "SYMPTOM")),
+            ("floor reproduces 5r", 1.0, float(fc["reproduces_phase_5r"])),
+            ("floor identity episodes", 745,
+             sum(c["episodes_never_reaching_bare_radius"] for c in identity)),
+            ("floor identity broken", 0, sum(c["of_those_not_identical"] for c in identity)),
+            ("floor dense gain", 0.010, treated["dynamic_dense"]["success_gain"]),
+            ("floor dense p", 0.5, treated["dynamic_dense"]["p"]),
+            ("floor dense won", 2, treated["dynamic_dense"]["episodes_won"]),
+            ("floor dense lost", 0, treated["dynamic_dense"]["episodes_lost"]),
+            ("floor dense ci lo", 0.000, treated["dynamic_dense"]["ci95"][0]),
+            ("floor dense ci hi", 0.025, treated["dynamic_dense"]["ci95"][1]),
+            ("floor sparse outcomes changed", 0,
+             fc["identity_cv_floor_dynamic"]["outcomes_changed"]),
+            ("floor control dense gain", -0.005, control["success_gain"]),
+            ("floor control ci lo", -0.015, control["ci95"][0]),
+            ("floor control ci hi", 0.000, control["ci95"][1]),
+            ("floor remaining gap", -0.055, remaining["success_gain"]),
+            ("floor remaining p", 0.003, remaining["p"]),
+            ("floor remaining won", 1, remaining["episodes_won"]),
+            ("floor remaining lost", 12, remaining["episodes_lost"]),
+        ]
+        for arm, sparse_n, dense_n, dense_s, dense_c in (
+            ("oracle_m2", 2, 6, 0.975, 0.010), ("oracle_floor", 2, 6, 0.970, 0.015),
+            ("cv_m2", 16, 31, 0.910, 0.075), ("cv_floor", 16, 31, 0.920, 0.065),
+        ):
+            out += [
+                (f"floor {arm} sparse reach bare", sparse_n,
+                 fcells[arm]["dynamic"]["episodes_reaching_bare_radius"]),
+                (f"floor {arm} dense reach bare", dense_n,
+                 fcells[arm]["dynamic_dense"]["episodes_reaching_bare_radius"]),
+                (f"floor {arm} dense success", dense_s, fcells[arm]["dynamic_dense"]["success"]),
+                (f"floor {arm} dense collision", dense_c,
+                 fcells[arm]["dynamic_dense"]["collision"]),
+            ]
+
     # --- encoder cost re-priced at 1:1, Phase 5s -------------------------
     ri, rl = "results/repricing_encoder_interaction.json", "results/repricing_encoder.json"
     if os.path.exists(ri) and os.path.exists(rl):

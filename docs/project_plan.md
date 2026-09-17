@@ -46,6 +46,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5q | Temporal safety margin 0-4 steps on the space-time agent | **Done** — **FIXED: sparse harm removed (+0.050, p = 0.002)**; motion cost 0.010 dense given oracle trajectories |
 | 5r | Constant-velocity estimate in place of the oracle, 200 episodes | **Done** — **COSTLY: −0.065 on dense (p = 0.001), all collisions**; a 4-step margin recovers none |
 | 5s | Re-price the encoder cost at 1:1, 12 new runs | **Done** — **SURVIVES (−0.180 narrow, p = 0.002)**; the failure stays in timeouts, unlike coverage's |
+| 5t | Withhold the zero-margin fallback from the estimating agent | **Done** — **SYMPTOM: +0.010 on dense, bounded null**; the robot gets close before it falls back |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -2140,6 +2141,52 @@ It was registered LOW, as an analogy, and it split where the analogy was
 weakest. Success invariance carried over from two perception re-pricings. The
 mechanism was reasoned from timeouts collapsing for MLP arms at 1:1, and did not
 carry over to a CNN arm, which nothing had measured.
+
+## Phase 5t — The zero-margin fallback: a symptom, not the cause
+
+Phase 5r's post hoc replay found the plan in force at the bare robot radius in 15
+of 18 episodes the estimate lost. Tested by withholding that radius from movers
+(`mover_margin_floor` 0.5), on the estimating agent and on the oracle as a
+control. Pre-registered in `df8088e`, before the result file existed. Full
+treatment in `dynamic_obstacles.md`.
+
+Checks: cv_m2 and oracle_m2 reproduce Phase 5r on every episode. Identity: every
+episode that never reaches the bare radius is bit-identical with the floor --
+184, 169, 198 and 194 episodes across the four cells, none differing.
+Registered decision: **SYMPTOM**.
+
+- Estimate, fallback withheld against not, dense: +0.010, p = 0.5, 2 won
+  and 0 lost, CI [+0.000, +0.025] -- bounded-INERT. Sparse: identical
+  outcomes, though 16 episodes reach the fallback.
+- Oracle control: bounded-INERT on both conditions (dense −0.005,
+  CI [−0.015, +0.000]).
+- The estimate reaches the fallback in 31 dense episodes against the oracle's 6,
+  and 16 sparse against 2.
+- With the fallback withheld the estimate still trails the oracle by 0.055 on
+  dense clutter, p = 0.003.
+
+### Consequences
+
+The fallback is where a robot already too close to a mover ends up, not how it
+got there. What is left is how it gets close: an estimate acted on for up to a
+second between replans is the obvious candidate, and a replan triggered when an
+observation contradicts the estimate would test it, with the oracle -- which is
+never contradicted -- as a bit-identical control.
+
+### Calibration
+
+Prediction 20 failed. Its headline was CAUSE and the result is SYMPTOM. The
+control clause and the identity held, but a control holding is what makes the
+result readable, not a part of the forecast that came true, and it is not
+counted. The rule used from here: a registered decision that fails is a failed
+prediction, whatever its other clauses did; one that holds with a failed
+secondary clause is partial.
+
+It was registered LOW and leaned on a post hoc description of eighteen episodes.
+The description has held up -- the estimate really does reach the fallback five
+times as often -- and the inference drawn from it did not. Describing what
+failures share is not measuring what causes them, which is the point of
+registering a test before reading the description as an answer.
 
 ## Hardware notes
 
