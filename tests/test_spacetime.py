@@ -602,3 +602,93 @@ def test_unknown_predictor_fails_loudly():
     bad._world = env.world
     with pytest.raises(ValueError, match="unknown predictor"):
         bad._predicted_discs(env.world._t)
+
+# ============================================================================
+# Mover margin floor: withholding zero-margin plans around movers
+# ============================================================================
+def _radii_tried_when_every_plan_fails(floor, monkeypatch):
+    """Force every search to fail, and record the static and mover radii the
+    agent tried at each fallback."""
+    from vision_nav.agents import spacetime as st
+
+    agent, env = _cv_agent_on("dynamic")
+    agent.config.mover_margin_floor = floor
+    static_radii, mover_radii = [], []
+    real_static, real_movers = agent._static, agent._mover_occupancy
+
+    def spy_static(radius):
+        static_radii.append(radius)
+        return real_static(radius)
+
+    def spy_movers(radius, steps):
+        mover_radii.append(radius)
+        return real_movers(radius, steps)
+
+    monkeypatch.setattr(agent, "_static", spy_static)
+    monkeypatch.setattr(agent, "_mover_occupancy", spy_movers)
+    monkeypatch.setattr(st, "spacetime_astar", lambda *a, **k: None)
+    before = agent.bare_radius_attempts
+    assert agent._plan(env.robot.pose) is False
+    return static_radii, mover_radii, agent.bare_radius_attempts - before, env, agent
+
+
+def test_zero_floor_falls_back_to_the_bare_radius_everywhere(monkeypatch):
+    """The default must be what Phase 5r ran: all three fallbacks, movers too."""
+    static, movers, bare, env, agent = _radii_tried_when_every_plan_fails(0.0, monkeypatch)
+    r, m = env.world.config.robot_radius, agent.config.safety_margin
+    np.testing.assert_allclose(static, [r + m, r + m / 2, r])
+    np.testing.assert_allclose(movers, static)
+    assert bare == 1
+
+
+def test_a_floor_withholds_the_bare_radius_from_movers_only(monkeypatch):
+    """The treatment: a tight static passage may still use the bare radius, a
+    mover never does."""
+    static, movers, bare, env, agent = _radii_tried_when_every_plan_fails(0.5, monkeypatch)
+    r, m = env.world.config.robot_radius, agent.config.safety_margin
+    np.testing.assert_allclose(static, [r + m, r + m / 2, r])
+    np.testing.assert_allclose(movers, [r + m, r + m / 2, r + m / 2])
+    assert bare == 1, "the counter must count attempts at the last fallback either way"
+
+
+@pytest.mark.parametrize("episode", [25, 33])
+def test_a_floor_cannot_act_before_the_last_fallback_is_reached(episode):
+    """The identity the experiment's analysis rests on: an episode in which the
+    planner never reached the bare radius drives the same trajectory with or
+    without the floor.
+
+    First written over dense episodes 0-5, which passed -- and passed a mutant
+    that leaked the floor into the *middle* fallback too, because none of those
+    episodes fell back at all. These two do reach the middle fallback and never
+    the last, and the test says so rather than assuming it.
+    """
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+    from vision_nav.envs.nav_env import ProceduralNavEnv
+    from vision_nav.envs.splits import DYNAMIC_CONDITIONS
+    from vision_nav.training.env_factory import build_env_config
+
+    split, shift, _ = DYNAMIC_CONDITIONS["dynamic_dense"]
+    cfg = build_env_config({}, split=split, shift=shift, n_worlds=episode + 1)
+    env = ProceduralNavEnv(cfg)
+
+    def drive(floor):
+        env.reset(options={"world_seed": int(cfg.world_seeds[episode])})
+        agent = SpaceTimeAgent(SpaceTimeConfig(predictor="constant_velocity",
+                                               temporal_margin_steps=2,
+                                               mover_margin_floor=floor), robot=cfg.robot)
+        middle = env.world.config.robot_radius + agent.config.safety_margin / 2
+        tried, real = [], agent._static
+        agent._static = lambda r: (tried.append(r), real(r))[1]
+        agent.start_episode(env.world, env.robot.pose)
+        traj, done = [env.robot.position.copy()], False
+        while not done:
+            _, _, term, trunc, _ = env.step(agent.act(env.robot.pose))
+            done = term or trunc
+            traj.append(env.robot.position.copy())
+        return np.asarray(traj), int(np.isclose(tried, middle).sum()), agent.bare_radius_attempts
+
+    base, middle_attempts, bare_attempts = drive(0.0)
+    assert middle_attempts > 0, "episode no longer reaches the middle fallback; pick another"
+    assert bare_attempts == 0, "episode now reaches the last fallback; pick another"
+    floored, _, _ = drive(0.5)
+    assert base.shape == floored.shape and np.array_equal(base, floored)

@@ -615,9 +615,11 @@ def claims():
         ):
             if os.path.exists(name):
                 m = re.search(pattern, doc(name))
-                if m:
-                    out.append((f"{name} suite size", float(m.group(1)),
-                                float(n_tests)))
+                # A document whose count has gone missing is a failure, not a
+                # skip: a scripted edit once blanked all three to "-test suite"
+                # and "# tests", and the check passed by finding nothing to check.
+                quoted = float(m.group(1)) if m else -1.0
+                out.append((f"{name} suite size", quoted, float(n_tests)))
 
     # --- recurrence, report section 9.1 and dynamic_obstacles.md ------
     rc, ab = "results/recurrence.json", "results/recurrence_state_ablation.json"

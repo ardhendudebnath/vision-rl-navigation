@@ -130,6 +130,7 @@ def run_cell(condition: str, episodes: int, config: PursuitConfig,
         # -- compared elsewhere by dict equality -- stay exactly as they were.
         if hasattr(agent, "planned_waits"):
             row["planned_waits"] = agent.planned_waits
+            row["bare_radius_attempts"] = agent.bare_radius_attempts
         rows.append(row)
     return rows
 

@@ -100,6 +100,19 @@ class SpaceTimeConfig:
     #: A frozen mover has zero velocity, so its estimate is exact and the
     #: estimated planner must be bit-identical to the oracle on frozen worlds.
     predictor: str = "oracle"
+    #: Fraction of ``safety_margin`` that movers are always inflated by, however
+    #: far the planner falls back. ``0.0`` lets the last fallback plan at the
+    #: bare robot radius around movers too, which is what Phase 5r ran.
+    #:
+    #: Phase 5r found a constant-velocity estimate losing episodes the oracle won,
+    #: all to contact with a mover, and in 15 of 18 the plan in force had been
+    #: made at the bare radius -- no margin at all around a mover the estimate
+    #: had a median 0.03 m wrong. A plan like that is safe only under exact
+    #: prediction. This withholds it: the static map may still fall back to the
+    #: bare radius for a tight passage, but movers never do. Until the planner
+    #: first reaches that last fallback in an episode the setting cannot change
+    #: anything, which is the identity the experiment checks.
+    mover_margin_floor: float = 0.0
 
     # --- matched to the spatial baseline, not restated --------------------
     safety_margin: float = field(default=_BASE.safety_margin)
@@ -127,6 +140,8 @@ class SpaceTimeAgent:
         self.replans = 0
         self.plan_failures = 0
         self.planned_waits = 0
+        #: Times the planner reached its last fallback, the bare robot radius.
+        self.bare_radius_attempts = 0
 
     # ------------------------------------------------------------------
     @property
@@ -144,6 +159,7 @@ class SpaceTimeAgent:
         self.replans = 0
         self.plan_failures = 0
         self.planned_waits = 0
+        self.bare_radius_attempts = 0
         self._observations = []
         self._observe()
         return self._plan(np.asarray(pose, dtype=np.float64))
@@ -216,11 +232,14 @@ class SpaceTimeAgent:
         goal = tuple(int(v) for v in w.world_to_grid(w.goal))
         self._last_plan_t = w._t
         self.replans += 1
+        floor = w.config.robot_radius + cfg.safety_margin * cfg.mover_margin_floor
         for radius in (w.config.robot_radius + cfg.safety_margin,
                        w.config.robot_radius + cfg.safety_margin * 0.5,
                        w.config.robot_radius):
+            if radius <= w.config.robot_radius:
+                self.bare_radius_attempts += 1
             static, heuristic = self._static(radius)
-            movers = self._mover_occupancy(radius, steps)
+            movers = self._mover_occupancy(max(radius, floor), steps)
             # Movers persist past the window where they were at its last step,
             # rather than vanishing -- see spacetime_astar's tail_occ for the
             # exploit a vanishing mover invites.
