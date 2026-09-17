@@ -113,6 +113,20 @@ class SpaceTimeConfig:
     #: first reaches that last fallback in an episode the setting cannot change
     #: anything, which is the identity the experiment checks.
     mover_margin_floor: float = 0.0
+    #: Replan as soon as an observed mover is this far, in metres, from where
+    #: the estimate behind the last plan attempt put it now. ``0.0`` never
+    #: does, which is what Phase 5t ran.
+    #:
+    #: Phase 5t showed the estimate's zero-margin plans are a symptom: the robot
+    #: is already too close to a mover by the time the planner falls back to
+    #: one. Between scheduled replans it acts for up to a second on an estimate
+    #: made at the last plan, and a straight line drifts from a sinusoid as the
+    #: second goes on. This replans the moment the drift is observed. All
+    #: movers count, not only nearby ones, which costs replans but decides
+    #: nothing about which movers matter. The oracle is never contradicted, so
+    #: an oracle agent with this set must be bit-identical to one without --
+    #: on moving worlds, which makes the control free.
+    replan_innovation_m: float = 0.0
 
     # --- matched to the spatial baseline, not restated --------------------
     safety_margin: float = field(default=_BASE.safety_margin)
@@ -142,6 +156,9 @@ class SpaceTimeAgent:
         self.planned_waits = 0
         #: Times the planner reached its last fallback, the bare robot radius.
         self.bare_radius_attempts = 0
+        #: Replans triggered because an observation contradicted the estimate.
+        self.innovation_replans = 0
+        self._plan_basis: list[tuple[float, np.ndarray]] | None = None
 
     # ------------------------------------------------------------------
     @property
@@ -160,6 +177,8 @@ class SpaceTimeAgent:
         self.plan_failures = 0
         self.planned_waits = 0
         self.bare_radius_attempts = 0
+        self.innovation_replans = 0
+        self._plan_basis = None
         self._observations = []
         self._observe()
         return self._plan(np.asarray(pose, dtype=np.float64))
@@ -207,21 +226,36 @@ class SpaceTimeAgent:
         self._observations.append((w._t, w._dyn_now.copy()))
         del self._observations[:-2]
 
-    def _predicted_discs(self, t: float) -> np.ndarray:
-        """Mover discs ``(M, 3)`` the planner believes occupy space at time ``t``."""
+    def _predicted_discs(self, t: float,
+                         observations: list[tuple[float, np.ndarray]] | None = None) -> np.ndarray:
+        """Mover discs ``(M, 3)`` the planner believes occupy space at time ``t``.
+
+        ``observations`` defaults to the latest; passing an older pair asks what
+        an earlier estimate said. The oracle ignores it.
+        """
         w = self._world
         if self.config.predictor == "oracle":
             return w.dynamic_at(t)
         if self.config.predictor != "constant_velocity":
             raise ValueError(f"unknown predictor {self.config.predictor!r}")
-        t1, p1 = self._observations[-1]
+        seen = self._observations if observations is None else observations
+        t1, p1 = seen[-1]
         out = p1.copy()
-        if len(self._observations) >= 2:
-            t0, p0 = self._observations[-2]
+        if len(seen) >= 2:
+            t0, p0 = seen[-2]
             if t1 > t0 and len(p0) == len(p1):
                 velocity = (p1[:, :2] - p0[:, :2]) / (t1 - t0)
                 out[:, :2] = p1[:, :2] + velocity * (t - t1)
         return out
+
+    def _innovation(self) -> float:
+        """Largest distance between a mover as observed now and where the
+        estimate behind the last plan attempt put it now. Zero before any plan."""
+        w = self._world
+        if self._plan_basis is None or not len(w._dyn_now):
+            return 0.0
+        expected = self._predicted_discs(w._t, observations=self._plan_basis)
+        return float(np.linalg.norm(expected[:, :2] - w._dyn_now[:, :2], axis=1).max())
 
     def _plan(self, pose: np.ndarray) -> bool:
         """Plan from ``pose`` at the current simulation time. Keeps the old plan
@@ -231,6 +265,10 @@ class SpaceTimeAgent:
         start = tuple(int(v) for v in w.world_to_grid(pose[:2]))
         goal = tuple(int(v) for v in w.world_to_grid(w.goal))
         self._last_plan_t = w._t
+        # The estimate this attempt plans on. Kept on failure too: the question
+        # the trigger asks is whether the planner's belief is stale, and a
+        # failed attempt refreshed it as much as a successful one did.
+        self._plan_basis = list(self._observations)
         self.replans += 1
         floor = w.config.robot_radius + cfg.safety_margin * cfg.mover_margin_floor
         for radius in (w.config.robot_radius + cfg.safety_margin,
@@ -287,6 +325,9 @@ class SpaceTimeAgent:
         if self._waypoints is not None:
             drift = float(np.linalg.norm(self._scheduled(w._t) - position))
             if w._t - self._last_plan_t >= cfg.replan_every_s or drift > cfg.replan_deviation:
+                self._plan(pose)
+            elif cfg.replan_innovation_m > 0 and self._innovation() > cfg.replan_innovation_m:
+                self.innovation_replans += 1
                 self._plan(pose)
         else:
             self._plan(pose)

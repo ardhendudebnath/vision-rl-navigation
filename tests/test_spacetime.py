@@ -692,3 +692,64 @@ def test_a_floor_cannot_act_before_the_last_fallback_is_reached(episode):
     assert bare_attempts == 0, "episode now reaches the last fallback; pick another"
     floored, _, _ = drive(0.5)
     assert base.shape == floored.shape and np.array_equal(base, floored)
+
+# ============================================================================
+# Replanning when an observation contradicts the estimate
+# ============================================================================
+def _drive(cond, episode, **config):
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+    from vision_nav.envs.nav_env import ProceduralNavEnv
+    from vision_nav.envs.splits import DYNAMIC_CONDITIONS, FROZEN_CONDITIONS
+    from vision_nav.training.env_factory import build_env_config
+
+    split, shift, _ = DYNAMIC_CONDITIONS[cond]
+    over = {"freeze_dynamic": True} if cond in FROZEN_CONDITIONS else {}
+    cfg = build_env_config(over, split=split, shift=shift, n_worlds=episode + 1)
+    env = ProceduralNavEnv(cfg)
+    env.reset(options={"world_seed": int(cfg.world_seeds[episode])})
+    agent = SpaceTimeAgent(SpaceTimeConfig(temporal_margin_steps=2, **config), robot=cfg.robot)
+    agent.start_episode(env.world, env.robot.pose)
+    traj, done = [env.robot.position.copy()], False
+    while not done:
+        _, _, term, trunc, _ = env.step(agent.act(env.robot.pose))
+        done = term or trunc
+        traj.append(env.robot.position.copy())
+    return np.asarray(traj), agent
+
+
+def test_innovation_is_the_distance_from_the_plans_estimate_to_the_observation():
+    agent, env = _cv_agent_on("dynamic")
+    for _ in range(3):
+        env.step(agent.act(env.robot.pose))
+    w = env.world
+    basis = [(w._t - 0.2, w._dyn_now.copy()), (w._t - 0.1, w._dyn_now.copy())]
+    basis[0][1][:, 0] -= 0.05  # the estimate thinks every mover moves +0.5 m/s in x
+    agent._plan_basis = basis
+    # Carried 0.1 s past the newer observation, the estimate is 0.05 m off in x.
+    assert agent._innovation() == pytest.approx(0.05)
+
+
+def test_the_oracle_is_never_contradicted_so_the_trigger_is_inert():
+    """The free control, on a *moving* world: the oracle's estimate is the truth,
+    so an oracle agent with the trigger must drive the same trajectory as one
+    without, and never fire it."""
+    base, _ = _drive("dynamic_dense", 1, predictor="oracle")
+    trig, agent = _drive("dynamic_dense", 1, predictor="oracle", replan_innovation_m=0.02)
+    assert agent.innovation_replans == 0
+    assert base.shape == trig.shape and np.array_equal(base, trig)
+
+
+def test_a_frozen_mover_never_contradicts_a_constant_velocity_estimate():
+    base, _ = _drive("dynamic_dense_frozen", 1, predictor="constant_velocity")
+    trig, agent = _drive("dynamic_dense_frozen", 1, predictor="constant_velocity",
+                         replan_innovation_m=0.02)
+    assert agent.innovation_replans == 0
+    assert base.shape == trig.shape and np.array_equal(base, trig)
+
+
+def test_the_trigger_fires_on_a_moving_world_under_an_estimate():
+    """Not silently inert where it is meant to act."""
+    _, base = _drive("dynamic_dense", 1, predictor="constant_velocity")
+    _, trig = _drive("dynamic_dense", 1, predictor="constant_velocity", replan_innovation_m=0.02)
+    assert base.innovation_replans == 0
+    assert trig.innovation_replans > 0
