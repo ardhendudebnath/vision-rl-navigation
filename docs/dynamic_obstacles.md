@@ -724,6 +724,44 @@ wrong about what it meant. A plan with no margin is what the planner makes once
 a mover is already close; the robot gets close earlier, on an estimate acted on
 for up to a second between replans. That is the next place to look.
 
+### Replanning when the estimate is contradicted
+
+The fallback was a symptom: by the time the planner reaches it, the robot is
+already too close. Between scheduled replans the agent acts for up to a second
+on the estimate made at the last plan, so this test replans the moment an
+observed mover is more than 0.05 m or 0.02 m from where that estimate put it.
+The control is free, because the oracle is never contradicted: the oracle agent
+with the trigger is bit-identical to one without on every moving-world episode,
+and the trigger never fires. Pre-registered in `b4ccdc2`.
+
+| 200 episodes | sparse success | dense success | dense collisions | replans, dense episode |
+|---|---|---|---|---|
+| oracle | 0.995 | 0.975 | 0.010 | 24.9 |
+| estimate | 0.975 | 0.910 | 0.075 | 24.9 |
+| estimate, 0.05 m trigger | 0.960 | 0.925 | 0.055 | 26.5 |
+| estimate, 0.02 m trigger | 0.995 | 0.925 | 0.055 | 35.7 |
+
+**The registered rule returns UNRESOLVED.** On dense clutter the 0.02 m trigger
+gains +0.015 (p = 0.55, 7 episodes won and 4 lost), interval
+[−0.015, +0.050]: neither the gain the prediction needed nor a bounded null.
+Two hundred episodes cannot say whether freshness is worth nothing there or most
+of the loss. The 0.05 m trigger gains exactly as much with a quarter of the
+triggered replans, so the dose-response the prediction asked for is absent too.
+What is not in doubt: with the trigger, the estimate still trails the oracle by
+0.050 on dense clutter (p = 0.002, 10 episodes lost and none won).
+
+**On sparse worlds fresh estimates close the gap.** The 0.02 m trigger wins back
+all four episodes the estimate lost and loses none, and its success matches the
+oracle's on every one of the 200 episodes. Four episodes cannot reach
+significance -- p = 0.125 is the smallest four discordant pairs allow -- so
+this is a direction, not a finding, but it is the direction staleness predicts.
+
+So on dense clutter a wider temporal margin, a withheld fallback and fresh
+estimates have each failed to account for the remainder. The explanation named
+first, in the prediction for the estimate itself, and never tested, is the far
+end of the window: a straight line carried seven seconds out, and held past it
+as a permanent obstacle.
+
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
 ones, where a correct map means the path is never blocked and it never fires.

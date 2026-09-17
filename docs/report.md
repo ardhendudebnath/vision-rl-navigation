@@ -692,6 +692,9 @@ worlds: about half the oracle's reduction on dense clutter, most of it on
 sparse. The lost episodes mostly end under a plan made with no spatial margin,
 but withholding such plans recovers nothing (+0.010, a bounded null): the
 fallback is where a robot already too close ends up, not how it got there.
+Replanning the moment an observation contradicts the estimate matches the
+oracle's success on every sparse episode but leaves 0.050 on dense clutter
+(p = 0.002), and its own gain there is unresolved.
 
 **Recurrence is worse, and not because of motion.** An LSTM policy — the last
 untested way of supplying motion information, and the only one that learns what
@@ -766,9 +769,9 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of twenty predictions made in advance, three derived from a
-*measurement* held — two to within 0.021 and 0.001, and one on both magnitude
-and mechanism; nine from extrapolation, intuition, arithmetic or a post hoc
+**Calibration.** Of twenty-one predictions made in advance, three derived from
+a *measurement* held — two to within 0.021 and 0.001, and one on both magnitude
+and mechanism; ten from extrapolation, intuition, arithmetic or a post hoc
 description failed outright; eight got part right and part wrong. Confidence of
 expression was identical throughout. Three rules came out of them; the record
 of each prediction is in [`project_plan.md`](project_plan.md). The fifteenth
@@ -854,15 +857,15 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Find how the estimate lets movers close in.** A constant-velocity
-   estimate keeps about half of the oracle's gain on dense clutter and loses
-   the rest to contact with movers (§9.1). Neither a wider temporal margin nor
-   withholding zero-margin plans recovers it: the robot is already too close
-   by the time the planner falls back. Between replans the agent acts on an
-   estimate up to a second old, so a replan triggered when an observation
-   contradicts the estimate is the next test — and since the oracle is never
-   contradicted, it comes with a bit-identical control. Noise on the
-   observations is the step after.
+1. **Cap the estimate's reach.** On dense clutter a constant-velocity
+   estimate still trails the oracle by 0.050 after a wider temporal margin, a
+   withheld zero-margin fallback and replanning on every contradiction (§9.1).
+   None of those touched the far end of the planning window: a straight line
+   carried seven seconds out and held past it as a permanent obstacle, which can
+   steer the part of a plan that runs. Holding each mover where the estimate
+   puts it after a second or two tests that, and frozen worlds, where the
+   estimate never moves, are the identity. Noise on the observations is the
+   step after.
 2. **Break the stall.** At the RGB policy's stalls in front of an open,
    visible route, its camera features read the route as open more reliably
    than while it is moving, and its final layer reads it as blocked (§8.6). The

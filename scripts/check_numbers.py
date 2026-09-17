@@ -614,6 +614,55 @@ def claims():
                  fcells[arm]["dynamic_dense"]["collision"]),
             ]
 
+    # --- replanning on a contradicted estimate, Phase 5u ------------------
+    ie = "results/innovation_experiment.json"
+    if os.path.exists(ie):
+        ij = load(ie)
+        ic, icells, ix = ij["checks"], ij["cells"], ij["contrasts"]
+        d02, s02 = ix["cv_i02_vs_cv_m2"]["dynamic_dense"], ix["cv_i02_vs_cv_m2"]["dynamic"]
+        d05 = ix["cv_i05_vs_cv_m2"]["dynamic_dense"]
+        gap, sparse_gap = ix["cv_i02_vs_oracle_m2"]["dynamic_dense"], ix["cv_i02_vs_oracle_m2"]["dynamic"]
+        out += [
+            ("innovation decision UNRESOLVED", 1.0, float(ij["decision"] == "UNRESOLVED")),
+            ("innovation oracle identity", 1.0, float(ic["oracle_identity_on_moving_worlds"])),
+            ("innovation reproduces 5r", 1.0, float(ic["reproduces_phase_5r"])),
+            ("innovation dense gain", 0.015, d02["success_gain"]),
+            ("innovation dense p", 0.549, d02["p"]),
+            ("innovation dense won", 7, d02["episodes_won"]),
+            ("innovation dense lost", 4, d02["episodes_lost"]),
+            ("innovation dense ci lo", -0.015, d02["ci95"][0]),
+            ("innovation dense ci hi", 0.050, d02["ci95"][1]),
+            ("innovation dense collision delta", -0.020, d02["collision_delta"]),
+            ("innovation dense timeout delta", 0.005, d02["timeout_delta"]),
+            ("innovation 0.05 dense gain", 0.015, d05["success_gain"]),
+            ("innovation 0.05 dense p", 0.453, d05["p"]),
+            ("innovation sparse won", 4, s02["episodes_won"]),
+            ("innovation sparse lost", 0, s02["episodes_lost"]),
+            ("innovation sparse p", 0.125, s02["p"]),
+            ("innovation sparse matches oracle, discordant", 0,
+             sparse_gap["episodes_won"] + sparse_gap["episodes_lost"]),
+            ("innovation remaining dense gap", -0.050, gap["success_gain"]),
+            ("innovation remaining dense p", 0.002, gap["p"]),
+            ("innovation remaining dense lost", 10, gap["episodes_lost"]),
+            ("innovation remaining dense won", 0, gap["episodes_won"]),
+            ("innovation dense replans base", 24.9, round(icells["cv_m2"]["dynamic_dense"]["replans_per_episode"], 1)),
+            ("innovation dense replans 0.02", 35.7, round(icells["cv_i02"]["dynamic_dense"]["replans_per_episode"], 1)),
+            ("innovation dense replans 0.05", 26.5, round(icells["cv_i05"]["dynamic_dense"]["replans_per_episode"], 1)),
+            ("innovation dense triggered 0.02", 29.2,
+             round(icells["cv_i02"]["dynamic_dense"]["triggered_per_episode"], 1)),
+            ("innovation dense triggered 0.05", 6.9,
+             round(icells["cv_i05"]["dynamic_dense"]["triggered_per_episode"], 1)),
+        ]
+        for arm, sparse_s, dense_s, dense_c in (
+            ("oracle_m2", 0.995, 0.975, 0.010), ("cv_m2", 0.975, 0.910, 0.075),
+            ("cv_i05", 0.960, 0.925, 0.055), ("cv_i02", 0.995, 0.925, 0.055),
+        ):
+            out += [(f"innovation {arm} sparse success", sparse_s, icells[arm]["dynamic"]["success"]),
+                    (f"innovation {arm} dense success", dense_s,
+                     icells[arm]["dynamic_dense"]["success"]),
+                    (f"innovation {arm} dense collision", dense_c,
+                     icells[arm]["dynamic_dense"]["collision"])]
+
     # --- pixel stall audit, Phase 5v --------------------------------------
     pa = "results/pixel_stall_audit.json"
     if os.path.exists(pa):

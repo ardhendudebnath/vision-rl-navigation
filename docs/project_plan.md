@@ -47,6 +47,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5r | Constant-velocity estimate in place of the oracle, 200 episodes | **Done** — **COSTLY: −0.065 on dense (p = 0.001), all collisions**; a 4-step margin recovers none |
 | 5s | Re-price the encoder cost at 1:1, 12 new runs | **Done** — **SURVIVES (−0.180 narrow, p = 0.002)**; the failure stays in timeouts, unlike coverage's |
 | 5t | Withhold the zero-margin fallback from the estimating agent | **Done** — **SYMPTOM: +0.010 on dense, bounded null**; the robot gets close before it falls back |
+| 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
@@ -2188,6 +2189,48 @@ The description has held up -- the estimate really does reach the fallback five
 times as often -- and the inference drawn from it did not. Describing what
 failures share is not measuring what causes them, which is the point of
 registering a test before reading the description as an answer.
+
+## Phase 5u — Replanning on a contradicted estimate: unresolved on dense clutter
+
+Phase 5t: the fallback is where a robot already too close ends up. Tested here:
+whether it gets close by acting on a stale estimate, replanning the moment an
+observed mover is more than 0.05 m or 0.02 m from where the last plan's
+estimate put it. Pre-registered in `b4ccdc2`, before the result file existed.
+Full treatment in `dynamic_obstacles.md`.
+
+Checks: the oracle with the trigger bit-identical to without on every
+moving-world episode, the trigger never firing; cv_m2 and oracle_m2 reproduce
+Phase 5r. Registered decision: **UNRESOLVED**.
+
+- 0.02 m trigger against none, dense: +0.015, p = 0.549, 7 won and 4 lost,
+  CI [−0.015, +0.050] -- neither MATTERS nor bounded-INERT. Collisions
+  −0.020, timeouts +0.005; replans per episode 24.9 to 35.7.
+- 0.05 m trigger, dense: +0.015, p = 0.453, at 6.9 triggered replans per
+  episode against 29.2. No dose-response.
+- Sparse: the 0.02 m trigger wins back all 4 episodes the estimate lost
+  (p = 0.125, the floor for four) and its success matches the oracle's on
+  every episode.
+- With the trigger the estimate still trails the oracle by 0.050 on dense
+  clutter, p = 0.002, 0 won and 10 lost.
+
+### Consequences
+
+Staleness may be the whole of the estimate's cost on sparse worlds and is at
+most part of it on dense clutter, where 0.050 remains after a wider margin, a
+withheld fallback and fresh estimates. The candidate registered first, in Phase
+5r's prediction, and never tested is the far end of the window: a straight line
+carried seven seconds out and held past it as a permanent obstacle. Capping how
+far the estimate is extrapolated tests it, with frozen worlds as the identity.
+Separately: at 200 episodes a dense-clutter null can only be bounded when the
+effect is near zero, so a bounded answer there may need more episodes.
+
+### Calibration
+
+Prediction 21 failed: registered STALENESS, returned UNRESOLVED, and the dose
+clause failed too -- equal gains at both thresholds. The control held and is
+not counted. It was registered LOW, and the case written against it -- that the
+approach is set by choices at the far end of the window -- is now the leading
+candidate.
 
 ## Phase 5v — The pixel stall audit: the opening is seen, and not taken
 
