@@ -568,6 +568,43 @@ def claims():
         ):
             out.append((f"estimate {arm} {cond} {key}", want, ecells[arm][cond][key]))
 
+    # --- encoder cost re-priced at 1:1, Phase 5s -------------------------
+    ri, rl = "results/repricing_encoder_interaction.json", "results/repricing_encoder.json"
+    if os.path.exists(ri) and os.path.exists(rl):
+        ij, lj = load(ri), load(rl)
+        ic, lc = ij["conditions"], lj["conditions"]
+        out.append(("encoder decision SURVIVES", 1.0, float(ij["decision"] == "SURVIVES")))
+        for cond, metric, hi, lo, inter, p in (
+            ("narrow", "success", -0.218, -0.180, 0.038, 0.4697),
+            ("narrow", "collision", 0.105, 0.027, -0.078, 0.3896),
+            ("narrow", "timeout", 0.113, 0.153, 0.040, 0.7251),
+            ("dense", "success", -0.238, -0.193, 0.045, 0.4697),
+            ("nominal", "success", -0.162, -0.088, 0.073, 0.0195),
+        ):
+            e = ic[cond][metric]
+            out += [(f"encoder {cond} {metric} 4:1", hi, e["delta_4to1"]),
+                    (f"encoder {cond} {metric} 1:1", lo, e["delta_1to1"]),
+                    (f"encoder {cond} {metric} interaction", inter, e["interaction"]),
+                    (f"encoder {cond} {metric} interaction p", p, e["p"])]
+        narrow_arms = lc["narrow"]["per_arm"]
+        out += [
+            ("encoder narrow 1:1 success p", 0.002, lc["narrow"]["comparisons"]["success"]["p"]),
+            ("encoder dense 1:1 success p", 0.002, lc["dense"]["comparisons"]["success"]["p"]),
+            ("encoder narrow 1:1 timeout p", 0.017, lc["narrow"]["comparisons"]["timeout"]["p"]),
+            ("encoder narrow 1:1 collision p", 0.662,
+             lc["narrow"]["comparisons"]["collision"]["p"]),
+            ("encoder depthi narrow timeout", 0.028,
+             sum(narrow_arms["depthi"]["timeout"]) / 6),
+            ("encoder rgbi narrow timeout", 0.182, sum(narrow_arms["rgbi"]["timeout"]) / 6),
+            ("encoder narrow timeout seeds positive", 6,
+             sum(d > 0 for d in ic["narrow"]["timeout"]["per_seed_1to1"])),
+        ]
+        # "Every depth seed above every RGB seed" on both registered conditions.
+        for cond in ("narrow", "dense"):
+            arms = lc[cond]["per_arm"]
+            out.append((f"encoder {cond} 1:1 complete separation", 1.0,
+                        float(min(arms["depthi"]["success"]) > max(arms["rgbi"]["success"]))))
+
     # Post hoc description of the episodes the estimate lost.
     edg = "results/estimate_diagnostic.json"
     if os.path.exists(edg):

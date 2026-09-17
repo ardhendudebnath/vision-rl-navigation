@@ -45,8 +45,9 @@ nothing.
    (interaction -0.142, p = 0.004).
 3. **Representation, not information, is the cost of vision.** Rendering the
    same geometry as pixels for a CNN rather than a vector for an MLP costs
-   0.16–0.24 success on every condition, and survives giving the CNN 2.7× the
-   compute.
+   0.16–0.24 success on every condition, and survives both 2.7× the compute
+   and a reward that prices a crash like a stall — under which, unlike a
+   coverage deficit, it still fails by stalling.
 4. **Nav2 corrected the baseline rather than confirming it.** The hand-written
    stack matches a production one to within 0.03 where clutter is not binding,
    but is 0.06–0.08 worse in tight corridors — so the published gap there was
@@ -90,8 +91,8 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of eighteen advance predictions, three derived from
-*measurements* held; eight failed outright and seven got part right and part
+pre-registered endpoints. Of nineteen advance predictions, three derived from
+*measurements* held; eight failed outright and eight got part right and part
 wrong, with identical confidence of expression
 throughout. The three failures that reasoned from a real measurement all
 carried it into a regime nothing had been measured in — and the one that

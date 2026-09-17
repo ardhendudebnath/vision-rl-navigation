@@ -23,23 +23,23 @@ policy correctly learns to stall rather than crash.
 
 Turning to perception, a **training-free audit of the sensor** quantifies a
 real geometric limit and then forecasts two subsequent training experiments to
-within 0.021 and 0.001. It shows coverage is causal while angular resolution
-is inert *in success*: doubling sample count at fixed field of view changes
+within 0.021 and 0.001. It shows coverage is causal while angular resolution is
+inert *in success*: doubling sample count at fixed field of view changes
 nothing (±0.003, inside a pre-registered ±0.01 bound), while quadrupling
 coverage at identical resolution produces the whole effect (+0.095, p = 0.024).
 Re-pricing both under an indifferent reward separates them: coverage's effect
-survives unchanged, resolution's reverses sign. Holding
-information constant and changing only the *representation* — the same
-geometry as pixels for a CNN rather than a vector for an MLP — costs 0.16–0.24
-success. Where the map is wrong the gap narrows to statistical parity with
-sparse movers (−0.020, p = 0.219) but never reverses, and a controlled
-subtraction that freezes those movers shows why: the classical advantage
-returns in full (−0.100, −0.202, both p = 0.031), so the parity is motion
-degrading the planner (−0.120 to −0.160) rather than the policy handling it
-(−0.048 to −0.068). Given the movers' exact trajectories, a planner reasoning in
-space-time with a small temporal margin removes that planner cost almost
-entirely; a constant-velocity estimate in their place keeps about half of that
-on dense clutter, and loses the rest to collisions.
+survives unchanged, resolution's reverses sign. Holding information constant
+and changing only the *representation* — the same geometry as pixels for a CNN
+rather than a vector for an MLP — costs 0.16–0.24 success, and an indifferent
+reward leaves that cost standing. Where the map is wrong the gap narrows to
+statistical parity with sparse movers (−0.020, p = 0.219) but never reverses,
+and a controlled subtraction that freezes those movers shows why: the classical
+advantage returns in full (−0.100, −0.202, both p = 0.031), so the parity is
+motion degrading the planner (−0.120 to −0.160) rather than the policy handling
+it (−0.048 to −0.068). Given the movers' exact trajectories, a planner
+reasoning in space-time with a small temporal margin removes that planner cost
+almost entirely; a constant-velocity estimate in their place keeps about half
+of that on dense clutter, and loses the rest to collisions.
 
 A reward ablation sharpens what "behavioural" means: the same 4:1 ratio also
 sets what *extra information* is worth. Frame stacking cuts collisions under
@@ -434,6 +434,7 @@ property matters and what it costs to change the representation.
 | Samples at fixed FOV | 32 vs 64 @ 90°; 64 vs 128 @ 360° | +0.002, −0.003 | 1.000, 0.955 |
 | Coverage at fixed resolution | 32 @ 90° vs 128 @ 360°, both 2.81°/sample | **+0.095** | **0.024** |
 | Representation | RGB + CNN vs depth + MLP | **−0.218** | **0.002** |
+| Representation at 1:1 | the same, collision priced like a timeout | **−0.180** | **0.002** |
 
 ### 8.1 Coverage is causal; resolution is not
 
@@ -469,7 +470,8 @@ MLP reads directly.
 It costs **0.16–0.24 success on every condition**, with every depth seed
 beating every RGB seed. Giving RGB **2.7× the compute** does not close it
 (−0.162, p = 0.030) — and that rejection is null on all three outcome channels,
-not just on success, which is a harder result to explain away. The render is
+not just on success, which is a harder result to explain away. Nor does a
+reward that prices a crash like a stall (§8.4). The render is
 clean — no texture, lighting or sensor noise — so this is a lower bound. The
 failure is indecision rather than recklessness: on `nominal` the encoder's cost
 lands in timeouts (+0.115,
@@ -528,6 +530,23 @@ either reward; only the failure it prevents changes.** Resolution did not
 survive this test and coverage did, which is the sharpest statement of the
 difference between them in this report.
 
+**The encoder cost was re-priced last. It survives, and its failure does not
+move.** Twelve new runs, seed-paired with §8.3's and differing only in the
+reward, put the cost of reading pixels at −0.180 on `narrow` and −0.193 on
+`dense` at 1:1, every depth seed still above every RGB seed (p = 0.002 on
+both), against −0.218 and −0.238 at 4:1. The success interactions are +0.038
+and +0.045 (p = 0.4697 on both). The prediction registered before training
+said the cost would survive and relocate into collisions, as coverage's had;
+the first half held and the second did not. Indifference collapses the depth
+arm's `narrow` timeouts to 0.028, and the RGB arm still times out on
+0.182 of episodes: its cost is +0.153 in timeouts (p = 0.017,
+positive on 6 of 6 seeds) and +0.027 in collisions (p = 0.662).
+**A coverage deficit crashes once stalling is priced like crashing; an encoding
+deficit keeps stalling.** On `nominal` the cost roughly halves, −0.162 to
+−0.088 (interaction p = 0.0195) — outside the registered decision, which
+named `narrow` and `dense`, and not significant once corrected for three
+conditions, so it is reported and not claimed.
+
 ### 8.5 What a perception deficit actually does
 
 `seed_analysis.py` recorded success, SPL and collisions and discarded the
@@ -551,7 +570,8 @@ adequacy the pattern inverts: 16 beams is too few to see obstacles, and fixing
 that cuts collisions with timeouts unmoved.
 
 The qualifier matters: every row was measured at 4:1, and §8.4 shows the same
-coverage deficit costing the same success through *collisions* at 1:1.
+coverage deficit costing the same success through *collisions* at 1:1 — and
+the encoding deficit, alone of the three, still costing it through timeouts.
 
 ## 9. Results 11–12: where the map is wrong
 
@@ -703,10 +723,10 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of eighteen predictions made in advance, three derived from a
+**Calibration.** Of nineteen predictions made in advance, three derived from a
 *measurement* held — two to within 0.021 and 0.001, and one on both magnitude
 and mechanism; eight from extrapolation, intuition or arithmetic failed
-outright; seven got part right and part wrong. Confidence of expression was
+outright; eight got part right and part wrong. Confidence of expression was
 identical throughout. Three rules came out of them; the record of each
 prediction is in [`project_plan.md`](project_plan.md). The fifteenth also broke
 this report's own stated practice: its null was registered as an interval
@@ -734,7 +754,9 @@ discriminator registered beside it showed which. The eighteenth is the same
 lesson from the other side: its calculated bound held — the estimate was
 0.03 m off at contact, inside the 0.1 m computed — and its conclusion failed,
 because the safety margin the bound was compared against was missing from the
-plan in force in 15 of 18 collisions.
+plan in force in 15 of 18 collisions. The nineteenth split the ordinary way:
+the encoder cost survived re-pricing inside its registered band, and the
+failure it was predicted to move into never came.
 
 **A mechanism claim needs a cell where the mechanism should not act.** Churn and
 commitment length each fit every number available, and each was refuted by a
@@ -793,17 +815,15 @@ In order of expected information per GPU-hour:
    of the oracle's gain on dense clutter and loses the rest to collisions that a
    wider temporal margin does not prevent (§9.1). In 15 of the 18 lost episodes
    the plan in force had been made at the bare robot radius, the planner's last
-   fallback, and the estimate was a median 0.03 m off at contact. Withholding that fallback
-   says whether it is the cause or a symptom, for a few CPU-hours; noise on the
-   observations is the step after.
-2. **Re-price the encoder cost.** §8.4 re-ran two perception results at 1:1
-   and they came apart: coverage's effect survived unchanged while its
-   mechanism moved, and resolution's reversed sign. The third, the
-   0.16–0.24 cost of reading pixels through a CNN, is the only perception
-   headline still measured under a single reward, and §8.3 shows it has the
-   same exposure — on `nominal` its cost lands in timeouts. Whether it behaves
-   like coverage or like resolution is a real question, not a formality. It is
-   the most expensive of the three, being the one that needs CNN training.
+   fallback, and the estimate was a median 0.03 m off at contact. Withholding
+   that fallback says whether it is the cause or a symptom, for a few
+   CPU-hours; noise on the observations is the step after.
+2. **Why an encoding deficit stalls.** Of the three perception deficits
+   re-priced at 1:1, the one that keeps the information and changes only its
+   encoding is the one whose failure the reward does not move (§8.4). The
+   training-free audit of §7 measured what a sensor can see; the same audit on
+   the CNN's features, asking what they fail to separate, would say what the
+   RGB policy is uncertain about when it stops.
 3. **A recurrent policy that was actually tuned.** §9.1 tested one and it was
    worse everywhere, but it ran on hyperparameters chosen for an MLP so the
    comparison would be algorithm-only. That makes the result a statement about

@@ -45,6 +45,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5p | Space-time A* with a when-blind ablation, 200 episodes | **Done** — **timing +0.050 on dense (p = 0.031), −0.050 on sparse (p = 0.002)**; access for robustness |
 | 5q | Temporal safety margin 0-4 steps on the space-time agent | **Done** — **FIXED: sparse harm removed (+0.050, p = 0.002)**; motion cost 0.010 dense given oracle trajectories |
 | 5r | Constant-velocity estimate in place of the oracle, 200 episodes | **Done** — **COSTLY: −0.065 on dense (p = 0.001), all collisions**; a 4-step margin recovers none |
+| 5s | Re-price the encoder cost at 1:1, 12 new runs | **Done** — **SURVIVES (−0.180 narrow, p = 0.002)**; the failure stays in timeouts, unlike coverage's |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -2088,6 +2089,57 @@ at contact, inside the 0.1 m it computed -- and the conclusion did not, because
 the 0.18 m margin it was compared against was absent from the plan in force in
 15 of 18 collisions. Phase 5q recorded an untested crossing that held, so that a
 second could revise the rule if it held too. This one failed; the rule stands.
+
+## Phase 5s — The encoder cost re-priced: it survives, and still stalls
+
+Phase 3e's 0.16-0.24 cost of reading pixels was the last perception headline
+measured under the 4:1 reward alone. Twelve runs, seed-paired with Phase 3e's
+and identical to them except `collision_penalty` 5 -- the RGB arm pinned to
+CUDA, as 3e's was, after a smoke test of the launch command showed `auto`
+training it on CPU. Pre-registered in `26fee5e`, before any run started.
+
+| rgbi − depthi | 4:1 | 1:1 | interaction | p |
+|---|---|---|---|---|
+| `narrow` success | -0.218 | -0.180 | +0.038 | 0.4697 |
+| `narrow` collision | +0.105 | +0.027 | -0.078 | 0.3896 |
+| `narrow` timeout | +0.113 | +0.153 | +0.040 | 0.7251 |
+| `dense` success | -0.238 | -0.193 | +0.045 | 0.4697 |
+| `nominal` success | -0.162 | -0.088 | +0.073 | 0.0195 |
+
+At 1:1 every depth seed beats every RGB seed on `narrow` and `dense` (p = 0.002
+on both). Registered decision: **SURVIVES**.
+
+**The failure did not move.** Indifference collapses the depth arm's `narrow`
+timeouts to 0.028; the RGB arm still times out on 0.182 of episodes,
+and the encoder's cost there is timeouts (+0.153, p = 0.017, positive
+on 6 of 6 seeds), not collisions (+0.027, p = 0.662).
+Coverage's deficit moved into collisions under exactly this change (Phase 5l);
+the encoder's did not.
+
+`nominal` roughly halves, −0.162 to −0.088, interaction p = 0.0195 -- outside
+the registered decision, which named `narrow` and `dense`, and not significant
+against 0.05/3 for three conditions. Reported, not claimed.
+
+### Consequences
+
+The representation headline now holds under both rewards, as coverage's does.
+But it is the one perception deficit whose failure the reward does not move: a
+policy short of *information* crashes once stalling is priced like crashing,
+and a policy with the information in a harder encoding keeps stalling. Why is
+untested.
+
+### Calibration
+
+Prediction 19. The headline held: significant on `narrow` and `dense`, −0.180
+inside the registered −0.13 to −0.30, success interactions of +0.038 and
++0.045 inside ±0.08 at p = 0.4697. The mechanism clause failed on both halves:
+`narrow` timeouts +0.153 against a registered ±0.05, collisions +0.027 against
+at least +0.15. Partial, by the standard applied to predictions 16 and 17.
+
+It was registered LOW, as an analogy, and it split where the analogy was
+weakest. Success invariance carried over from two perception re-pricings. The
+mechanism was reasoned from timeouts collapsing for MLP arms at 1:1, and did not
+carry over to a CNN arm, which nothing had measured.
 
 ## Hardware notes
 
