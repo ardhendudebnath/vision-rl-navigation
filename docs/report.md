@@ -39,7 +39,8 @@ motion degrading the planner (−0.120 to −0.160) rather than the policy handl
 it (−0.048 to −0.068). Given the movers' exact trajectories, a planner
 reasoning in space-time with a small temporal margin removes that planner cost
 almost entirely; a constant-velocity estimate in their place keeps about half
-of that on dense clutter, and loses the rest to collisions.
+of that on dense clutter, and fitting each mover's oscillation from the
+robot's own observations recovers the rest, matching the oracle.
 
 A reward ablation sharpens what "behavioural" means: the same 4:1 ratio also
 sets what *extra information* is worth. Frame stacking cuts collisions under
@@ -705,7 +706,14 @@ observation contradicts it, capping how far it reaches — each failed to recove
 the dense remainder, and the last shows the far end of a wrong line is worth
 having: cut to 1 s, the estimate loses 0.085 on sparse worlds
 (p = 0.0005). None of them changed the model, a straight line drawn along a
-sinusoid, which is where §12 goes next.
+sinusoid. Fitting each mover's oscillation instead — three unknowns of least
+squares over the track the robot has watched, told nothing about any mover —
+recovers it all: +0.070 against the line on dense clutter
+(p = 0.0001, 14 episodes won and none lost), and bounded-inert against
+the *oracle*, leaving a motion cost of 0.005. None of the cost belonged
+to the planner; each of those four was a way of coping with a wrong estimate.
+The observations are noise-free and the fitted model is the one the simulator
+integrates, so this is an upper bound on what better prediction is worth.
 
 **Recurrence is worse, and not because of motion.** An LSTM policy — the last
 untested way of supplying motion information, and the only one that learns what
@@ -780,17 +788,18 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of twenty-three predictions made in advance, three derived
-from a *measurement* held — two to within 0.021 and 0.001, and one on both
-magnitude and mechanism; twelve from extrapolation, intuition, arithmetic or a
-post hoc description failed outright; eight got part right and part wrong.
-Confidence of expression was identical throughout. Three rules came out of
-them; the record of each prediction is in [`project_plan.md`](project_plan.md).
-The fifteenth also broke this report's own stated practice: its null was
-registered as an interval including zero, which intervals of ±0.4 satisfy
-whatever is true, so its conclusion rests on a sharper test added afterwards
-and labelled as such. The sixteenth was committed to the repository before its
-data existed, so its timing is checkable rather than asserted.
+**Calibration.** Of twenty-four predictions made in advance, four derived from
+a *measurement* held — two to within 0.021 and 0.001, one on both magnitude and
+mechanism, and one whose magnitude came from measuring the estimator it was
+about; twelve from extrapolation, intuition, arithmetic or a post hoc
+description failed outright; eight got part right and part wrong. Confidence of
+expression was identical throughout. Three rules came out of them; the record
+of each prediction is in [`project_plan.md`](project_plan.md). The fifteenth
+also broke this report's own stated practice: its null was registered as an
+interval including zero, which intervals of ±0.4 satisfy whatever is true, so
+its conclusion rests on a sharper test added afterwards and labelled as such.
+The sixteenth was committed to the repository before its data existed, so its
+timing is checkable rather than asserted.
 
 **A measurement predicts only where something has been measured.** Carried
 into regimes nothing had measured, measurement-derived forecasts failed like
@@ -802,7 +811,9 @@ mechanism. A crossing is only extrapolation while the far side is unmeasured —
 and careful reasoning does not extend a measurement's reach, it only hides the
 overreach. Nor does a measurement support a claim at a resolution it never had:
 from 0 of 8 episodes I forecast identical outcomes on all 400, and a few percent
-differed. By the rule of three, 0 of 8 is compatible with a true rate near 37%.
+differed. The one prediction that held on every clause was the one whose
+quantity had been measured first, on the same worlds, with nothing else in
+the loop. By the rule of three, 0 of 8 is compatible with a true rate near 37%.
 
 **A right number is not a right model.** The resolution forecast crossed no
 boundary and its number held (+0.032 against |Δ| < 0.03), but its reasoning was
@@ -868,15 +879,13 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **A better estimate, not a different use of this one.** On dense clutter a
-   constant-velocity estimate trails the oracle by 0.050 to 0.065, and four
-   changes to how the planner uses it — a wider temporal margin, a withheld
-   zero-margin fallback, replanning on every contradiction, a capped reach —
-   each failed to account for it (§9.1). None changed the model. The movers
-   oscillate, so a few seconds of observation pin down an estimator that fits
-   the oscillation itself; how much of the gap that closes says whether the
-   cost was the straight line all along. At 200 episodes dense-clutter nulls
-   rarely bound inside ±0.03, so the test needs more.
+1. **Noise on the observations.** Fitting each mover's oscillation recovers
+   the whole of the estimate's cost and matches the oracle (§9.1) — from
+   observations that are exact and a model class that is exactly right, both
+   the simulator's gift. A scan-shaped error on each observed position, swept
+   from a centimetre up, turns that upper bound into a curve: how much sensing
+   accuracy the fit needs before three seconds of history stops pinning down a
+   frequency.
 2. **Why going on crashes.** Released from the latch its own velocity input
    holds it in, the RGB policy crashes about as often as it had stalled
    (§8.5), though at the stalls specific to it the route is open and its camera

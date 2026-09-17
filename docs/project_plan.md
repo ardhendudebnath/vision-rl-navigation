@@ -50,6 +50,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
 | 5w | Cap the estimate's extrapolation at 2 s and 1 s | **Done** — **UNRESOLVED: +0.010 on dense**; a 1 s cap costs sparse 0.085 (p = 0.0005) |
+| 5y | Fit each mover's oscillation instead of a straight line | **Done** — **MODEL: +0.070 on dense (p = 0.0001)**; matches the oracle, motion cost 0.005 |
 | 5x | Replay with the velocity input overwritten, open and closed loop | **Done** — **PARTIAL: one-way latch (+0.367 exit, +0.008 entry)**; released, stalls become crashes |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
@@ -2372,6 +2373,53 @@ Prediction 22 failed: registered LATCH, returned PARTIAL. The exit clause held
 failed registered decision is a failed prediction. The case written against it
 -- that velocity shapes turning rather than going -- was wrong too: stopped and
 told it is moving, the policy drives on 38% of open-route stall steps, not 1.3%.
+
+## Phase 5y — Fitting the oscillation: the model was the whole of it
+
+Phases 5r to 5w changed how the planner uses a constant-velocity estimate and
+recovered none of its dense-clutter cost. This changes the model: each mover's
+oscillation fitted to its observed track by three-unknown least squares, carried
+forward in closed form. Pre-registered in `5091da1`, before the result file
+existed, with the estimator's own error measured first and disclosed.
+
+Checks: fitted and line agents bit-identical on every frozen episode; the line
+arm reproduces Phase 5r. Registered decision: **MODEL**.
+
+- Fitted against line, dense: +0.070, p = 0.0001, 14 won and 0 lost,
+  CI [+0.035, +0.105]. Collisions 0.075 to 0.005.
+- Fitted against line, sparse: +0.020, 4 won and 0 lost (p = 0.125, the floor
+  for four).
+- Fitted against **oracle**: +0.005 on dense, CI [+0.000, +0.015], bounded-INERT;
+  on sparse, not one episode differs.
+- Estimator error, no planner, median against the truth on `dynamic_dense`:
+  the line 0.023 m at 1 s and 1.192 m at 7 s; the fit 0.0000 m at every
+  horizon, p95 0.0001 m. (The pre-registration quoted the sparse figure,
+  0.021 m at 1 s, for the same quantity.)
+- Motion cost: 0.005 dense and 0.000 sparse, against the oracle's 0.010 and
+  0.000 and the line's 0.075 and 0.020.
+
+### Consequences
+
+None of the 0.065 belonged to the planner. Margin, fallback, replan trigger and
+capped reach were each a way of coping with a wrong estimate, and when the
+estimate stopped being wrong the cost went with it. The report's motion-cost
+claim no longer needs an oracle: a planner estimating from its own observations
+does as well.
+
+The caveat is the size of the claim. Observations here are noise-free and the
+fitted model is the one the simulator integrates, so this is an upper bound --
+what better prediction is worth, not what a real sensor would deliver. Sensor
+noise on the same fit is the next test.
+
+### Calibration
+
+Prediction 24 held, on every clause: MATTERS on dense clutter (+0.070 against a
+registered +0.03), bounded-inert against the oracle on both conditions, frozen
+identity. The fourth of twenty-four to hold, and the fourth derived from a
+measurement taken in the regime it was applied to -- here the estimator's own
+error, measured before registering and disclosed in the commit, which made the
+planner-level prediction close to arithmetic. Every category that has held in
+this project is that one.
 
 ## Hardware notes
 

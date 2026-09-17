@@ -74,8 +74,10 @@ nothing.
    with the simplest real estimate, constant velocity from the robot's own
    observations, about half of that recovery survives on dense clutter and most
    of it on sparse. Four further changes to how the planner uses the estimate
-   each failed to recover the rest, which leaves the estimator itself as the
-   thing to improve.
+   recovered none of the rest — but fitting each mover's oscillation from the
+   robot's own observations recovered all of it (+0.070, p = 0.0001) and
+   matched the oracle. The cost was the motion model, not the planner. Those
+   observations are noise-free, so it bounds what better prediction buys.
 7. **The reward decides what information is worth.** Frame stacking looked
    useless across three encodings and a 3× mover-speed range. It is not: the
    reward priced a collision at four times a timeout, and making the two equal
@@ -102,7 +104,7 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of twenty-three advance predictions, three derived from
+pre-registered endpoints. Of twenty-four advance predictions, four derived from
 *measurements* held; twelve failed outright and eight got part right and part
 wrong, with identical confidence of expression
 throughout. The three failures that reasoned from a real measurement all

@@ -663,6 +663,57 @@ def claims():
                     (f"innovation {arm} dense collision", dense_c,
                      icells[arm]["dynamic_dense"]["collision"])]
 
+    # --- fitting the oscillation, Phase 5y --------------------------------
+    hm = "results/harmonic_experiment.json"
+    if os.path.exists(hm):
+        hj = load(hm)
+        hc, hcells, hx, herr = hj["checks"], hj["cells"], hj["contrasts"], hj["estimator_error"]
+        line_v_fit = hx["harm_m2_vs_cv_m2"]
+        v_oracle = hx["harm_m2_vs_oracle_m2"]
+        out += [
+            ("harmonic decision MODEL", 1.0, float(hj["decision"] == "MODEL")),
+            ("harmonic frozen identity", 1.0, float(hc["frozen_identity_harmonic_vs_line"])),
+            ("harmonic reproduces 5r", 1.0, float(hc["reproduces_phase_5r"])),
+            ("harmonic dense gain", 0.070, line_v_fit["dynamic_dense"]["success_gain"]),
+            ("harmonic dense p", 0.0001, line_v_fit["dynamic_dense"]["p"]),
+            ("harmonic dense won", 14, line_v_fit["dynamic_dense"]["episodes_won"]),
+            ("harmonic dense lost", 0, line_v_fit["dynamic_dense"]["episodes_lost"]),
+            ("harmonic dense ci lo", 0.035, line_v_fit["dynamic_dense"]["ci95"][0]),
+            ("harmonic dense ci hi", 0.105, line_v_fit["dynamic_dense"]["ci95"][1]),
+            ("harmonic dense collision delta", -0.070,
+             line_v_fit["dynamic_dense"]["collision_delta"]),
+            ("harmonic sparse gain", 0.020, line_v_fit["dynamic"]["success_gain"]),
+            ("harmonic sparse won", 4, line_v_fit["dynamic"]["episodes_won"]),
+            ("harmonic vs oracle dense", 0.005, v_oracle["dynamic_dense"]["success_gain"]),
+            ("harmonic vs oracle dense ci lo", 0.000, v_oracle["dynamic_dense"]["ci95"][0]),
+            ("harmonic vs oracle dense ci hi", 0.015, v_oracle["dynamic_dense"]["ci95"][1]),
+            ("harmonic vs oracle dense bounded", 1.0,
+             float(v_oracle["dynamic_dense"]["verdict"] == "INERT (bounded)")),
+            ("harmonic vs oracle sparse discordant", 0,
+             v_oracle["dynamic"]["episodes_won"] + v_oracle["dynamic"]["episodes_lost"]),
+            ("harmonic dense success", 0.980, hcells["harm_m2"]["dynamic_dense"]["success"]),
+            ("harmonic dense collision", 0.005, hcells["harm_m2"]["dynamic_dense"]["collision"]),
+            ("harmonic sparse success", 0.995, hcells["harm_m2"]["dynamic"]["success"]),
+            # Derived, as elsewhere: frozen success minus moving success.
+            ("harmonic motion cost dense", 0.005,
+             hcells["harm_m2"]["dynamic_dense_frozen"]["success"]
+             - hcells["harm_m2"]["dynamic_dense"]["success"]),
+            ("harmonic motion cost sparse", 0.000,
+             hcells["harm_m2"]["dynamic_frozen"]["success"]
+             - hcells["harm_m2"]["dynamic"]["success"]),
+            # The estimator's own error, which is what the prediction rested on.
+            ("estimator line 1s dense", 0.023,
+             round(herr["dynamic_dense"]["constant_velocity"]["1.0s"]["median"], 3)),
+            ("estimator line 7s dense", 1.192,
+             round(herr["dynamic_dense"]["constant_velocity"]["7.0s"]["median"], 3)),
+            ("estimator line 2s dense", 0.086,
+             round(herr["dynamic_dense"]["constant_velocity"]["2.0s"]["median"], 3)),
+            ("estimator fit 7s dense median", 0.000,
+             round(herr["dynamic_dense"]["harmonic"]["7.0s"]["median"], 4)),
+            ("estimator fit 7s dense p95", 0.0001,
+             round(herr["dynamic_dense"]["harmonic"]["7.0s"]["p95"], 4)),
+        ]
+
     # --- capping the estimate's reach, Phase 5w ---------------------------
     ce = "results/cap_experiment.json"
     if os.path.exists(ce):

@@ -796,6 +796,50 @@ estimate and the far end of the window -- and none accounts for it. What none of
 them changed is the model: a straight line drawn along a sinusoid. That is the
 next thing to change.
 
+### Fitting the oscillation instead of drawing a line
+
+Four changes to how the planner uses a straight-line estimate recovered none of
+its dense-clutter cost. This changes the line. Every mover here runs
+`centre + dir * A sin(w t)`, so each obeys `a = -w^2 (p - c)`, which is linear
+in `w^2` and `w^2 c`: three unknowns of least squares over the track the agent
+has watched, and the prediction is that equation's exact solution from the
+current state. The fit is told nothing about any mover. A frozen mover has no
+curvature to read, the fit declines, the agent falls back to the line -- exact
+when nothing moves -- and the two agents are bit-identical on every frozen
+episode. Pre-registered in `5091da1`, with the estimator's own error measured
+first and the commit saying so.
+
+| median error against the truth, `dynamic_dense` | 1 s ahead | 2 s ahead | 7 s ahead |
+|---|---|---|---|
+| straight line | 0.023 | 0.086 | 1.192 |
+| fitted oscillation | 0.0000 | 0.0000 | 0.0000 |
+
+| 200 episodes | sparse success | dense success | dense collisions |
+|---|---|---|---|
+| oracle | 0.995 | 0.975 | 0.010 |
+| straight line | 0.975 | 0.910 | 0.075 |
+| fitted oscillation | 0.995 | 0.980 | 0.005 |
+
+**The model was the whole of it.** Against the straight line the fit is worth
++0.070 on dense clutter -- p = 0.0001, 14 episodes won and none lost --
+and against the *oracle* it is bounded-inert on both conditions: +0.005
+on dense clutter, interval [+0.000, +0.015], and not one episode different
+on sparse worlds. The motion cost falls to 0.005 on dense clutter and 0.000 on
+sparse, where the oracle left 0.010 and 0.000 and the straight line 0.075 and
+0.020.
+
+So the answer to the question Phase 5r opened is that none of the 0.065 belonged
+to the planner. A margin, a fallback, a replan trigger and a capped reach each
+left it untouched because each was a way of coping with a wrong estimate; the
+estimate stopped being wrong and the cost went with it.
+
+**What this is not.** The observations are noise-free and the fitted model is
+exactly the one the simulator integrates, which is the most favourable case an
+estimator can be handed. The number to take from it is an upper bound: with
+perfect sensing and the right model class, a real estimator is worth what the
+oracle was worth. What a noisy scan does to a three-second fit is the next
+question, and nothing here answers it.
+
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
 ones, where a correct map means the path is never blocked and it never fires.
