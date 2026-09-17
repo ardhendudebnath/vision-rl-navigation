@@ -753,3 +753,46 @@ def test_the_trigger_fires_on_a_moving_world_under_an_estimate():
     _, trig = _drive("dynamic_dense", 1, predictor="constant_velocity", replan_innovation_m=0.02)
     assert base.innovation_replans == 0
     assert trig.innovation_replans > 0
+
+# ============================================================================
+# Capping how far a constant-velocity estimate is carried
+# ============================================================================
+def test_a_capped_estimate_holds_the_mover_where_the_line_put_it():
+    agent, env = _cv_agent_on()
+    agent.config.extrapolation_cap_s = 1.0
+    p0 = np.array([[1.0, 1.0, 0.3]])
+    p1 = np.array([[1.2, 0.9, 0.3]])  # 2 m/s in x, -1 m/s in y
+    agent._observations = [(2.0, p0), (2.1, p1)]
+    capped_at = [1.2 + 2.0 * 1.0, 0.9 - 1.0 * 1.0]
+    np.testing.assert_allclose(agent._predicted_discs(3.1)[0, :2], capped_at)
+    np.testing.assert_allclose(agent._predicted_discs(9.1)[0, :2], capped_at)
+    # Inside the cap the line is untouched.
+    np.testing.assert_allclose(agent._predicted_discs(2.6)[0, :2], [1.2 + 1.0, 0.9 - 0.5])
+
+
+def test_no_cap_is_exactly_the_uncapped_estimate():
+    """``min(x, inf)`` is ``x``, so the default must be bit-identical, not close."""
+    agent, env = _cv_agent_on()
+    for _ in range(4):
+        env.step(agent.act(env.robot.pose))
+    t = env.world._t + 6.5
+    uncapped = agent._predicted_discs(t)
+    agent.config.extrapolation_cap_s = float("inf")
+    assert np.array_equal(uncapped, agent._predicted_discs(t))
+
+
+def test_a_cap_changes_nothing_on_frozen_worlds():
+    base, _ = _drive("dynamic_dense_frozen", 1, predictor="constant_velocity")
+    capped, _ = _drive("dynamic_dense_frozen", 1, predictor="constant_velocity",
+                       extrapolation_cap_s=1.0)
+    assert base.shape == capped.shape and np.array_equal(base, capped)
+
+
+def test_a_cap_reaches_the_planner_on_moving_worlds():
+    agent, env = _cv_agent_on("dynamic")
+    for _ in range(5):
+        env.step(agent.act(env.robot.pose))
+    radius = env.world.config.robot_radius + agent.config.safety_margin
+    uncapped = agent._mover_occupancy(radius, 30)
+    agent.config.extrapolation_cap_s = 1.0
+    assert not np.array_equal(uncapped, agent._mover_occupancy(radius, 30))

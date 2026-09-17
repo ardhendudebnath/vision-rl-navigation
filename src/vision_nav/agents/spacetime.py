@@ -127,6 +127,18 @@ class SpaceTimeConfig:
     #: an oracle agent with this set must be bit-identical to one without --
     #: on moving worlds, which makes the control free.
     replan_innovation_m: float = 0.0
+    #: Seconds past the latest observation a constant-velocity estimate is
+    #: carried; beyond it each mover is held where the line had put it.
+    #: ``inf`` carries the line across the whole window, which is what Phase 5u
+    #: ran. The oracle ignores it.
+    #:
+    #: Phase 5u left 0.050 of the estimate's dense-clutter cost unexplained
+    #: after a wider temporal margin, a withheld fallback and fresh estimates.
+    #: None of those touched the far end of the window, where a straight line
+    #: drawn seven seconds out can be metres from a mover that has turned back,
+    #: and where the last step is held as a permanent obstacle. A frozen mover
+    #: has zero velocity, so capping its estimate changes nothing: the identity.
+    extrapolation_cap_s: float = math.inf
 
     # --- matched to the spatial baseline, not restated --------------------
     safety_margin: float = field(default=_BASE.safety_margin)
@@ -245,7 +257,7 @@ class SpaceTimeAgent:
             t0, p0 = seen[-2]
             if t1 > t0 and len(p0) == len(p1):
                 velocity = (p1[:, :2] - p0[:, :2]) / (t1 - t0)
-                out[:, :2] = p1[:, :2] + velocity * (t - t1)
+                out[:, :2] = p1[:, :2] + velocity * min(t - t1, self.config.extrapolation_cap_s)
         return out
 
     def _innovation(self) -> float:
