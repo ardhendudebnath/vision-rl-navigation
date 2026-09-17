@@ -707,7 +707,10 @@ but withholding such plans recovers nothing (+0.010, a bounded null): the
 fallback is where a robot already too close ends up, not how it got there.
 Replanning the moment an observation contradicts the estimate matches the
 oracle's success on every sparse episode but leaves 0.050 on dense clutter
-(p = 0.002), and its own gain there is unresolved.
+(p = 0.002), and its own gain there is unresolved. Capping how far the
+estimate reaches recovers nothing on dense clutter either, and capping it at
+1 s costs sparse worlds 0.085 (p = 0.0005): the far end of a wrong
+straight line is still worth having.
 
 **Recurrence is worse, and not because of motion.** An LSTM policy — the last
 untested way of supplying motion information, and the only one that learns what
@@ -782,17 +785,17 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of twenty-two predictions made in advance, three derived from
-a *measurement* held — two to within 0.021 and 0.001, and one on both magnitude
-and mechanism; eleven from extrapolation, intuition, arithmetic or a post hoc
-description failed outright; eight got part right and part wrong. Confidence of
-expression was identical throughout. Three rules came out of them; the record
-of each prediction is in [`project_plan.md`](project_plan.md). The fifteenth
-also broke this report's own stated practice: its null was registered as an
-interval including zero, which intervals of ±0.4 satisfy whatever is true, so
-its conclusion rests on a sharper test added afterwards and labelled as such.
-The sixteenth was committed to the repository before its data existed, so its
-timing is checkable rather than asserted.
+**Calibration.** Of twenty-three predictions made in advance, three derived
+from a *measurement* held — two to within 0.021 and 0.001, and one on both
+magnitude and mechanism; twelve from extrapolation, intuition, arithmetic or a
+post hoc description failed outright; eight got part right and part wrong.
+Confidence of expression was identical throughout. Three rules came out of
+them; the record of each prediction is in [`project_plan.md`](project_plan.md).
+The fifteenth also broke this report's own stated practice: its null was
+registered as an interval including zero, which intervals of ±0.4 satisfy
+whatever is true, so its conclusion rests on a sharper test added afterwards
+and labelled as such. The sixteenth was committed to the repository before its
+data existed, so its timing is checkable rather than asserted.
 
 **A measurement predicts only where something has been measured.** Carried
 into regimes nothing had measured, measurement-derived forecasts failed like
@@ -870,15 +873,15 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Cap the estimate's reach.** On dense clutter a constant-velocity
-   estimate still trails the oracle by 0.050 after a wider temporal margin, a
-   withheld zero-margin fallback and replanning on every contradiction (§9.1).
-   None of those touched the far end of the planning window: a straight line
-   carried seven seconds out and held past it as a permanent obstacle, which can
-   steer the part of a plan that runs. Holding each mover where the estimate
-   puts it after a second or two tests that, and frozen worlds, where the
-   estimate never moves, are the identity. Noise on the observations is the
-   step after.
+1. **A better estimate, not a different use of this one.** On dense clutter a
+   constant-velocity estimate trails the oracle by 0.050 to 0.065, and four
+   changes to how the planner uses it — a wider temporal margin, a withheld
+   zero-margin fallback, replanning on every contradiction, a capped reach —
+   each failed to account for it (§9.1). None changed the model. The movers
+   oscillate, so a few seconds of observation pin down an estimator that fits
+   the oscillation itself; how much of the gap that closes says whether the
+   cost was the straight line all along. At 200 episodes dense-clutter nulls
+   rarely bound inside ±0.03, so the test needs more.
 2. **Why going on crashes.** Released from the latch its own velocity input
    holds it in, the RGB policy crashes about as often as it had stalled
    (§8.6), though at the stalls specific to it the route is open and its camera

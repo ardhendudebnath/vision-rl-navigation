@@ -762,6 +762,40 @@ first, in the prediction for the estimate itself, and never tested, is the far
 end of the window: a straight line carried seven seconds out, and held past it
 as a permanent obstacle.
 
+### Capping how far the estimate reaches
+
+The one explanation left untested was the far end of the window: each straight
+line carried seven seconds out, its last step held past the window as a
+permanent obstacle. The test carries the line at most 2 s past the latest
+observation, or 1 s, and holds the mover there. A frozen mover's estimate never
+moves, and capped and uncapped agents are bit-identical on every frozen episode.
+Pre-registered in `231c23b`.
+
+| 200 episodes | sparse success | sparse collisions | dense success | dense collisions | dense episodes reaching bare radius |
+|---|---|---|---|---|---|
+| estimate, uncapped | 0.975 | 0.020 | 0.910 | 0.075 | 31 |
+| capped at 2 s | 0.955 | 0.040 | 0.920 | 0.065 | 21 |
+| capped at 1 s | 0.890 | 0.105 | 0.875 | 0.110 | 34 |
+
+**The registered rule returns UNRESOLVED.** On dense clutter the 2 s cap gains
++0.010 (p = 0.73, 5 episodes won and 3 lost), interval [−0.015, +0.040].
+It does what the prediction's secondary clause said -- ten fewer dense episodes
+fall back to the bare radius -- and it makes no difference to how many succeed,
+which is Phase 5t's lesson again.
+
+**The far end is used, not a cost.** Carried only 1 s, the estimate loses
+0.085 on sparse worlds (p = 0.0005, 20 episodes lost and 3 won), every
+episode of it a collision (+0.085). Why is not measured here -- a planner told
+that movers stop a second out can plan through where they will be -- but the
+direction is not in doubt: the seven-second line is wrong in detail and still
+worth more than no line.
+
+So four explanations of the estimate's dense-clutter cost have been tested from
+the planner's side -- a wider temporal margin, the zero-margin fallback, a stale
+estimate and the far end of the window -- and none accounts for it. What none of
+them changed is the model: a straight line drawn along a sinusoid. That is the
+next thing to change.
+
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
 ones, where a correct map means the path is never blocked and it never fires.

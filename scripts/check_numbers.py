@@ -663,6 +663,49 @@ def claims():
                     (f"innovation {arm} dense collision", dense_c,
                      icells[arm]["dynamic_dense"]["collision"])]
 
+    # --- capping the estimate's reach, Phase 5w ---------------------------
+    ce = "results/cap_experiment.json"
+    if os.path.exists(ce):
+        kj = load(ce)
+        kc, kcells, kx = kj["checks"], kj["cells"], kj["contrasts"]
+        c2d, c2s = kx["cv_cap2_vs_cv_m2"]["dynamic_dense"], kx["cv_cap2_vs_cv_m2"]["dynamic"]
+        c1s, c1d = kx["cv_cap1_vs_cv_m2"]["dynamic"], kx["cv_cap1_vs_cv_m2"]["dynamic_dense"]
+        od, osp = kx["cv_cap2_vs_oracle_m2"]["dynamic_dense"], kx["cv_cap2_vs_oracle_m2"]["dynamic"]
+        out += [
+            ("cap decision UNRESOLVED", 1.0, float(kj["decision"] == "UNRESOLVED")),
+            ("cap frozen identity", 1.0, float(kc["frozen_identity_cap1_vs_uncapped"])),
+            ("cap reproduces 5r", 1.0, float(kc["reproduces_phase_5r"])),
+            ("cap2 dense gain", 0.010, c2d["success_gain"]),
+            ("cap2 dense p", 0.727, c2d["p"]),
+            ("cap2 dense won", 5, c2d["episodes_won"]),
+            ("cap2 dense lost", 3, c2d["episodes_lost"]),
+            ("cap2 dense ci lo", -0.015, c2d["ci95"][0]),
+            ("cap2 dense ci hi", 0.040, c2d["ci95"][1]),
+            ("cap2 sparse gain", -0.020, c2s["success_gain"]),
+            ("cap2 sparse p", 0.289, c2s["p"]),
+            ("cap1 sparse gain", -0.085, c1s["success_gain"]),
+            ("cap1 sparse p", 0.0005, c1s["p"]),
+            ("cap1 sparse won", 3, c1s["episodes_won"]),
+            ("cap1 sparse lost", 20, c1s["episodes_lost"]),
+            ("cap1 sparse collision delta", 0.085, c1s["collision_delta"]),
+            ("cap1 dense gain", -0.035, c1d["success_gain"]),
+            ("cap1 dense p", 0.143, c1d["p"]),
+            ("cap2 vs oracle dense", -0.055, od["success_gain"]),
+            ("cap2 vs oracle dense p", 0.003, od["p"]),
+            ("cap2 vs oracle sparse", -0.040, osp["success_gain"]),
+            ("cap2 vs oracle sparse p", 0.008, osp["p"]),
+        ]
+        for arm, s_s, s_c, d_s, d_c, d_bare in (
+            ("cv_m2", 0.975, 0.020, 0.910, 0.075, 31), ("cv_cap2", 0.955, 0.040, 0.920, 0.065, 21),
+            ("cv_cap1", 0.890, 0.105, 0.875, 0.110, 34),
+        ):
+            out += [(f"cap {arm} sparse success", s_s, kcells[arm]["dynamic"]["success"]),
+                    (f"cap {arm} sparse collision", s_c, kcells[arm]["dynamic"]["collision"]),
+                    (f"cap {arm} dense success", d_s, kcells[arm]["dynamic_dense"]["success"]),
+                    (f"cap {arm} dense collision", d_c, kcells[arm]["dynamic_dense"]["collision"]),
+                    (f"cap {arm} dense reach bare", d_bare,
+                     kcells[arm]["dynamic_dense"]["episodes_reaching_bare_radius"])]
+
     # --- pixel stall audit, Phase 5v --------------------------------------
     pa = "results/pixel_stall_audit.json"
     if os.path.exists(pa):

@@ -61,11 +61,12 @@ decision below follows from wanting that comparison to be trustworthy.
 | Encoder cost re-priced at 1:1: survives (−0.180 narrow), and still fails by stalling | Done |
 | Withholding the estimate's zero-margin fallback: a symptom, recovers nothing | Done |
 | Replanning on a contradicted estimate: closes sparse, unresolved on dense | Done |
+| Capping the estimate's reach: recovers nothing on dense; the far end is used | Done |
 | Pixel stall audit: the image carries the depth; RGB stalls facing openings its features see | Done |
 | Velocity latch: holds the RGB stall; released, stalls become crashes | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Thirty-eight experiments, each pre-registered where it tests a hypothesis. The
+Thirty-nine experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).

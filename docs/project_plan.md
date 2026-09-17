@@ -49,6 +49,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5t | Withhold the zero-margin fallback from the estimating agent | **Done** — **SYMPTOM: +0.010 on dense, bounded null**; the robot gets close before it falls back |
 | 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
+| 5w | Cap the estimate's extrapolation at 2 s and 1 s | **Done** — **UNRESOLVED: +0.010 on dense**; a 1 s cap costs sparse 0.085 (p = 0.0005) |
 | 5x | Replay with the velocity input overwritten, open and closed loop | **Done** — **PARTIAL: one-way latch (+0.367 exit, +0.008 entry)**; released, stalls become crashes |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
@@ -2290,6 +2291,42 @@ goal_open under a quarter, a probe gap of at least 0.05 -- and the story it
 told, a policy blind to the detour, is contradicted by the splits added
 afterwards. Clauses that all hold can still be too coarse to tell the right
 story from the wrong one.
+
+## Phase 5w — Capping the estimate's reach: the far end is used, not a cost
+
+Phase 5u left 0.050 of the estimate's dense-clutter cost after fresh estimates.
+Tested here: the far end of the window, by carrying each straight line at most
+2 s (primary) or 1 s past the latest observation. Pre-registered in `231c23b`,
+before the result file existed. Full treatment in `dynamic_obstacles.md`.
+
+Checks: capped and uncapped bit-identical on every frozen episode; the uncapped
+arm reproduces Phase 5r. Registered decision: **UNRESOLVED**.
+
+- 2 s cap against none, dense: +0.010, p = 0.727, 5 won and 3 lost,
+  CI [−0.015, +0.040]. Dense episodes reaching the bare-radius fallback fall
+  from 31 to 21.
+- 2 s cap, sparse: −0.020, p = 0.289.
+- 1 s cap, sparse: −0.085, p = 0.0005, 3 won and 20 lost, all of it
+  collisions (+0.085). Dense: −0.035, p = 0.143.
+- With the 2 s cap the estimate trails the oracle by 0.055 on dense
+  clutter (p = 0.003) and 0.040 on sparse worlds (p = 0.008).
+
+### Consequences
+
+The far end of the window is information the planner uses, wrong in detail as it
+is: take it away and the robot collides more. Four
+planner-side explanations of the estimate's dense-clutter cost -- margin,
+fallback, staleness, reach -- have now failed to account for it. The model has
+not been touched: a straight line drawn along a sinusoid. A better estimate, not
+a different use of this one, is the next test.
+
+### Calibration
+
+Prediction 23 failed: registered REACH, returned UNRESOLVED. Its secondary
+clause held -- fewer episodes reach the fallback -- and, as in Phase 5t, that
+changed nothing that mattered. The case written against it was half right:
+withholding the fallback had indeed changed nothing, and believing movers stop
+does cost collisions, at 1 s badly.
 
 ## Phase 5x — The velocity latch: it holds the stall, and releasing it crashes
 
