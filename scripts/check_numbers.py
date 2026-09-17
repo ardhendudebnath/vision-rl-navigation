@@ -708,6 +708,40 @@ def claims():
         out.append(("pixel rgbi open stalls in seeds 3-5 share", 0.998,
                     sum(seeds[s] for s in (3, 4, 5)) / sum(seeds.values())))
 
+    # --- velocity latch replay, Phase 5x ----------------------------------
+    sc = "results/stall_counterfactual.json"
+    if os.path.exists(sc):
+        cj = load(sc)
+        rg, dp = cj["arms"]["rgbi"], cj["arms"]["depthi"]
+        seeds_down = sum(e["timeout_override"] < e["timeout"] for e in rg["per_seed"])
+        seeds_up = sum(e["collision_override"] > e["collision"] for e in rg["per_seed"])
+        out += [
+            ("latch decision PARTIAL", 1.0, float(cj["decision"] == "PARTIAL")),
+            ("latch rgbi open stall go real", 0.013, rg["open_stall_go_real"]),
+            ("latch rgbi open stall go told moving", 0.380, rg["open_stall_go_move"]),
+            ("latch rgbi detour stall go real", 0.015, rg["detour_stall_go_real"]),
+            ("latch rgbi detour stall go told moving", 0.441, rg["detour_stall_go_move"]),
+            ("latch rgbi open moving go real", 0.992, rg["open_moving_go_real"]),
+            ("latch rgbi open moving go told stopped", 0.984, rg["open_moving_go_zero"]),
+            ("latch depthi stall go real", 0.007, dp["detour_stall_go_real"]),
+            ("latch depthi stall go told moving", 0.006, dp["detour_stall_go_move"]),
+            ("latch depthi moving go real", 0.999, dp["open_moving_go_real"]),
+            ("latch depthi moving go told stopped", 1.000, dp["open_moving_go_zero"]),
+            ("latch exit shift", 0.367, cj["rgbi_exit_shift"]),
+            ("latch entry shift", 0.008, cj["rgbi_entry_shift"]),
+            ("latch rgbi timeout change", -0.073, rg["timeout_change"]),
+            ("latch rgbi timeout p", 0.031, rg["timeout_change_p"]),
+            ("latch rgbi collision change", 0.063, rg["collision_change"]),
+            ("latch rgbi collision p", 0.031, rg["collision_change_p"]),
+            ("latch rgbi success change", 0.010, rg["success_change"]),
+            ("latch rgbi success p", 0.25, rg["success_change_p"]),
+            ("latch rgbi seeds with fewer timeouts", 6, seeds_down),
+            ("latch rgbi seeds with more collisions", 6, seeds_up),
+            ("latch depthi timeout change", 0.010, dp["timeout_change"]),
+            ("latch depthi collision change", -0.010, dp["collision_change"]),
+            ("latch depthi success change", 0.000, dp["success_change"]),
+        ]
+
     # --- encoder cost re-priced at 1:1, Phase 5s -------------------------
     ri, rl = "results/repricing_encoder_interaction.json", "results/repricing_encoder.json"
     if os.path.exists(ri) and os.path.exists(rl):

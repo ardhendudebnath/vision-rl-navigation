@@ -608,6 +608,19 @@ those stalls *less* often than while moving (24% against 35%).
 The policy stops with the opening visible in its features; whatever holds it
 there is downstream of the camera.
 
+**The velocity input holds it there, and releasing it does not help.** A
+replay registered before it ran overwrote the policy's velocity input and
+nothing else. Told it is moving, a stalled RGB policy commands forward motion on
+38.0% of its open-route stall steps instead of 1.3%; told it is stopped, a
+moving one still drives on 98.4% of steps against 99.2%. Its own velocity does
+not stop it, but once it has stopped, keeps it stopped. The depth policy's
+stalls do not respond at all (0.7% to 0.6%). Released in closed loop,
+whenever the robot has gone nowhere for 3 s, the RGB policy times out less on
+every seed (−0.073, p = 0.031) and collides more on every seed by nearly as much
+(+0.063, p = 0.031), while success moves by +0.010. At 1:1 that trade is
+worth nothing, which is the finding: the latch is not what costs the RGB policy
+its episodes. Released, its stalls become crashes, not successes.
+
 The forecast registered in the audit script is not counted in §10's record: a
 smoke test printed results before it was committed, and the commit says so.
 Every clause of it held, and its headline — a policy blind to the detour — is
@@ -769,9 +782,9 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of twenty-one predictions made in advance, three derived from
+**Calibration.** Of twenty-two predictions made in advance, three derived from
 a *measurement* held — two to within 0.021 and 0.001, and one on both magnitude
-and mechanism; ten from extrapolation, intuition, arithmetic or a post hoc
+and mechanism; eleven from extrapolation, intuition, arithmetic or a post hoc
 description failed outright; eight got part right and part wrong. Confidence of
 expression was identical throughout. Three rules came out of them; the record
 of each prediction is in [`project_plan.md`](project_plan.md). The fifteenth
@@ -866,13 +879,13 @@ In order of expected information per GPU-hour:
    puts it after a second or two tests that, and frozen worlds, where the
    estimate never moves, are the identity. Noise on the observations is the
    step after.
-2. **Break the stall.** At the RGB policy's stalls in front of an open,
-   visible route, its camera features read the route as open more reliably
-   than while it is moving, and its final layer reads it as blocked (§8.6). The
-   robot's own velocity, near zero at every stall, is the obvious difference.
-   Replaying those states with the velocity input set to a moving value asks,
-   without training, whether the policy has learned a stopped state it cannot
-   leave.
+2. **Why going on crashes.** Released from the latch its own velocity input
+   holds it in, the RGB policy crashes about as often as it had stalled
+   (§8.6), though at the stalls specific to it the route is open and its camera
+   features say so. Where those crashes happen — at the opening it had stopped
+   in front of, or later — is one more replay; whether its features encode the
+   geometry *around* an opening, which fitting through it needs, is a probe on
+   the same features.
 3. **A recurrent policy that was actually tuned.** §9.1 tested one and it was
    worse everywhere, but it ran on hyperparameters chosen for an MLP so the
    comparison would be algorithm-only. That makes the result a statement about

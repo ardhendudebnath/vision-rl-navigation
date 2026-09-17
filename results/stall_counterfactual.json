@@ -1,0 +1,185 @@
+{
+  "prediction": "LATCH: pooled over rgbi's open-route steps, telling a stalled policy it is moving raises the share of steps it goes by at least 0.30, and telling a moving policy it is stopped lowers that share by at least 0.30. Closed loop: overriding the velocity input while stalled lowers rgbi's mean timeout rate by at least 0.05. Decision -- LATCH: both open-loop shifts >= 0.30. NO LATCH: both < 0.10. Otherwise PARTIAL.",
+  "worlds": 50,
+  "v_move": 0.3,
+  "go": 0.15,
+  "arms": {
+    "depthi": {
+      "pooled": {
+        "open_stall": 0,
+        "open_stall_go_real": 0,
+        "open_stall_go_move": 0,
+        "open_moving": 21816,
+        "open_moving_go_real": 21804,
+        "open_moving_go_zero": 21808,
+        "detour_stall": 3789,
+        "detour_stall_go_real": 28,
+        "detour_stall_go_move": 22
+      },
+      "per_seed": [
+        {
+          "seed": 0,
+          "timeout": 0.0,
+          "timeout_override": 0.0,
+          "success": 0.6,
+          "success_override": 0.6,
+          "collision": 0.4,
+          "collision_override": 0.4,
+          "overridden_steps": 0
+        },
+        {
+          "seed": 1,
+          "timeout": 0.0,
+          "timeout_override": 0.02,
+          "success": 0.64,
+          "success_override": 0.64,
+          "collision": 0.36,
+          "collision_override": 0.34,
+          "overridden_steps": 461
+        },
+        {
+          "seed": 2,
+          "timeout": 0.0,
+          "timeout_override": 0.0,
+          "success": 0.64,
+          "success_override": 0.64,
+          "collision": 0.36,
+          "collision_override": 0.36,
+          "overridden_steps": 0
+        },
+        {
+          "seed": 3,
+          "timeout": 0.12,
+          "timeout_override": 0.14,
+          "success": 0.58,
+          "success_override": 0.58,
+          "collision": 0.3,
+          "collision_override": 0.28,
+          "overridden_steps": 2658
+        },
+        {
+          "seed": 4,
+          "timeout": 0.04,
+          "timeout_override": 0.06,
+          "success": 0.56,
+          "success_override": 0.56,
+          "collision": 0.4,
+          "collision_override": 0.38,
+          "overridden_steps": 1259
+        },
+        {
+          "seed": 5,
+          "timeout": 0.0,
+          "timeout_override": 0.0,
+          "success": 0.6,
+          "success_override": 0.6,
+          "collision": 0.4,
+          "collision_override": 0.4,
+          "overridden_steps": 0
+        }
+      ],
+      "open_stall_go_real": null,
+      "open_stall_go_move": null,
+      "open_moving_go_real": 0.9994499449944995,
+      "open_moving_go_zero": 0.9996332966629996,
+      "detour_stall_go_real": 0.007389812615465822,
+      "detour_stall_go_move": 0.005806281340723146,
+      "timeout_change": 0.010000000000000004,
+      "timeout_change_p": 0.25,
+      "success_change": 0.0,
+      "success_change_p": 1.0,
+      "collision_change": -0.00999999999999999,
+      "collision_change_p": 0.25
+    },
+    "rgbi": {
+      "pooled": {
+        "open_stall": 4466,
+        "open_stall_go_real": 59,
+        "open_stall_go_move": 1699,
+        "open_moving": 18456,
+        "open_moving_go_real": 18315,
+        "open_moving_go_zero": 18161,
+        "detour_stall": 19439,
+        "detour_stall_go_real": 301,
+        "detour_stall_go_move": 8568
+      },
+      "per_seed": [
+        {
+          "seed": 0,
+          "timeout": 0.04,
+          "timeout_override": 0.02,
+          "success": 0.34,
+          "success_override": 0.34,
+          "collision": 0.62,
+          "collision_override": 0.64,
+          "overridden_steps": 742
+        },
+        {
+          "seed": 1,
+          "timeout": 0.02,
+          "timeout_override": 0.0,
+          "success": 0.44,
+          "success_override": 0.44,
+          "collision": 0.54,
+          "collision_override": 0.56,
+          "overridden_steps": 86
+        },
+        {
+          "seed": 2,
+          "timeout": 0.14,
+          "timeout_override": 0.1,
+          "success": 0.42,
+          "success_override": 0.44,
+          "collision": 0.44,
+          "collision_override": 0.46,
+          "overridden_steps": 1715
+        },
+        {
+          "seed": 3,
+          "timeout": 0.36,
+          "timeout_override": 0.24,
+          "success": 0.4,
+          "success_override": 0.4,
+          "collision": 0.24,
+          "collision_override": 0.36,
+          "overridden_steps": 3919
+        },
+        {
+          "seed": 4,
+          "timeout": 0.32,
+          "timeout_override": 0.2,
+          "success": 0.36,
+          "success_override": 0.38,
+          "collision": 0.32,
+          "collision_override": 0.42,
+          "overridden_steps": 2946
+        },
+        {
+          "seed": 5,
+          "timeout": 0.22,
+          "timeout_override": 0.1,
+          "success": 0.52,
+          "success_override": 0.54,
+          "collision": 0.26,
+          "collision_override": 0.36,
+          "overridden_steps": 1933
+        }
+      ],
+      "open_stall_go_real": 0.013210927004030452,
+      "open_stall_go_move": 0.38042991491267353,
+      "open_moving_go_real": 0.9923602080624188,
+      "open_moving_go_zero": 0.9840160381447768,
+      "detour_stall_go_real": 0.015484335613971912,
+      "detour_stall_go_move": 0.44076341375585165,
+      "timeout_change": -0.07333333333333333,
+      "timeout_change_p": 0.03125,
+      "success_change": 0.010000000000000009,
+      "success_change_p": 0.25,
+      "collision_change": 0.06333333333333334,
+      "collision_change_p": 0.03125
+    }
+  },
+  "rgbi_exit_shift": 0.3672189879086431,
+  "rgbi_entry_shift": 0.008344169917641975,
+  "decision": "PARTIAL"
+}

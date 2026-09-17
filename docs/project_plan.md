@@ -49,6 +49,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5t | Withhold the zero-margin fallback from the estimating agent | **Done** — **SYMPTOM: +0.010 on dense, bounded null**; the robot gets close before it falls back |
 | 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
+| 5x | Replay with the velocity input overwritten, open and closed loop | **Done** — **PARTIAL: one-way latch (+0.367 exit, +0.008 entry)**; released, stalls become crashes |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
 
 ## Phase 0 — Foundations (done)
@@ -2289,6 +2290,51 @@ goal_open under a quarter, a probe gap of at least 0.05 -- and the story it
 told, a policy blind to the detour, is contradicted by the splits added
 afterwards. Clauses that all hold can still be too coarse to tell the right
 story from the wrong one.
+
+## Phase 5x — The velocity latch: it holds the stall, and releasing it crashes
+
+Phase 5v found the RGB policy stopping in front of open routes its CNN features
+read as open, with its final layer -- which also takes the robot's own velocity
+-- reading them as blocked. Tested here with a replay of the twelve Phase 5s
+policies over the same 50 `narrow` worlds, overwriting only the velocity input
+(`scripts/stall_counterfactual.py`). Pre-registered in `da369f8`, before any
+result existed; the smoke test printed only tracebacks.
+
+**Open loop**, share of steps commanding at least 0.15 m/s forward:
+
+| | real input | told moving (0.3 m/s) | told stopped |
+|---|---|---|---|
+| rgbi, open-route stall steps | 0.013 | 0.380 | -- |
+| rgbi, other stall steps (opening in view) | 0.015 | 0.441 | -- |
+| rgbi, open-route moving steps | 0.992 | -- | 0.984 |
+| depthi, stall steps (opening in view) | 0.007 | 0.006 | -- |
+| depthi, open-route moving steps | 0.999 | -- | 1.000 |
+
+Exit shift +0.367, entry shift +0.008. Registered decision: **PARTIAL**.
+The latch runs one way: velocity does not stop the RGB policy, but keeps a
+stopped one stopped. The depth policy has none.
+
+**Closed loop**, the velocity input set to 0.3 m/s whenever the robot has gone
+nowhere for 3 s. RGB: timeouts −0.073 (p = 0.031, lower on all six seeds),
+collisions +0.063 (p = 0.031, higher on all six), success +0.010
+(p = 0.25). Depth: timeouts +0.010, collisions −0.010, success unchanged.
+
+### Consequences
+
+The latch is real, RGB-specific, and not what costs the episodes: released, the
+stalls become crashes rather than successes, a trade the 1:1 reward prices at
+nothing. Stopping was the policy's way of not crashing. Why it cannot go on is
+the question left -- where the released episodes crash, and whether its features
+encode the geometry around an opening rather than just the opening.
+
+### Calibration
+
+Prediction 22 failed: registered LATCH, returned PARTIAL. The exit clause held
+(+0.367 against 0.30) and so did the closed-loop timeout clause (−0.073 against
+0.05); the entry clause failed (+0.008 against 0.30). By the counting rule, a
+failed registered decision is a failed prediction. The case written against it
+-- that velocity shapes turning rather than going -- was wrong too: stopped and
+told it is moving, the policy drives on 38% of open-route stall steps, not 1.3%.
 
 ## Hardware notes
 
