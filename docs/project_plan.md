@@ -50,6 +50,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
 | 5w | Cap the estimate's extrapolation at 2 s and 1 s | **Done** — **UNRESOLVED: +0.010 on dense**; a 1 s cap costs sparse 0.085 (p = 0.0005) |
+| 6a | Fit the orbit by least squares instead of differencing | **Done** — **FILTER: +0.145 on dense at 1 cm noise (p < 0.0001)**; no longer distinguishable from the oracle |
 | 5z | Gaussian noise on each observed mover position, 2 mm to 5 cm | **Done** — **UNRESOLVED at 1 cm (+0.005)**; noise costs more than the model bought; the fit wins at 5 cm |
 | 5y | Fit each mover's oscillation instead of a straight line | **Done** — **MODEL: +0.070 on dense (p = 0.0001)**; matches the oracle, motion cost 0.005 |
 | 5x | Replay with the velocity input overwritten, open and closed loop | **Done** — **PARTIAL: one-way latch (+0.367 exit, +0.008 entry)**; released, stalls become crashes |
@@ -2470,6 +2471,59 @@ amplify the error by dt squared, and the fit is duly swamped -- but a swamped
 fit degrades into a bounded orbit, and a bounded wrong answer beats an unbounded
 one. Nothing in the calculation said what the *failure mode* of each estimator
 would look like.
+
+## Phase 6a — Fitting without differencing: the filter closes the gap
+
+Phase 5z left the estimator chain with a centimetre of observation noise costing
+more than the motion model had ever bought, and diagnosed the cause: the fit
+read curvature through a second difference. Here the same model is fitted to the
+observations directly -- frequency searched, the rest by least squares over the
+whole track. Pre-registered in `55bdca0`, before the result file existed, with
+the estimator's error measured first and disclosed. Full treatment in
+`dynamic_obstacles.md`.
+
+Checks: frozen cells match the oracle's episode for episode; the noise-free arm
+is bounded-INERT against the oracle. Registered decision: **FILTER**.
+
+- Against the line at σ = 0.01, dense: +0.145, p < 0.0001, 32 won and
+  3 lost. Sparse: +0.065, p = 0.004.
+- Against the differencing fit at the same noise: +0.140 dense,
+  +0.100 sparse.
+- Against the oracle: −0.015 dense (p = 0.45), −0.020 sparse
+  (p = 0.125) -- no longer distinguishable.
+- Six seconds of history against three: −0.010 dense, p = 0.73.
+- Estimator error at σ = 0.01, dense, no planner: 0.050 m at two seconds
+  against the line's 0.295 and the differencing fit's 0.438.
+
+### Consequences
+
+The estimator chain closes: what it needed was not better information, nor a
+better model class, but an estimator that does not amplify its own error. A
+classical stack that observes mover positions to a centimetre, fits them
+properly and plans in space-time is, on these worlds, indistinguishable from one
+handed the exact future.
+
+The remaining gift is larger than exactness was: the agent sees every mover at
+every step, with no field of view and no occlusion. Taking that away is the next
+test, and report Section 12 item 1 now says so.
+
+### Calibration
+
+Prediction 26 is partial. The headline held and then some -- registered at least
++0.05 on dense clutter against the line, measured +0.145, and the same against
+the differencing fit -- as did the noise-free control and the frozen identity.
+The clause that failed was the cautious one: that an estimate 0.05 m out at two
+seconds would still trail the oracle measurably. It does not, at two hundred
+episodes.
+
+That is the fourth prediction in this project derived from measuring the
+estimator before registering, and the fourth whose *magnitude* was right. What
+it got wrong was again a claim about something it had not measured -- how the
+planner converts a small estimate error into a lost episode.
+
+A note on the numbers it quoted: the pre-registration cited 0.057 m at two
+seconds from a ten-second warm-up, and the experiment's own measurement, with a
+six-second one, gives 0.050 m. Neither was tuned; the warm-up differs.
 
 ## Hardware notes
 

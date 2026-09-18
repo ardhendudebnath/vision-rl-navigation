@@ -80,8 +80,11 @@ nothing.
    only with exact observations. A centimetre of error on each observed
    position costs more than the model ever bought (0.160 and 0.095 of success
    against 0.070), and at that accuracy the two estimators are
-   indistinguishable. What a real stack needs there is filtering, not a better
-   model class.
+   indistinguishable. What a real stack needed there was neither: an estimator
+   that does not amplify its own error. Fitting the same oscillation by least
+   squares instead of differencing it is worth +0.145 on dense clutter at that
+   noise, and leaves the planner indistinguishable from one handed the exact
+   future — from the robot's own observations.
 7. **The reward decides what information is worth.** Frame stacking looked
    useless across three encodings and a 3× mover-speed range. It is not: the
    reward priced a collision at four times a timeout, and making the two equal
@@ -108,8 +111,8 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of twenty-five advance predictions, four derived from
-*measurements* held; thirteen failed outright and eight got part right and part
+pre-registered endpoints. Of twenty-six advance predictions, four derived from
+*measurements* held; thirteen failed outright and nine got part right and part
 wrong, with identical confidence of expression
 throughout. The three failures that reasoned from a real measurement all
 carried it into a regime nothing had been measured in — and the one that

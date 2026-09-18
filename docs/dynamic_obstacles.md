@@ -890,6 +890,55 @@ estimator smooths; the obvious repair is a filter that tracks position, velocity
 and frequency together rather than differencing raw observations twice, and it
 has 0.160 of dense-clutter success to win back.
 
+### Fitting without differencing
+
+Phase 5z's diagnosis was mechanical: the fit reads curvature through a second
+difference, which divides observation error by `dt^2`. The repair fits the same
+model to the observations directly. `p(t) = c + u sin(w t) + v cos(w t)` is
+linear in `c`, `u` and `v` once `w` is fixed, so the estimator searches `w` and
+solves the rest by least squares across the whole observed track: every
+observation gets an equal vote and nothing is differenced. Pre-registered in
+`55bdca0`, with this estimator's own error measured first and the commit saying
+so. The frozen cells match the oracle's episode for episode.
+
+| median error at σ = 0.01, `dynamic_dense` | 1 s | 2 s | 7 s |
+|---|---|---|---|
+| straight line | 0.149 | 0.295 | 1.281 |
+| fit by differencing (Phase 5y) | 0.255 | 0.438 | 1.341 |
+| fit by least squares | 0.024 | 0.050 | 0.303 |
+
+| 200 episodes, σ = 0.01 | sparse success | dense success | dense collisions |
+|---|---|---|---|
+| oracle (no observations at all) | 0.995 | 0.975 | 0.010 |
+| straight line | 0.910 | 0.815 | 0.160 |
+| fit by differencing | 0.875 | 0.820 | 0.160 |
+| fit by least squares, 3 s | 0.975 | 0.960 | 0.020 |
+| fit by least squares, 6 s | 0.965 | 0.950 | 0.030 |
+
+**Filtering is the repair.** Against the straight line at the same noise the
+least-squares fit is worth +0.145 on dense clutter (p < 0.0001, 32
+episodes won and 3 lost) and +0.065 on sparse worlds
+(p = 0.004); against the differencing fit, +0.140 and
++0.100. Collisions fall from 0.160 to 0.020.
+
+**And it is no longer distinguishable from the oracle.** Dense clutter
+−0.015, p = 0.45; sparse worlds −0.020,
+p = 0.125. The registered prediction said the opposite -- that an estimate
+0.05 m out at two seconds would still trail an exact one measurably -- and two
+hundred episodes do not show it. Six seconds of history buys nothing over three
+(−0.010, p = 0.73).
+
+So the chain closes where it started. With exact observations the model was
+everything; with a centimetre of noise the model was worth nothing and the noise
+cost more than the model ever had; with the same model fitted properly, a
+centimetre of noise costs 0.015 and that is inside the noise of the measurement.
+What the estimator needed was not better information or a better model class but
+an estimator that does not amplify its own error.
+
+**What is still a gift.** The agent observes every mover in the world at every
+step: no field of view, no occlusion, nothing missed behind a wall. That is the
+next thing to take away, and it is a larger gift than exactness was.
+
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
 ones, where a correct map means the path is never blocked and it never fires.

@@ -719,8 +719,14 @@ clutter and the straight line 0.095, both larger than the 0.070 the model
 was worth, and at that noise the two estimators are indistinguishable
 (+0.005, interval [−0.050, +0.055]). The fitted model becomes the better
 one again only at coarse noise, where its bounded orbit beats a diverging
-line (+0.115 at 5 cm, p = 0.0002). At realistic sensing accuracy, what
-the estimator needs is not a better model class but a filter.
+line (+0.115 at 5 cm, p = 0.0002). What the estimator needed was not a
+better model class but one that does not amplify its own error: fitting the
+same oscillation to the observations by least squares, without differencing
+them, is worth +0.145 on dense clutter at a centimetre of noise
+(p < 0.0001) and is no longer distinguishable from the oracle
+(−0.015, p = 0.45). The agent still observes every mover at every
+step, through walls and behind it; that, rather than exactness, is the gift
+left to take away.
 
 **Recurrence is worse, and not because of motion.** An LSTM policy — the last
 untested way of supplying motion information, and the only one that learns what
@@ -795,11 +801,11 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of twenty-five predictions made in advance, four derived from
-a *measurement* held — two to within 0.021 and 0.001, one on both magnitude and
+**Calibration.** Of twenty-six predictions made in advance, four derived from a
+*measurement* held — two to within 0.021 and 0.001, one on both magnitude and
 mechanism, and one whose magnitude came from measuring the estimator it was
 about; thirteen from extrapolation, intuition, arithmetic or a post hoc
-description failed outright; eight got part right and part wrong. Confidence of
+description failed outright; nine got part right and part wrong. Confidence of
 expression was identical throughout. Three rules came out of them; the record
 of each prediction is in [`project_plan.md`](project_plan.md). The fifteenth
 also broke this report's own stated practice: its null was registered as an
@@ -886,13 +892,13 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Filter before fitting.** Both estimators read raw observations, and the
-   fitted one differences them twice to see curvature, which divides a
-   centimetre of sensing error by dt² into metres of apparent acceleration
-   (§9.1). A filter that tracks position, velocity and frequency jointly is the
-   textbook repair, and the measurement says what it is worth: 0.160 of
-   dense-clutter success at a centimetre of noise, where the model class itself
-   is now worth nothing measurable.
+1. **Observe only what a sensor could see.** The classical stack's motion
+   result now holds from the robot's own observations rather than an oracle
+   (§9.1), but those observations cover every mover in the world at every
+   step — no field of view, no occlusion, nothing lost behind a wall. That is a
+   larger gift than exactness was, and the machinery to take it back exists:
+   the same ray-caster the depth camera uses decides which movers are visible,
+   and the estimator already carries a track it can coast on when one is not.
 2. **Why going on crashes.** Released from the latch its own velocity input
    holds it in, the RGB policy crashes about as often as it had stalled
    (§8.5), though at the stalls specific to it the route is open and its camera

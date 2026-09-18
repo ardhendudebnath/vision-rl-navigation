@@ -663,6 +663,47 @@ def claims():
                     (f"innovation {arm} dense collision", dense_c,
                      icells[arm]["dynamic_dense"]["collision"])]
 
+    # --- fitting without differencing, Phase 6a ---------------------------
+    ob = "results/orbit_experiment.json"
+    if os.path.exists(ob):
+        oj = load(ob)
+        ocells, ox, oerr = oj["cells"], oj["contrasts"], oj["estimator_error"]
+        v_line, v_diff = ox["orbit@0.01_vs_line@0.01"], ox["orbit@0.01_vs_differenced@0.01"]
+        v_oracle, quiet = ox["orbit@0.01_vs_oracle"], ox["orbit@0.0_vs_oracle"]
+        six = ox["orbit6@0.01_vs_orbit@0.01"]
+        out += [
+            ("orbit decision FILTER", 1.0, float(oj["decision"] == "FILTER")),
+            ("orbit frozen matches oracle", 1.0, float(oj["checks"]["frozen_matches_oracle"])),
+            ("orbit vs line dense", 0.145, v_line["dynamic_dense"]["success_gain"]),
+            ("orbit vs line dense won", 32, v_line["dynamic_dense"]["episodes_won"]),
+            ("orbit vs line dense lost", 3, v_line["dynamic_dense"]["episodes_lost"]),
+            ("orbit vs line sparse", 0.065, v_line["dynamic"]["success_gain"]),
+            ("orbit vs line sparse p", 0.004, v_line["dynamic"]["p"]),
+            ("orbit vs differenced dense", 0.140, v_diff["dynamic_dense"]["success_gain"]),
+            ("orbit vs differenced sparse", 0.100, v_diff["dynamic"]["success_gain"]),
+            ("orbit vs oracle dense", -0.015, v_oracle["dynamic_dense"]["success_gain"]),
+            ("orbit vs oracle dense p", 0.453, v_oracle["dynamic_dense"]["p"]),
+            ("orbit vs oracle sparse", -0.020, v_oracle["dynamic"]["success_gain"]),
+            ("orbit vs oracle sparse p", 0.125, v_oracle["dynamic"]["p"]),
+            ("orbit noise-free vs oracle dense", -0.005, quiet["dynamic_dense"]["success_gain"]),
+            ("orbit noise-free vs oracle bounded", 1.0,
+             float(quiet["dynamic_dense"]["verdict"] == "INERT (bounded)")),
+            ("orbit six seconds vs three", -0.010, six["dynamic_dense"]["success_gain"]),
+            ("orbit six seconds p", 0.727, six["dynamic_dense"]["p"]),
+            ("orbit dense success", 0.960, ocells["orbit@0.01"]["dynamic_dense"]["success"]),
+            ("orbit dense collision", 0.020, ocells["orbit@0.01"]["dynamic_dense"]["collision"]),
+            ("orbit sparse success", 0.975, ocells["orbit@0.01"]["dynamic"]["success"]),
+            ("orbit6 dense success", 0.950, ocells["orbit6@0.01"]["dynamic_dense"]["success"]),
+            ("orbit noise-free dense success", 0.970,
+             ocells["orbit@0.0"]["dynamic_dense"]["success"]),
+            ("orbit error 1s", 0.024,
+             round(oerr["dynamic_dense"]["orbit3"]["1.0s"]["median"], 3)),
+            ("orbit error 2s", 0.050,
+             round(oerr["dynamic_dense"]["orbit3"]["2.0s"]["median"], 3)),
+            ("orbit error 7s", 0.303,
+             round(oerr["dynamic_dense"]["orbit3"]["7.0s"]["median"], 3)),
+        ]
+
     # --- noise on the observations, Phase 5z ------------------------------
     nz = "results/noise_experiment.json"
     if os.path.exists(nz):
