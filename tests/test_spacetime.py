@@ -1071,3 +1071,94 @@ def test_the_orbit_fit_is_cached_per_track_and_invalidated_by_a_new_one():
     assert agent._orbit_cache is cached, "the fit was recomputed for a second horizon"
     agent._observe()
     assert agent._orbit_cache is None, "a new observation left a stale fit in place"
+
+# ============================================================================
+# Seeing only what a sensor could see
+# ============================================================================
+def _world_with(mover_xy, boxes=(), robot=(2.0, 6.0, 0.0)):
+    from vision_nav.envs.world import World, WorldConfig
+
+    world = World(config=WorldConfig(), circles=np.zeros((0, 3)),
+                  boxes=np.asarray(boxes, dtype=float).reshape(-1, 4),
+                  start=np.array([*robot]), goal=np.array([10.0, 6.0]),
+                  dynamic=np.array([[mover_xy[0], mover_xy[1], 0.3, 1.0, 0.0, 0.0, 0.0]]))
+    world.set_time(0.0)
+    return world
+
+
+def _agent_on(world, **config):
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+
+    agent = SpaceTimeAgent(SpaceTimeConfig(predictor="orbit", observe_visible_only=True,
+                                           **config))
+    agent._world = world
+    return agent
+
+
+def test_a_mover_in_the_open_is_seen():
+    world = _world_with((5.0, 6.0))
+    assert _agent_on(world)._visible(np.array([2.0, 6.0, 0.0]))[0]
+
+
+def test_a_mover_behind_a_wall_is_not_seen():
+    world = _world_with((5.0, 6.0), boxes=[(3.0, 4.0, 3.4, 8.0)])
+    assert not _agent_on(world)._visible(np.array([2.0, 6.0, 0.0]))[0]
+    # Step aside and the same mover comes into view around the wall's end.
+    # From (2, 9) the sight line grazes the corner exactly, where clearance is
+    # zero and the test would be measuring a tie; (2, 10) clears it.
+    assert _agent_on(world)._visible(np.array([2.0, 10.0, 0.0]))[0]
+
+
+def test_a_mover_outside_the_field_of_view_is_not_seen():
+    world = _world_with((5.0, 6.0))
+    facing_away = np.array([2.0, 6.0, np.pi])
+    assert _agent_on(world, sensor_fov_deg=90.0)._visible(facing_away)[0] == False  # noqa: E712
+    assert _agent_on(world, sensor_fov_deg=360.0)._visible(facing_away)[0]
+
+
+def test_a_mover_beyond_the_sensor_range_is_not_seen():
+    world = _world_with((9.0, 6.0))
+    assert not _agent_on(world, sensor_range_m=5.0)._visible(np.array([2.0, 6.0, 0.0]))[0]
+    assert _agent_on(world, sensor_range_m=8.0)._visible(np.array([2.0, 6.0, 0.0]))[0]
+
+
+def test_an_unseen_mover_is_recorded_as_a_gap_and_coasted_through():
+    """No new observation while hidden; the estimate carries on from the last
+    sighting rather than freezing or inventing one."""
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+
+    world = _world_with((5.0, 6.0))
+    world.dynamic[0, 3:7] = [1.0, 0.0, 1.0, 0.4]  # give it a real oscillation
+    agent = SpaceTimeAgent(SpaceTimeConfig(predictor="constant_velocity",
+                                           observe_visible_only=True), robot=None)
+    agent._world = world
+    agent._observations = []
+    for step in range(4):
+        world.set_time(step * 0.1)
+        # Hide the mover on the last step by turning the robot away.
+        pose = np.array([2.0, 6.0, 0.0 if step < 3 else np.pi])
+        agent.config.sensor_fov_deg = 90.0
+        agent._observe(pose)
+    assert np.isnan(agent._observations[-1][1][0, :2]).all(), "a hidden mover was still observed"
+    carried = agent._predicted_discs(world._t + 0.5)
+    assert not np.isnan(carried[0, :2]).any(), "the estimate froze instead of coasting"
+
+
+def test_a_mover_never_seen_is_absent_from_the_planner_grid():
+    world = _world_with((5.0, 6.0), boxes=[(3.0, 4.0, 3.4, 8.0)])
+    agent = _agent_on(world)
+    agent._observations = []
+    for step in range(3):
+        world.set_time(step * 0.1)
+        agent._observe(np.array([2.0, 6.0, 0.0]))
+    occ = agent._mover_occupancy(world.config.robot_radius + 0.18, 5)
+    assert not occ.any(), "a mover the robot has never seen reached the planner"
+
+
+def test_the_differencing_fit_refuses_gapped_tracks():
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+
+    world = _world_with((5.0, 6.0))
+    agent = SpaceTimeAgent(SpaceTimeConfig(predictor="harmonic", observe_visible_only=True))
+    with pytest.raises(ValueError, match="cannot read a track with gaps"):
+        agent.start_episode(world, np.array([2.0, 6.0, 0.0]))

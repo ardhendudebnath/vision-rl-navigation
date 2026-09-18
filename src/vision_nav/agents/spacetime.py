@@ -132,6 +132,21 @@ class SpaceTimeConfig:
     #: Seed for that noise, so an episode's corruption is the same for every arm
     #: that shares it and a run can be reproduced.
     noise_seed: int = 0
+    #: ``True``: observe only movers a sensor on the robot could see -- within
+    #: ``sensor_range_m``, inside ``sensor_fov_deg`` of the robot's heading, and
+    #: not hidden behind static geometry. ``False`` observes every mover in the
+    #: world at every step, which is what every phase up to 6a ran, and is the
+    #: last privilege the estimator holds.
+    #:
+    #: A mover that is not visible yields no new observation: the estimator
+    #: coasts on the track it has. A mover never seen is not in the planner's
+    #: grid at all -- the robot does not know it exists, and may drive into it.
+    observe_visible_only: bool = False
+    #: Sensor horizon for that test, in metres, and its angular coverage.
+    #: 360 degrees is a planar lidar; 90 matches the depth camera the learned
+    #: policy reads.
+    sensor_range_m: float = 6.0
+    sensor_fov_deg: float = 360.0
     #: Fraction of ``safety_margin`` that movers are always inflated by, however
     #: far the planner falls back. ``0.0`` lets the last fallback plan at the
     #: bare robot radius around movers too, which is what Phase 5r ran.
@@ -205,6 +220,7 @@ class SpaceTimeAgent:
         self._plan_basis: list[tuple[float, np.ndarray]] | None = None
         self._noise = np.random.default_rng(self.config.noise_seed)
         self._orbit_cache = None
+        self._pose = np.zeros(3)
 
     # ------------------------------------------------------------------
     @property
@@ -214,7 +230,12 @@ class SpaceTimeAgent:
         return res * math.sqrt(2.0) / self.robot.max_linear_vel
 
     def start_episode(self, world, pose: np.ndarray) -> bool:
+        if self.config.observe_visible_only and self.config.predictor == "harmonic":
+            raise ValueError("the differencing fit cannot read a track with gaps; "
+                             "use predictor='orbit' or 'constant_velocity' with "
+                             "observe_visible_only")
         self._world = world
+        self._pose = np.asarray(pose, dtype=np.float64)
         self._waypoints = self._times = None
         self._last_plan_t = -math.inf
         self._static_cache = {}
@@ -228,7 +249,7 @@ class SpaceTimeAgent:
         self._observations = []
         self._noise = np.random.default_rng(self.config.noise_seed)
         self._orbit_cache = None
-        self._observe()
+        self._observe(pose)
         return self._plan(np.asarray(pose, dtype=np.float64))
 
     # ------------------------------------------------------------------
@@ -260,6 +281,12 @@ class SpaceTimeAgent:
         out = np.zeros((steps, n_rows * n_cols), dtype=bool)
         for k in range(steps):
             discs = self._predicted_discs(w._t + k * self.dt_plan)
+            known = ~np.isnan(discs[:, :2]).any(axis=1)
+            if not known.all():
+                # A mover the robot has never seen is not on its map at all.
+                discs = discs[known]
+                if not len(discs):
+                    continue
             d = np.linalg.norm(pts[:, None, :] - discs[None, :, :2], axis=-1) - discs[None, :, 2]
             out[k] = (d <= radius).any(axis=1)
         if not self.config.time_varying_movers:
@@ -276,13 +303,54 @@ class SpaceTimeAgent:
             return 2
         return max(3, int(round(self.config.history_s / self.robot.dt)) + 1)
 
-    def _observe(self) -> None:
-        """Record where the movers are now -- what the robot's sensors see."""
+    def _visible(self, pose: np.ndarray, samples: int = 24) -> np.ndarray:
+        """Which movers a sensor at ``pose`` could see: in range, in view, and not
+        behind static geometry.
+
+        Occlusion is checked by sampling the segment from the robot to the
+        mover's near edge and asking the map whether any sample is inside an
+        obstacle -- the same clearance test the planner inflates with, so a wall
+        that blocks the robot also blocks its view.
+        """
+        w = self._world
+        cfg = self.config
+        discs = w._dyn_now
+        if not len(discs):
+            return np.zeros(0, dtype=bool)
+        origin = np.asarray(pose[:2], dtype=np.float64)
+        to_mover = discs[:, :2] - origin
+        distance = np.linalg.norm(to_mover, axis=1)
+        ok = distance - discs[:, 2] <= cfg.sensor_range_m
+        if cfg.sensor_fov_deg < 360.0:
+            bearing = np.arctan2(to_mover[:, 1], to_mover[:, 0]) - float(pose[2])
+            wrapped = np.abs(np.arctan2(np.sin(bearing), np.cos(bearing)))
+            ok &= wrapped <= np.radians(cfg.sensor_fov_deg) / 2.0
+        if not ok.any():
+            return ok
+        # Sample from the robot to the near edge of each disc; a sample inside
+        # the map means the sight line is blocked.
+        reach = np.maximum(distance - discs[:, 2], 1e-6)
+        unit = to_mover / np.maximum(distance, 1e-9)[:, None]
+        steps = np.linspace(0.0, 1.0, samples)[None, :, None]
+        pts = origin[None, None, :] + unit[:, None, :] * (reach[:, None, None] * steps)
+        clear = w.clearance(pts.reshape(-1, 2), include_dynamic=False).reshape(len(discs), samples)
+        return ok & (clear > 0.0).all(axis=1)
+
+    def _observe(self, pose: np.ndarray | None = None) -> None:
+        """Record where the movers are now -- what the robot's sensors see.
+
+        Movers out of sight are recorded as NaN rather than dropped, so every
+        observation keeps one row per mover and each predictor decides for
+        itself how to handle a gap in a track.
+        """
         w = self._world
         seen = w._dyn_now.copy()
         if self.config.observation_noise_m > 0.0 and len(seen):
             seen[:, :2] += self._noise.normal(0.0, self.config.observation_noise_m,
                                               size=(len(seen), 2))
+        if self.config.observe_visible_only and len(seen):
+            hidden = ~self._visible(self._pose if pose is None else pose)
+            seen[hidden, :2] = np.nan
         self._observations.append((w._t, seen))
         self._orbit_cache = None  # the track moved; the fit is stale
         del self._observations[:-self._history_needed]
@@ -360,29 +428,57 @@ class SpaceTimeAgent:
         times = np.array([s[0] for s in seen])
         if len(seen) < 8 or len({len(p) for _, p in seen}) != 1:
             return None
+        if np.isnan(np.stack([p[:, :2] for _, p in seen])).any():
+            return self._orbit_discs_per_mover(seen, t, times)
         # The positions go in the key, not just the timestamp and length: the
         # innovation check asks the same question of an older track, and two
         # tracks of equal length can end at the same instant.
         key = (float(times[-1]), len(seen), float(np.sum(seen[-1][1][:, :2])))
         if self._orbit_cache is None or self._orbit_cache[0] != key:
             track = np.stack([p[:, :2] for _, p in seen])  # (N, M, 2)
-            best = None
-            for omegas in (np.geomspace(0.02, 2.0, 96), None):
-                if omegas is None:  # refine around the coarse winner
-                    step = best[0] * (2.0 / 0.02) ** (1.0 / 95) - best[0]
-                    omegas = np.linspace(max(best[0] - step, 1e-3), best[0] + step, 21)
-                for omega in omegas:
-                    design = np.stack([np.ones_like(times), np.sin(omega * times),
-                                       np.cos(omega * times)], axis=1)
-                    coef, *_ = np.linalg.lstsq(design, track.reshape(len(times), -1), rcond=None)
-                    resid = float(((design @ coef - track.reshape(len(times), -1)) ** 2).sum())
-                    if best is None or resid < best[1]:
-                        best = (float(omega), resid, coef)
-            self._orbit_cache = (key, best)
+            self._orbit_cache = (key, self._search_frequency(times, track))
         omega, _, coef = self._orbit_cache[1]
         out = seen[-1][1].copy()
         basis = np.array([1.0, math.sin(omega * t), math.cos(omega * t)])
         out[:, :2] = (basis @ coef).reshape(-1, 2)
+        return out
+
+    @staticmethod
+    def _search_frequency(times, track):
+        """(frequency, residual, coefficients) minimising the fit's residual.
+
+        Coarse geometric sweep, then one refinement around the winner. The
+        coefficients are solved exactly for each candidate, so only the single
+        nonlinear parameter is searched.
+        """
+        flat = track.reshape(len(times), -1)
+        best = None
+        for omegas in (np.geomspace(0.02, 2.0, 96), None):
+            if omegas is None:
+                step = best[0] * (2.0 / 0.02) ** (1.0 / 95) - best[0]
+                omegas = np.linspace(max(best[0] - step, 1e-3), best[0] + step, 21)
+            for omega in omegas:
+                design = np.stack([np.ones_like(times), np.sin(omega * times),
+                                   np.cos(omega * times)], axis=1)
+                coef, *_ = np.linalg.lstsq(design, flat, rcond=None)
+                resid = float(((design @ coef - flat) ** 2).sum())
+                if best is None or resid < best[1]:
+                    best = (float(omega), resid, coef)
+        return best
+
+    def _orbit_discs_per_mover(self, seen, t: float, times) -> np.ndarray:
+        """The orbit fit when tracks have gaps: each mover fitted on the samples
+        it was actually seen in, and left to the straight line if it has too few."""
+        out = self._constant_velocity_discs(seen, t)
+        for m in range(len(seen[-1][1])):
+            visible = [(ts, pos[m]) for ts, pos in seen if not np.isnan(pos[m, :2]).any()]
+            if len(visible) < 8:
+                continue
+            stamps = np.array([ts for ts, _ in visible])
+            omega, _, coef = self._search_frequency(
+                stamps, np.stack([pos[:2] for _, pos in visible])[:, None, :])
+            basis = np.array([1.0, math.sin(omega * t), math.cos(omega * t)])
+            out[m, :2] = basis @ coef
         return out
 
     def _constant_velocity_discs(self, seen, t: float) -> np.ndarray:
@@ -393,6 +489,23 @@ class SpaceTimeAgent:
             if t1 > t0 and len(p0) == len(p1):
                 velocity = (p1[:, :2] - p0[:, :2]) / (t1 - t0)
                 out[:, :2] = p1[:, :2] + velocity * min(t - t1, self.config.extrapolation_cap_s)
+        if not np.isnan(out[:, :2]).any():
+            return out
+        # A mover out of sight now, or at the previous step, is carried from the
+        # last two sightings it did have; one never seen stays NaN and drops out
+        # of the planner's grid entirely.
+        for m in np.unique(np.argwhere(np.isnan(out[:, :2]))[:, 0]):
+            track = [(ts, pos[m]) for ts, pos in seen if not np.isnan(pos[m, :2]).any()]
+            if not track:
+                continue
+            t1, p1 = track[-1]
+            out[m] = p1
+            if len(track) >= 2:
+                t0, p0 = track[-2]
+                if t1 > t0:
+                    velocity = (p1[:2] - p0[:2]) / (t1 - t0)
+                    out[m, :2] = p1[:2] + velocity * min(t - t1,
+                                                         self.config.extrapolation_cap_s)
         return out
 
     def _predicted_discs(self, t: float,
@@ -425,7 +538,9 @@ class SpaceTimeAgent:
         if self._plan_basis is None or not len(w._dyn_now):
             return 0.0
         expected = self._predicted_discs(w._t, observations=self._plan_basis)
-        return float(np.linalg.norm(expected[:, :2] - w._dyn_now[:, :2], axis=1).max())
+        gaps = np.linalg.norm(expected[:, :2] - w._dyn_now[:, :2], axis=1)
+        gaps = gaps[~np.isnan(gaps)]  # a mover never seen cannot contradict anything
+        return float(gaps.max()) if len(gaps) else 0.0
 
     def _plan(self, pose: np.ndarray) -> bool:
         """Plan from ``pose`` at the current simulation time. Keeps the old plan
@@ -490,7 +605,8 @@ class SpaceTimeAgent:
         cfg, w = self.config, self._world
         pose = np.asarray(pose, dtype=np.float64)
         position = pose[:2]
-        self._observe()
+        self._pose = pose
+        self._observe(pose)
 
         if self._waypoints is not None:
             drift = float(np.linalg.norm(self._scheduled(w._t) - position))
