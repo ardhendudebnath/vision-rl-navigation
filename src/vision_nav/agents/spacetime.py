@@ -112,6 +112,20 @@ class SpaceTimeConfig:
     #: Seconds of mover track the harmonic fit reads. Other predictors keep two
     #: observations, whatever this says, so their results cannot move.
     history_s: float = 3.0
+    #: Standard deviation, in metres, of the error on each observed mover
+    #: position, drawn independently per mover per step. ``0.0`` observes
+    #: exactly, which is what every phase up to 5y ran.
+    #:
+    #: Phase 5y's fitted estimator matched the oracle from *exact* observations
+    #: of a world that really is harmonic. This is the first of those two gifts
+    #: taken back. It corrupts what the agent sees, never the world, and the
+    #: oracle predictor ignores observations entirely -- so an oracle agent must
+    #: be bit-identical with noise and without, which is the experiment's
+    #: control.
+    observation_noise_m: float = 0.0
+    #: Seed for that noise, so an episode's corruption is the same for every arm
+    #: that shares it and a run can be reproduced.
+    noise_seed: int = 0
     #: Fraction of ``safety_margin`` that movers are always inflated by, however
     #: far the planner falls back. ``0.0`` lets the last fallback plan at the
     #: bare robot radius around movers too, which is what Phase 5r ran.
@@ -183,6 +197,7 @@ class SpaceTimeAgent:
         #: Replans triggered because an observation contradicted the estimate.
         self.innovation_replans = 0
         self._plan_basis: list[tuple[float, np.ndarray]] | None = None
+        self._noise = np.random.default_rng(self.config.noise_seed)
 
     # ------------------------------------------------------------------
     @property
@@ -204,6 +219,7 @@ class SpaceTimeAgent:
         self.innovation_replans = 0
         self._plan_basis = None
         self._observations = []
+        self._noise = np.random.default_rng(self.config.noise_seed)
         self._observe()
         return self._plan(np.asarray(pose, dtype=np.float64))
 
@@ -255,7 +271,11 @@ class SpaceTimeAgent:
     def _observe(self) -> None:
         """Record where the movers are now -- what the robot's sensors see."""
         w = self._world
-        self._observations.append((w._t, w._dyn_now.copy()))
+        seen = w._dyn_now.copy()
+        if self.config.observation_noise_m > 0.0 and len(seen):
+            seen[:, :2] += self._noise.normal(0.0, self.config.observation_noise_m,
+                                              size=(len(seen), 2))
+        self._observations.append((w._t, seen))
         del self._observations[:-self._history_needed]
 
     def _harmonic_discs(self, seen, t: float) -> np.ndarray | None:

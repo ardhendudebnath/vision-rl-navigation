@@ -1,4 +1,4 @@
-﻿"""Tests for the space-time planner.
+"""Tests for the space-time planner.
 
 A weak implementation here would produce the most misleading possible result:
 "a planner that can wait does not help either", reported as a finding when it
@@ -322,7 +322,7 @@ def test_matches_brute_force_with_a_tail(seed):
 # ============================================================================
 # The agent: schedule tracking, and the controls the experiment rests on
 # ============================================================================
-def _episode(cond, seed, time_varying, margin=0, predictor="oracle"):
+def _episode(cond, seed, time_varying, margin=0, predictor="oracle", **config):
     from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
     from vision_nav.envs.nav_env import ProceduralNavEnv
     from vision_nav.envs.splits import DYNAMIC_CONDITIONS, FROZEN_CONDITIONS
@@ -335,7 +335,7 @@ def _episode(cond, seed, time_varying, margin=0, predictor="oracle"):
     env.reset(options={"world_seed": int(cfg.world_seeds[seed])})
     agent = SpaceTimeAgent(SpaceTimeConfig(time_varying_movers=time_varying,
                                            temporal_margin_steps=margin,
-                                           predictor=predictor),
+                                           predictor=predictor, **config),
                            robot=cfg.robot)
     assert agent.start_episode(env.world, env.robot.pose)
     traj, info, done = [env.robot.position.copy()], {}, False
@@ -885,3 +885,96 @@ def test_the_harmonic_estimate_reaches_the_planner():
         fitted._observe()
         env.world.set_time(env.world._t + 0.1)
     assert not np.array_equal(line, fitted._mover_occupancy(radius, 30))
+
+# ============================================================================
+# Observation noise: the first gift taken back
+# ============================================================================
+def test_no_noise_observes_the_world_exactly():
+    agent, env = _cv_agent_on("dynamic")
+    assert agent.config.observation_noise_m == 0.0
+    np.testing.assert_array_equal(agent._observations[-1][1], env.world._dyn_now)
+
+
+def test_noise_corrupts_the_observation_and_not_the_world():
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+
+    _, env = _cv_agent_on("dynamic")
+    truth = env.world._dyn_now.copy()
+    agent = SpaceTimeAgent(SpaceTimeConfig(predictor="constant_velocity",
+                                           observation_noise_m=0.05), robot=env.config.robot)
+    agent._world = env.world
+    agent._observations = []
+    errors = []
+    for _ in range(400):
+        agent._observe()
+        errors.append(agent._observations[-1][1][:, :2] - env.world._dyn_now[:, :2])
+    np.testing.assert_array_equal(env.world._dyn_now, truth), "the world was corrupted"
+    spread = np.std(np.concatenate([e.ravel() for e in errors]))
+    assert 0.04 < spread < 0.06, spread
+    assert np.array_equal(agent._observations[-1][1][:, 2], truth[:, 2]), "radius was corrupted"
+
+
+def test_the_same_seed_corrupts_the_same_way():
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+
+    def observed(seed):
+        _, env = _cv_agent_on("dynamic")
+        agent = SpaceTimeAgent(SpaceTimeConfig(predictor="harmonic", observation_noise_m=0.02,
+                                               noise_seed=seed), robot=env.config.robot)
+        agent.start_episode(env.world, env.robot.pose)
+        for _ in range(5):
+            env.step(agent.act(env.robot.pose))
+        return np.stack([p for _, p in agent._observations])
+
+    np.testing.assert_array_equal(observed(0), observed(0))
+    assert not np.array_equal(observed(0), observed(1))
+
+
+@pytest.mark.parametrize("seed", [0, 3])
+def test_the_oracle_cannot_hear_the_noise(seed):
+    """The control the experiment rests on: the oracle reads no observations, so
+    corrupting them must leave its trajectory bit-identical."""
+    clean, _, _ = _episode("dynamic_dense", seed, True, margin=2, predictor="oracle")
+    noisy, _, _ = _episode("dynamic_dense", seed, True, margin=2, predictor="oracle",
+                           observation_noise_m=0.05)
+    assert clean.shape == noisy.shape and np.array_equal(clean, noisy)
+
+
+def test_noise_reaches_the_estimate_and_the_planner():
+    """Not silently ignored where it must act.
+
+    First written as "episode 1's trajectory changes", which failed with nothing
+    wrong: 2 cm of jitter changes two of six dense episodes, and episode 1 is
+    not one of them. What must hold is that the estimate and the planner's grid
+    move, and that *some* episode does.
+    """
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+
+    _, env = _cv_agent_on("dynamic_dense")
+    agents = {}
+    for sigma in (0.0, 0.02):
+        a = SpaceTimeAgent(SpaceTimeConfig(predictor="harmonic", temporal_margin_steps=2,
+                                           observation_noise_m=sigma), robot=env.config.robot)
+        a._world, a._observations = env.world, []
+        agents[sigma] = a
+    for _ in range(31):
+        for a in agents.values():
+            a._observe()
+        env.world.set_time(env.world._t + env.config.robot.dt)
+
+    ahead = env.world._t + 2.0
+    truth = env.world.dynamic_at(ahead)[:, :2]
+    err = {s: np.median(np.linalg.norm(a._predicted_discs(ahead)[:, :2] - truth, axis=1))
+           for s, a in agents.items()}
+    assert err[0.0] < 1e-3 < err[0.02], err
+    radius = env.world.config.robot_radius + agents[0.0].config.safety_margin
+    assert not np.array_equal(agents[0.0]._mover_occupancy(radius, 30),
+                              agents[0.02]._mover_occupancy(radius, 30))
+
+    changed = 0
+    for seed in range(6):
+        clean, _, _ = _episode("dynamic_dense", seed, True, margin=2, predictor="harmonic")
+        noisy, _, _ = _episode("dynamic_dense", seed, True, margin=2, predictor="harmonic",
+                               observation_noise_m=0.02)
+        changed += clean.shape != noisy.shape or not np.array_equal(clean, noisy)
+    assert changed, "no episode moved: the noise is not reaching the robot"
