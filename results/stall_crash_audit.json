@@ -1,0 +1,6477 @@
+{
+  "prediction": "AT THE OPENING: over half of the added collisions -- episodes that timed out untouched and collided once released -- happen within 1.0 m of where the robot had stalled and within 3.0 s of the release. And the RGB features decode the gap's angular width worse than the depth vector does, by at least 0.10 of held-out R-squared. Decision on the first -- AT THE OPENING: over half within both bounds. ELSEWHERE: under a quarter. Otherwise MIXED.",
+  "worlds": 50,
+  "near_m": 1.0,
+  "soon_s": 3.0,
+  "per_seed": {
+    "depthi_s0": [
+      {
+        "episode": 0,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 4,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 6,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 8,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 10,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 12,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 16,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 17,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 19,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 20,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 21,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 23,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 28,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 30,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 35,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 37,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 39,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 40,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 41,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 43,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      }
+    ],
+    "depthi_s1": [
+      {
+        "episode": 0,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 4,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 6,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 8,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 10,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 12,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 16,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 17,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 19,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 20,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 21,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 23,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 28,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 30,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 35,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 37,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 39,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 40,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 41,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 43,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      }
+    ],
+    "depthi_s2": [
+      {
+        "episode": 0,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 4,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 6,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 8,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 10,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 12,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 16,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 17,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 19,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 20,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 21,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 23,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 28,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 30,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 35,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 37,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 39,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 40,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 41,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 43,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      }
+    ],
+    "depthi_s3": [
+      {
+        "episode": 0,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 4,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 6,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 8,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 10,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 12,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 16,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 17,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 19,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 20,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 21,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 23,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 28,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 30,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 35,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 37,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 39,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 40,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 41,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 43,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      }
+    ],
+    "depthi_s4": [
+      {
+        "episode": 0,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 4,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 6,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 8,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 10,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 12,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 16,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 17,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 19,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 20,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 21,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 23,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 28,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 30,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 35,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 37,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 39,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 40,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 41,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 43,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      }
+    ],
+    "depthi_s5": [
+      {
+        "episode": 0,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 4,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 6,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 8,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 10,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 12,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 16,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 17,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 19,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 20,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 21,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 23,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 28,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 30,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 35,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 37,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 39,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 40,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 41,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 43,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      }
+    ],
+    "rgbi_s0": [
+      {
+        "episode": 0,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 4,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 6,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 8,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 10,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 12,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 16,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 17,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 19,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 20,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 21,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 23,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 28,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 30,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 35,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 37,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 39,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 40,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 41,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 43,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      }
+    ],
+    "rgbi_s1": [
+      {
+        "episode": 0,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 4,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 6,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 8,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 10,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 12,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 16,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 17,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 19,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 20,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 21,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 23,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 28,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 30,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 35,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 37,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 39,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 40,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 41,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 43,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      }
+    ],
+    "rgbi_s2": [
+      {
+        "episode": 0,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 4,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 6,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 8,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 10,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 12,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 16,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 17,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 19,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 20,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 21,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 23,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 28,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 30,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 35,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 37,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 39,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 40,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 41,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 43,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      }
+    ],
+    "rgbi_s3": [
+      {
+        "episode": 0,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 4,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 6,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 8,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 10,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 12,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 16,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 17,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 18,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 19,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 20,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 21,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 23,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 28,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 30,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 35,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 37,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 39,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 40,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 41,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 43,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      }
+    ],
+    "rgbi_s4": [
+      {
+        "episode": 0,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 4,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 6,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 8,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 10,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 12,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 16,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 17,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 19,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 20,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 21,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 23,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 28,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 30,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 35,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 37,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 39,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 40,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 41,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 43,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      }
+    ],
+    "rgbi_s5": [
+      {
+        "episode": 0,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 4,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 6,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 8,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 10,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 12,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 16,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 17,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 19,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 20,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 21,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 23,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 28,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 30,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 35,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 37,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 39,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 40,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 41,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 43,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 0
+      }
+    ],
+    "rgbi_s0_released": [
+      {
+        "episode": 0,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 4,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 6,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 8,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 1,
+        "metres_from_stall": 0.960691701144655,
+        "seconds_since_release": 4.9
+      },
+      {
+        "episode": 10,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 12,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 16,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 2,
+        "metres_from_stall": 0.14590488932740556,
+        "seconds_since_release": 1.2000000000000002
+      },
+      {
+        "episode": 17,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 3
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 19,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 20,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 2,
+        "metres_from_stall": 0.638027357664602,
+        "seconds_since_release": 9.700000000000001
+      },
+      {
+        "episode": 21,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 23,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 28,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 30,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 35,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 37,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 39,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 40,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 41,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 43,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      }
+    ],
+    "rgbi_s1_released": [
+      {
+        "episode": 0,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 1
+      },
+      {
+        "episode": 4,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 1,
+        "metres_from_stall": 0.6444650989778943,
+        "seconds_since_release": 5.6000000000000005
+      },
+      {
+        "episode": 6,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 8,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 10,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 12,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 16,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 17,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 1,
+        "metres_from_stall": 0.5279980997760687,
+        "seconds_since_release": 1.9000000000000001
+      },
+      {
+        "episode": 19,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 20,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 21,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 23,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 28,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 30,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 35,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 37,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 39,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 40,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 41,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 1,
+        "metres_from_stall": 0.23070252947738792,
+        "seconds_since_release": 2.1
+      },
+      {
+        "episode": 43,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      }
+    ],
+    "rgbi_s2_released": [
+      {
+        "episode": 0,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 4,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 6,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 1
+      },
+      {
+        "episode": 8,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 10,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 12,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 5
+      },
+      {
+        "episode": 16,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 17,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 19,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 2,
+        "metres_from_stall": 0.6616896777722304,
+        "seconds_since_release": 5.5
+      },
+      {
+        "episode": 20,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 21,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 1
+      },
+      {
+        "episode": 22,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 12
+      },
+      {
+        "episode": 23,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 10,
+        "metres_from_stall": 0.4283163203684483,
+        "seconds_since_release": 1.7000000000000002
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 28,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 30,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 19,
+        "metres_from_stall": 0.2714466413822859,
+        "seconds_since_release": 1.0
+      },
+      {
+        "episode": 35,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 37,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 1,
+        "metres_from_stall": 2.3141954596331478,
+        "seconds_since_release": 5.9
+      },
+      {
+        "episode": 39,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 40,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 1
+      },
+      {
+        "episode": 41,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 3,
+        "metres_from_stall": 0.303366674409183,
+        "seconds_since_release": 1.0
+      },
+      {
+        "episode": 43,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 5
+      }
+    ],
+    "rgbi_s3_released": [
+      {
+        "episode": 0,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 1
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 11
+      },
+      {
+        "episode": 4,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 6,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 2,
+        "metres_from_stall": 0.4332480195423496,
+        "seconds_since_release": 2.0
+      },
+      {
+        "episode": 8,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 3
+      },
+      {
+        "episode": 10,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 1
+      },
+      {
+        "episode": 12,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 16,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 17,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 2,
+        "metres_from_stall": 3.5331953450018103,
+        "seconds_since_release": 10.200000000000001
+      },
+      {
+        "episode": 19,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 6
+      },
+      {
+        "episode": 20,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 1
+      },
+      {
+        "episode": 21,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 18
+      },
+      {
+        "episode": 23,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 9
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 1,
+        "metres_from_stall": 2.894020844715941,
+        "seconds_since_release": 11.200000000000001
+      },
+      {
+        "episode": 26,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 2,
+        "metres_from_stall": 1.1570533935519007,
+        "seconds_since_release": 3.1
+      },
+      {
+        "episode": 28,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 9
+      },
+      {
+        "episode": 30,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 4
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 5,
+        "metres_from_stall": 1.1384271271682282,
+        "seconds_since_release": 3.2
+      },
+      {
+        "episode": 35,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 37,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 39,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 1
+      },
+      {
+        "episode": 40,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 14
+      },
+      {
+        "episode": 41,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 9,
+        "metres_from_stall": 0.5097822817546833,
+        "seconds_since_release": 1.1
+      },
+      {
+        "episode": 43,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 2
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 1
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 6
+      }
+    ],
+    "rgbi_s4_released": [
+      {
+        "episode": 0,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 12
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 4,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 6,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 4
+      },
+      {
+        "episode": 8,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 10,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 15
+      },
+      {
+        "episode": 12,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 3
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 1
+      },
+      {
+        "episode": 15,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 16,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 1,
+        "metres_from_stall": 1.0008430612728187,
+        "seconds_since_release": 2.7
+      },
+      {
+        "episode": 17,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 19,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 20,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 21,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 26
+      },
+      {
+        "episode": 23,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 1,
+        "metres_from_stall": 0.5075946068196355,
+        "seconds_since_release": 1.7000000000000002
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 1,
+        "metres_from_stall": 3.5183318128833716,
+        "seconds_since_release": 12.9
+      },
+      {
+        "episode": 27,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 8
+      },
+      {
+        "episode": 28,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 29,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 3
+      },
+      {
+        "episode": 30,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 27
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 4
+      },
+      {
+        "episode": 35,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 4,
+        "metres_from_stall": 0.45970424089522693,
+        "seconds_since_release": 3.3000000000000003
+      },
+      {
+        "episode": 36,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 20,
+        "metres_from_stall": 0.0,
+        "seconds_since_release": 0.0
+      },
+      {
+        "episode": 37,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 4,
+        "metres_from_stall": 0.5539720397900506,
+        "seconds_since_release": 3.3000000000000003
+      },
+      {
+        "episode": 38,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 39,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 1,
+        "metres_from_stall": 0.2873680847787636,
+        "seconds_since_release": 1.5
+      },
+      {
+        "episode": 40,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 2,
+        "metres_from_stall": 0.49888900609825415,
+        "seconds_since_release": 2.4000000000000004
+      },
+      {
+        "episode": 41,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 6,
+        "metres_from_stall": 0.2420464943435293,
+        "seconds_since_release": 2.1
+      },
+      {
+        "episode": 43,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 1
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 17
+      },
+      {
+        "episode": 47,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      }
+    ],
+    "rgbi_s5_released": [
+      {
+        "episode": 0,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 1,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 2,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 3,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 4,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 5,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 3,
+        "metres_from_stall": 0.2498548372517464,
+        "seconds_since_release": 1.8
+      },
+      {
+        "episode": 6,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 7,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 1
+      },
+      {
+        "episode": 8,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 9,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 10,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 11,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 12,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 2
+      },
+      {
+        "episode": 13,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 14,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 15,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 1,
+        "metres_from_stall": 0.04657073567358314,
+        "seconds_since_release": 0.2
+      },
+      {
+        "episode": 16,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 1,
+        "metres_from_stall": 1.1585525523645954,
+        "seconds_since_release": 5.9
+      },
+      {
+        "episode": 17,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 11
+      },
+      {
+        "episode": 18,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 19,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 2,
+        "metres_from_stall": 0.608655887541037,
+        "seconds_since_release": 2.5
+      },
+      {
+        "episode": 20,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 21,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 22,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 18,
+        "metres_from_stall": 0.6125101286211769,
+        "seconds_since_release": 3.4000000000000004
+      },
+      {
+        "episode": 23,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 23
+      },
+      {
+        "episode": 24,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 25,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 26,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 27,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 28,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 46,
+        "metres_from_stall": 0.09771752072876153,
+        "seconds_since_release": 3.0
+      },
+      {
+        "episode": 29,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 30,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 31,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 32,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 33,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 34,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 35,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 36,
+        "collision": false,
+        "success": false,
+        "timeout": true,
+        "releases": 8
+      },
+      {
+        "episode": 37,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 38,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 1,
+        "metres_from_stall": 1.376672305125762,
+        "seconds_since_release": 2.6
+      },
+      {
+        "episode": 39,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 40,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 41,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 42,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 1,
+        "metres_from_stall": 0.5106198121192989,
+        "seconds_since_release": 5.4
+      },
+      {
+        "episode": 43,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 1,
+        "metres_from_stall": 2.3258404203709953,
+        "seconds_since_release": 7.4
+      },
+      {
+        "episode": 44,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 45,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 46,
+        "collision": true,
+        "success": false,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 47,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 0
+      },
+      {
+        "episode": 48,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 1
+      },
+      {
+        "episode": 49,
+        "collision": false,
+        "success": true,
+        "timeout": false,
+        "releases": 1
+      }
+    ]
+  },
+  "probe": {
+    "gap_width_rad": {
+      "depthi": {
+        "per_seed": [
+          0.1649023785097241,
+          0.25205043231929114,
+          0.2051966191450173,
+          0.2354686734788265,
+          0.21724441387939764,
+          0.24576746779207415
+        ],
+        "mean": 0.2201049975207218
+      },
+      "rgbi": {
+        "per_seed": [
+          -0.06775664026429129,
+          0.1212310861076995,
+          -0.1616270937532922,
+          -0.7854633401122795,
+          -0.11764654512016781,
+          -0.748105353401515
+        ],
+        "mean": -0.293227981090641
+      },
+      "p": 0.0021645021645021645,
+      "gap": 0.5133329786113628
+    },
+    "clearance_ahead_m": {
+      "depthi": {
+        "per_seed": [
+          0.25454208889741803,
+          0.23564383943679557,
+          0.23291070210568932,
+          0.2468691497142752,
+          0.3214259934628916,
+          0.29100588868281074
+        ],
+        "mean": 0.26373294371664674
+      },
+      "rgbi": {
+        "per_seed": [
+          0.16205428944056222,
+          0.33024673829305695,
+          0.2508508196278837,
+          0.17306975994325136,
+          0.20779632932705827,
+          0.10427516884036836
+        ],
+        "mean": 0.20471551757869677
+      },
+      "p": 0.13203463203463203,
+      "gap": 0.05901742613794997
+    }
+  },
+  "added_collisions": {
+    "n": 19,
+    "at_opening": 9,
+    "elsewhere": 10,
+    "share_at_opening": 0.47368421052631576,
+    "median_metres_from_stall": 0.5097822817546833,
+    "median_seconds_since_release": 3.1
+  },
+  "decision": "MIXED"
+}

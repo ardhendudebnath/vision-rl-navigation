@@ -50,6 +50,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
 | 5w | Cap the estimate's extrapolation at 2 s and 1 s | **Done** — **UNRESOLVED: +0.010 on dense**; a 1 s cap costs sparse 0.085 (p = 0.0005) |
+| 6b | Where a released pixel policy crashes; probe for gap width | **Done** — **MIXED on where**; the CNN features cannot measure a gap (R² −0.29 against 0.22) |
 | 6a | Fit the orbit by least squares instead of differencing | **Done** — **FILTER: +0.145 on dense at 1 cm noise (p < 0.0001)**; no longer distinguishable from the oracle |
 | 5z | Gaussian noise on each observed mover position, 2 mm to 5 cm | **Done** — **UNRESOLVED at 1 cm (+0.005)**; noise costs more than the model bought; the fit wins at 5 cm |
 | 5y | Fit each mover's oscillation instead of a straight line | **Done** — **MODEL: +0.070 on dense (p = 0.0001)**; matches the oracle, motion cost 0.005 |
@@ -2524,6 +2525,47 @@ planner converts a small estimate error into a lost episode.
 A note on the numbers it quoted: the pre-registration cited 0.057 m at two
 seconds from a ten-second warm-up, and the experiment's own measurement, with a
 six-second one, gives 0.050 m. Neither was tuned; the warm-up differs.
+
+## Phase 6b — Where a released policy crashes, and the gap it cannot measure
+
+Phase 5x released the RGB policy's velocity latch and its timeouts became
+collisions. Two measurements, no training, pre-registered in `557076c`.
+
+Registered decision: **MIXED**.
+
+- Added collisions (timed out untouched, collided once released): 19. Within a
+  metre of the stall *and* three seconds of the release: 9. The registered rule
+  needed over half, and returns MIXED.
+- Post hoc, and labelled so: 13 of the 19 are within a metre of the stall at any
+  delay; the median is 0.51 m and 3.1 s. The place was right in the
+  prediction and the timing was not -- a released robot edges into something
+  beside the opening over a few seconds rather than driving into it at once.
+- Probe for the geometry *around* an opening: the CNN's image features decode
+  the goal-ward gap's angular width at R² = −0.293, worse than
+  predicting the mean, where the depth vector reaches 0.220
+  (p = 0.0022 over six seeds, and every RGB seed below every depth
+  seed).
+- The same features carry the clearance half a metre ahead nearly as well as
+  depth (0.205 against 0.264, p = 0.132).
+
+### Consequences
+
+The encoding keeps how far away the obstacle ahead is and loses how wide the way
+past it is. That is the quantity a 0.22 m disc in a corridor needs, it is what
+Phase 5v's stalls were in front of, and it is what a released policy fails at
+half a metre from where it stopped. Report Section 12 item 2 is now the
+encoder's resolution rather than its reward: the first convolution strides four
+across a 64-pixel image, so a two-column gap cannot survive it.
+
+### Calibration
+
+Prediction 27 failed on its registered decision (AT THE OPENING, returned
+MIXED) and held on its probe clause, which was the more specific one: at least
+0.10 of R-squared behind on gap width, measured 0.513 behind. The conjunction
+that failed -- a metre *and* three seconds -- was written without measuring how
+long a released robot takes to reach anything, and the distance half of it was
+right. A bound picked for a quantity nothing had measured is the same mistake
+Phase 5r's arithmetic made, in a smaller way.
 
 ## Hardware notes
 

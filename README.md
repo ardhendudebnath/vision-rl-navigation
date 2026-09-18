@@ -59,9 +59,10 @@ decision below follows from wanting that comparison to be trustworthy.
 | Fitting without differencing: the filter closes the gap — from the robot's own noisy observations, indistinguishable from an oracle | Done |
 | Encoder cost re-priced at 1:1: survives (−0.180 narrow), and still fails by stalling | Done |
 | Why the pixel policy stalls: the image carries the depth, and a velocity latch holds the stall — released, it crashes | Done |
+| And what its features lack: the clearance ahead is there, the width of the gap past it is not | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Forty-two experiments, each pre-registered where it tests a hypothesis. The
+Forty-three experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).

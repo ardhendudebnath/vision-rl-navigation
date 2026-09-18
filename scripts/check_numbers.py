@@ -663,6 +663,43 @@ def claims():
                     (f"innovation {arm} dense collision", dense_c,
                      icells[arm]["dynamic_dense"]["collision"])]
 
+    # --- released crashes and the gap probe, Phase 6b ---------------------
+    cr = "results/stall_crash_audit.json"
+    if os.path.exists(cr):
+        cj = load(cr)
+        added, probe, per = cj["added_collisions"], cj["probe"], cj["per_seed"]
+        width, clear = probe["gap_width_rad"], probe["clearance_ahead_m"]
+        # The documents' post hoc split, re-derived here rather than trusted.
+        near = total = 0
+        for s in range(6):
+            quiet = {e["episode"]: e for e in per[f"rgbi_s{s}"]}
+            loud = {e["episode"]: e for e in per[f"rgbi_s{s}_released"]}
+            for ep, q in quiet.items():
+                r = loud[ep]
+                if q["timeout"] and r["collision"] and "metres_from_stall" in r:
+                    total += 1
+                    near += r["metres_from_stall"] <= 1.0
+        out += [
+            ("crash decision MIXED", 1.0, float(cj["decision"] == "MIXED")),
+            ("crash added collisions", 19, added["n"]),
+            ("crash at the opening", 9, added["at_opening"]),
+            ("crash elsewhere", 10, added["elsewhere"]),
+            ("crash median metres", 0.51, added["median_metres_from_stall"]),
+            ("crash median seconds", 3.1, added["median_seconds_since_release"]),
+            ("crash within a metre at any delay", 13, near),
+            ("crash added total re-derived", 19, total),
+            ("probe gap width rgbi", -0.293, width["rgbi"]["mean"]),
+            ("probe gap width depthi", 0.220, width["depthi"]["mean"]),
+            ("probe gap width gap", 0.513, width["gap"]),
+            ("probe gap width p", 0.0022, width["p"]),
+            ("probe clearance rgbi", 0.205, clear["rgbi"]["mean"]),
+            ("probe clearance depthi", 0.264, clear["depthi"]["mean"]),
+            ("probe clearance gap", 0.059, clear["gap"]),
+            ("probe clearance p", 0.132, clear["p"]),
+            ("probe gap width complete separation", 1.0,
+             float(max(width["rgbi"]["per_seed"]) < min(width["depthi"]["per_seed"]))),
+        ]
+
     # --- fitting without differencing, Phase 6a ---------------------------
     ob = "results/orbit_experiment.json"
     if os.path.exists(ob):

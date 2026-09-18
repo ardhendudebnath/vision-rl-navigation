@@ -49,7 +49,10 @@ nothing.
    and a reward that prices a crash like a stall — under which, unlike a
    coverage deficit, it still fails by stalling. An audit found the image
    carries depth to within 0.114 m, and the policy stopping in front of
-   openings its own camera features mostly encode as open.
+   openings its own camera features mostly encode as open. A probe says what
+   those features lack: the clearance ahead is there, the *width* of the gap
+   past it is not (R² −0.29 against a depth vector's 0.22) — which is the
+   quantity a robot needs to fit through a corridor.
 4. **Nav2 corrected the baseline rather than confirming it.** The hand-written
    stack matches a production one to within 0.03 where clutter is not binding,
    but is 0.06–0.08 worse in tight corridors — so the published gap there was
@@ -111,8 +114,8 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of twenty-six advance predictions, four derived from
-*measurements* held; thirteen failed outright and nine got part right and part
+pre-registered endpoints. Of twenty-seven advance predictions, four derived from
+*measurements* held; fourteen failed outright and nine got part right and part
 wrong, with identical confidence of expression
 throughout. The three failures that reasoned from a real measurement all
 carried it into a regime nothing had been measured in — and the one that

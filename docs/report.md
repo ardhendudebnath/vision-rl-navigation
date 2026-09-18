@@ -623,6 +623,21 @@ every seed (−0.073, p = 0.031) and collides more on every seed by nearly as mu
 worth nothing, which is the finding: the latch is not what costs the RGB policy
 its episodes. Released, its stalls become crashes, not successes.
 
+**It cannot measure a gap.** A probe on the CNN's image features decodes the
+angular width of the traversable gap toward the goal at R² = −0.29 --
+worse than predicting the mean -- where the same probe on the depth policy's
+input vector reaches 0.220 (p = 0.002 over seeds). The same
+features do carry the clearance half a metre ahead about as well as depth does
+(0.205 against 0.264, p = 0.13), so this is not
+a general blindness: the encoding keeps how far the wall ahead is and loses how
+wide the way past it is, which is exactly the quantity a 0.22 m disc in a
+corridor needs. Where the released episodes crash fits that: 13 of the 19
+added collisions happen within a metre of where the robot had stalled, at a
+median 0.51 m and 3.1 s after the release -- it edges into something
+beside the opening rather than driving off and failing elsewhere. That split by
+distance is post hoc; the registered rule asked for a metre *and* three
+seconds, which 9 of 19 meet, and returns MIXED.
+
 The forecast registered in the audit script is not counted in §10's record: a
 smoke test printed results before it was committed, and the commit says so.
 Every clause of it held, and its headline — a policy blind to the detour — is
@@ -801,11 +816,11 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of twenty-six predictions made in advance, four derived from a
-*measurement* held — two to within 0.021 and 0.001, one on both magnitude and
+**Calibration.** Of twenty-seven predictions made in advance, four derived from
+a *measurement* held — two to within 0.021 and 0.001, one on both magnitude and
 mechanism, and one whose magnitude came from measuring the estimator it was
 about; thirteen from extrapolation, intuition, arithmetic or a post hoc
-description failed outright; nine got part right and part wrong. Confidence of
+description failed outright; ten got part right and part wrong. Confidence of
 expression was identical throughout. Three rules came out of them; the record
 of each prediction is in [`project_plan.md`](project_plan.md). The fifteenth
 also broke this report's own stated practice: its null was registered as an
@@ -899,13 +914,13 @@ In order of expected information per GPU-hour:
    larger gift than exactness was, and the machinery to take it back exists:
    the same ray-caster the depth camera uses decides which movers are visible,
    and the estimator already carries a track it can coast on when one is not.
-2. **Why going on crashes.** Released from the latch its own velocity input
-   holds it in, the RGB policy crashes about as often as it had stalled
-   (§8.5), though at the stalls specific to it the route is open and its camera
-   features say so. Where those crashes happen — at the opening it had stopped
-   in front of, or later — is one more replay; whether its features encode the
-   geometry *around* an opening, which fitting through it needs, is a probe on
-   the same features.
+2. **An encoder that can measure a gap.** The RGB features carry the
+   clearance ahead as well as a depth vector does and the *width* of the gap
+   past it not at all (§8.5). The first convolution strides 4 across a
+   64-pixel-wide image, so a gap two columns wide survives as at most half a
+   feature; a narrower stride, or a wider render at the same field of view, is
+   one training run per arm, and the probe says in advance what to measure
+   rather than waiting for success rates to move.
 3. **A recurrent policy that was actually tuned.** §9.1 tested one and it was
    worse everywhere, but it ran on hyperparameters chosen for an MLP so the
    comparison would be algorithm-only. That makes the result a statement about
