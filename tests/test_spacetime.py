@@ -978,3 +978,96 @@ def test_noise_reaches_the_estimate_and_the_planner():
                                observation_noise_m=0.02)
         changed += clean.shape != noisy.shape or not np.array_equal(clean, noisy)
     assert changed, "no episode moved: the noise is not reaching the robot"
+
+# ============================================================================
+# The orbit fit: the same model, fitted without differencing
+# ============================================================================
+def test_the_orbit_fit_recovers_an_oscillation_from_clean_observations():
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+
+    agent = SpaceTimeAgent(SpaceTimeConfig(predictor="orbit"))
+    centre, direction, amplitude, omega = (4.0, 5.0), (0.6, 0.8), 2.0, 0.35
+    times = np.arange(0.0, 3.01, 0.1)
+    seen = _sine_history(centre, direction, amplitude, omega, times)
+    for horizon in (1.0, 3.0, 7.0):
+        t = times[-1] + horizon
+        truth = np.asarray(centre) + np.asarray(direction) * amplitude * np.sin(omega * t)
+        got = agent._orbit_discs(seen, t)
+        assert got is not None
+        assert np.linalg.norm(got[0, :2] - truth) < 1e-2, horizon
+
+
+def test_the_orbit_fit_beats_the_differenced_one_under_noise():
+    """The reason it exists. Same track, same model, same horizon: the fit that
+    never differences must survive a centimetre of error far better."""
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+
+    centre, direction, amplitude, omega = (4.0, 5.0), (1.0, 0.0), 2.0, 0.3
+    times = np.arange(0.0, 3.01, 0.1)
+    clean = _sine_history(centre, direction, amplitude, omega, times)
+    t = times[-1] + 2.0
+    truth = np.asarray(centre) + np.asarray(direction) * amplitude * np.sin(omega * t)
+    orbit = SpaceTimeAgent(SpaceTimeConfig(predictor="orbit"))
+    diff = SpaceTimeAgent(SpaceTimeConfig(predictor="harmonic"))
+
+    # Over draws, not one: a single realisation of the noise says little, and an
+    # absolute bound picked by hand says less. On the real worlds this ratio is
+    # about eight; the bar is set well inside that.
+    errs = {"orbit": [], "differenced": []}
+    for draw in range(20):
+        rng = np.random.default_rng(draw)
+        noisy = [(ts, p.copy()) for ts, p in clean]
+        for _, p in noisy:
+            p[:, :2] += rng.normal(0.0, 0.01, size=(1, 2))
+        # Through the predictor, so a fit that declines falls back to the line,
+        # which is what the planner would actually be handed.
+        errs["orbit"].append(np.linalg.norm(
+            orbit._predicted_discs(t, observations=noisy)[0, :2] - truth))
+        errs["differenced"].append(np.linalg.norm(
+            diff._predicted_discs(t, observations=noisy)[0, :2] - truth))
+    median = {k: float(np.median(v)) for k, v in errs.items()}
+    assert median["orbit"] < median["differenced"] / 2, median
+
+
+def test_the_orbit_fit_follows_its_observations_not_the_world():
+    agent, env = _cv_agent_on("dynamic")
+    agent.config.predictor = "orbit"
+    times = np.arange(env.world._t, env.world._t + 3.01, 0.1)
+    invented = _sine_history((1.0, 1.0), (1.0, 0.0), 1.5, 0.5, times)
+    t = times[-1] + 2.0
+    got = agent._predicted_discs(t, observations=invented)
+    expected = 1.0 + 1.5 * np.sin(0.5 * t)
+    assert abs(got[0, 0] - expected) < 1e-2
+    assert not np.allclose(got[0, :2], env.world.dynamic_at(t)[0, :2])
+
+
+def test_too_little_track_falls_back_to_the_straight_line_for_the_orbit_fit():
+    from vision_nav.agents.spacetime import SpaceTimeAgent, SpaceTimeConfig
+
+    agent = SpaceTimeAgent(SpaceTimeConfig(predictor="orbit"))
+    short = _sine_history((4.0, 5.0), (1.0, 0.0), 2.0, 0.35, np.arange(0.0, 0.61, 0.1))
+    assert agent._orbit_discs(short, 3.0) is None
+    np.testing.assert_array_equal(agent._predicted_discs(3.0, observations=short),
+                                  agent._constant_velocity_discs(short, 3.0))
+
+
+@pytest.mark.parametrize("seed", [0, 3])
+def test_the_orbit_fit_is_exact_on_frozen_worlds(seed):
+    oracle, _, _ = _episode("dynamic_dense_frozen", seed, True, margin=2, predictor="oracle")
+    fitted, _, _ = _episode("dynamic_dense_frozen", seed, True, margin=2, predictor="orbit")
+    assert oracle.shape == fitted.shape and np.array_equal(oracle, fitted)
+
+
+def test_the_orbit_fit_is_cached_per_track_and_invalidated_by_a_new_one():
+    """Thirty horizons a plan rest on one fit; a new observation must void it."""
+    agent, env = _cv_agent_on("dynamic")
+    agent.config.predictor = "orbit"
+    for _ in range(35):
+        env.step(agent.act(env.robot.pose))
+    agent._predicted_discs(env.world._t + 1.0)
+    cached = agent._orbit_cache
+    assert cached is not None
+    agent._predicted_discs(env.world._t + 2.0)
+    assert agent._orbit_cache is cached, "the fit was recomputed for a second horizon"
+    agent._observe()
+    assert agent._orbit_cache is None, "a new observation left a stale fit in place"

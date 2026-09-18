@@ -108,6 +108,12 @@ class SpaceTimeConfig:
     #: estimator can be given: noise-free observations of a world that really is
     #: harmonic. It bounds what a better model is worth here; it is not a claim
     #: about a real sensor.
+    #:
+    #: ``"orbit"`` fits the same oscillation to the observations directly, by
+    #: searching the frequency and solving the rest by least squares -- no
+    #: differencing, so noise is averaged rather than amplified. Phase 5z
+    #: measured the differencing fit losing everything it had gained once
+    #: observations carry a centimetre of error.
     predictor: str = "oracle"
     #: Seconds of mover track the harmonic fit reads. Other predictors keep two
     #: observations, whatever this says, so their results cannot move.
@@ -198,6 +204,7 @@ class SpaceTimeAgent:
         self.innovation_replans = 0
         self._plan_basis: list[tuple[float, np.ndarray]] | None = None
         self._noise = np.random.default_rng(self.config.noise_seed)
+        self._orbit_cache = None
 
     # ------------------------------------------------------------------
     @property
@@ -220,6 +227,7 @@ class SpaceTimeAgent:
         self._plan_basis = None
         self._observations = []
         self._noise = np.random.default_rng(self.config.noise_seed)
+        self._orbit_cache = None
         self._observe()
         return self._plan(np.asarray(pose, dtype=np.float64))
 
@@ -264,7 +272,7 @@ class SpaceTimeAgent:
     def _history_needed(self) -> int:
         """Observations kept. Two is all a straight line can use; the harmonic
         estimator needs a stretch of track to read curvature off."""
-        if self.config.predictor != "harmonic":
+        if self.config.predictor not in ("harmonic", "orbit"):
             return 2
         return max(3, int(round(self.config.history_s / self.robot.dt)) + 1)
 
@@ -276,6 +284,7 @@ class SpaceTimeAgent:
             seen[:, :2] += self._noise.normal(0.0, self.config.observation_noise_m,
                                               size=(len(seen), 2))
         self._observations.append((w._t, seen))
+        self._orbit_cache = None  # the track moved; the fit is stale
         del self._observations[:-self._history_needed]
 
     def _harmonic_discs(self, seen, t: float) -> np.ndarray | None:
@@ -329,6 +338,53 @@ class SpaceTimeAgent:
                           + v_ref / omega * math.sin(omega * tau))
         return out
 
+    def _orbit_discs(self, seen, t: float) -> np.ndarray | None:
+        """The same oscillation, fitted to the observations without differencing
+        them.
+
+        ``p(t) = c + u sin(w t) + v cos(w t)`` is linear in ``c``, ``u`` and
+        ``v`` once ``w`` is fixed, so this searches ``w`` over a grid and solves
+        the rest by least squares -- a separable fit, in which every observation
+        gets an equal vote. The differencing fit reads curvature through a second
+        difference instead, which divides observation error by ``dt^2``; Phase 5z
+        measured what that costs once observations are noisy.
+
+        The frequency grid is the one piece of prior knowledge here: nothing
+        slower than a six-minute period or faster than 2 rad/s is treated as a
+        moving obstacle. It is a weaker assumption than the model class itself,
+        which both fits already share.
+
+        The fit is cached per observation history: the planner asks for thirty
+        horizons per plan, and they all rest on the same track.
+        """
+        times = np.array([s[0] for s in seen])
+        if len(seen) < 8 or len({len(p) for _, p in seen}) != 1:
+            return None
+        # The positions go in the key, not just the timestamp and length: the
+        # innovation check asks the same question of an older track, and two
+        # tracks of equal length can end at the same instant.
+        key = (float(times[-1]), len(seen), float(np.sum(seen[-1][1][:, :2])))
+        if self._orbit_cache is None or self._orbit_cache[0] != key:
+            track = np.stack([p[:, :2] for _, p in seen])  # (N, M, 2)
+            best = None
+            for omegas in (np.geomspace(0.02, 2.0, 96), None):
+                if omegas is None:  # refine around the coarse winner
+                    step = best[0] * (2.0 / 0.02) ** (1.0 / 95) - best[0]
+                    omegas = np.linspace(max(best[0] - step, 1e-3), best[0] + step, 21)
+                for omega in omegas:
+                    design = np.stack([np.ones_like(times), np.sin(omega * times),
+                                       np.cos(omega * times)], axis=1)
+                    coef, *_ = np.linalg.lstsq(design, track.reshape(len(times), -1), rcond=None)
+                    resid = float(((design @ coef - track.reshape(len(times), -1)) ** 2).sum())
+                    if best is None or resid < best[1]:
+                        best = (float(omega), resid, coef)
+            self._orbit_cache = (key, best)
+        omega, _, coef = self._orbit_cache[1]
+        out = seen[-1][1].copy()
+        basis = np.array([1.0, math.sin(omega * t), math.cos(omega * t)])
+        out[:, :2] = (basis @ coef).reshape(-1, 2)
+        return out
+
     def _constant_velocity_discs(self, seen, t: float) -> np.ndarray:
         t1, p1 = seen[-1]
         out = p1.copy()
@@ -349,11 +405,15 @@ class SpaceTimeAgent:
         w = self._world
         if self.config.predictor == "oracle":
             return w.dynamic_at(t)
-        if self.config.predictor not in ("constant_velocity", "harmonic"):
+        if self.config.predictor not in ("constant_velocity", "harmonic", "orbit"):
             raise ValueError(f"unknown predictor {self.config.predictor!r}")
         seen = self._observations if observations is None else observations
         if self.config.predictor == "harmonic":
             fitted = self._harmonic_discs(seen, t)
+            if fitted is not None:
+                return fitted
+        elif self.config.predictor == "orbit":
+            fitted = self._orbit_discs(seen, t)
             if fitted is not None:
                 return fitted
         return self._constant_velocity_discs(seen, t)
