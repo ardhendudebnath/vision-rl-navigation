@@ -663,6 +663,56 @@ def claims():
                     (f"innovation {arm} dense collision", dense_c,
                      icells[arm]["dynamic_dense"]["collision"])]
 
+    # --- noise on the observations, Phase 5z ------------------------------
+    nz = "results/noise_experiment.json"
+    if os.path.exists(nz):
+        nj = load(nz)
+        ncells, nx, s1 = nj["cells"], nj["contrasts"], nj["stage1"]["dynamic_dense"]
+        at01 = nx["harmonic@0.01_vs_constant_velocity@0.01"]["dynamic_dense"]
+        at05 = nx["harmonic@0.05_vs_constant_velocity@0.05"]["dynamic_dense"]
+        line_cost = nx["constant_velocity@0.01_vs_constant_velocity@0.0(5y)"]["dynamic_dense"]
+        fit_cost = nx["harmonic@0.01_vs_harmonic@0.0(5y)"]["dynamic_dense"]
+        v_oracle = nx["harmonic@0.01_vs_oracle@0.0"]["dynamic_dense"]
+        out += [
+            ("noise decision UNRESOLVED", 1.0, float(nj["decision"] == "UNRESOLVED")),
+            ("noise oracle deaf", 1.0, float(nj["checks"]["oracle_is_deaf_to_noise"])),
+            ("noise oracle reproduces 5r", 1.0, float(nj["checks"]["oracle_reproduces_phase_5r"])),
+            ("noise crossing sigma", 0.05, nj["fit_still_wins_up_to"]),
+            ("noise 1cm dense gain", 0.005, at01["success_gain"]),
+            ("noise 1cm dense won", 15, at01["episodes_won"]),
+            ("noise 1cm dense lost", 14, at01["episodes_lost"]),
+            ("noise 1cm dense ci lo", -0.050, at01["ci95"][0]),
+            ("noise 1cm dense ci hi", 0.055, at01["ci95"][1]),
+            ("noise 5cm dense gain", 0.115, at05["success_gain"]),
+            ("noise 5cm dense p", 0.0002, at05["p"]),
+            ("noise 5cm dense won", 30, at05["episodes_won"]),
+            ("noise 5cm dense lost", 7, at05["episodes_lost"]),
+            ("noise line cost at 1cm", -0.095, line_cost["success_gain"]),
+            ("noise line cost p", 0.0013, line_cost["p"]),
+            ("noise fit cost at 1cm", -0.160, fit_cost["success_gain"]),
+            ("noise fit vs oracle at 1cm", -0.155, v_oracle["success_gain"]),
+            # Stage 1, dense clutter, the two horizons the documents quote.
+            ("noise s1 line 2s at 0", 0.086, s1["constant_velocity@0.0"]["2.0s"]["median"]),
+            ("noise s1 line 2s at 0.005", 0.245, s1["constant_velocity@0.005"]["2.0s"]["median"]),
+            ("noise s1 line 2s at 0.01", 0.443, s1["constant_velocity@0.01"]["2.0s"]["median"]),
+            ("noise s1 line 2s at 0.02", 0.860, s1["constant_velocity@0.02"]["2.0s"]["median"]),
+            ("noise s1 line 2s at 0.05", 2.093, s1["constant_velocity@0.05"]["2.0s"]["median"]),
+            ("noise s1 fit 2s at 0.005", 0.304, s1["harmonic@0.005"]["2.0s"]["median"]),
+            ("noise s1 fit 2s at 0.01", 0.688, s1["harmonic@0.01"]["2.0s"]["median"]),
+            ("noise s1 fit 2s at 0.02", 0.840, s1["harmonic@0.02"]["2.0s"]["median"]),
+            ("noise s1 fit 2s at 0.05", 0.715, s1["harmonic@0.05"]["2.0s"]["median"]),
+            ("noise s1 line 7s at 0.05", 7.253, s1["constant_velocity@0.05"]["7.0s"]["median"]),
+            ("noise s1 fit 7s at 0.05", 0.932, s1["harmonic@0.05"]["7.0s"]["median"]),
+        ]
+        for arm, dense_s, dense_c in (
+            ("constant_velocity@0.01", 0.815, 0.160), ("harmonic@0.01", 0.820, 0.160),
+            ("constant_velocity@0.05", 0.680, 0.310), ("harmonic@0.05", 0.795, 0.195),
+        ):
+            out += [(f"noise {arm} dense success", dense_s,
+                     ncells[arm]["dynamic_dense"]["success"]),
+                    (f"noise {arm} dense collision", dense_c,
+                     ncells[arm]["dynamic_dense"]["collision"])]
+
     # --- fitting the oscillation, Phase 5y --------------------------------
     hm = "results/harmonic_experiment.json"
     if os.path.exists(hm):

@@ -713,7 +713,14 @@ recovers it all: +0.070 against the line on dense clutter
 the *oracle*, leaving a motion cost of 0.005. None of the cost belonged
 to the planner; each of those four was a way of coping with a wrong estimate.
 The observations are noise-free and the fitted model is the one the simulator
-integrates, so this is an upper bound on what better prediction is worth.
+integrates, so this is an upper bound — and a narrow one. A centimetre of
+error on each observed position costs the fitted planner 0.160 on dense
+clutter and the straight line 0.095, both larger than the 0.070 the model
+was worth, and at that noise the two estimators are indistinguishable
+(+0.005, interval [−0.050, +0.055]). The fitted model becomes the better
+one again only at coarse noise, where its bounded orbit beats a diverging
+line (+0.115 at 5 cm, p = 0.0002). At realistic sensing accuracy, what
+the estimator needs is not a better model class but a filter.
 
 **Recurrence is worse, and not because of motion.** An LSTM policy — the last
 untested way of supplying motion information, and the only one that learns what
@@ -788,10 +795,10 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of twenty-four predictions made in advance, four derived from
+**Calibration.** Of twenty-five predictions made in advance, four derived from
 a *measurement* held — two to within 0.021 and 0.001, one on both magnitude and
 mechanism, and one whose magnitude came from measuring the estimator it was
-about; twelve from extrapolation, intuition, arithmetic or a post hoc
+about; thirteen from extrapolation, intuition, arithmetic or a post hoc
 description failed outright; eight got part right and part wrong. Confidence of
 expression was identical throughout. Three rules came out of them; the record
 of each prediction is in [`project_plan.md`](project_plan.md). The fifteenth
@@ -879,13 +886,13 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Noise on the observations.** Fitting each mover's oscillation recovers
-   the whole of the estimate's cost and matches the oracle (§9.1) — from
-   observations that are exact and a model class that is exactly right, both
-   the simulator's gift. A scan-shaped error on each observed position, swept
-   from a centimetre up, turns that upper bound into a curve: how much sensing
-   accuracy the fit needs before three seconds of history stops pinning down a
-   frequency.
+1. **Filter before fitting.** Both estimators read raw observations, and the
+   fitted one differences them twice to see curvature, which divides a
+   centimetre of sensing error by dt² into metres of apparent acceleration
+   (§9.1). A filter that tracks position, velocity and frequency jointly is the
+   textbook repair, and the measurement says what it is worth: 0.160 of
+   dense-clutter success at a centimetre of noise, where the model class itself
+   is now worth nothing measurable.
 2. **Why going on crashes.** Released from the latch its own velocity input
    holds it in, the RGB policy crashes about as often as it had stalled
    (§8.5), though at the stalls specific to it the route is open and its camera

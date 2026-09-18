@@ -50,6 +50,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
 | 5w | Cap the estimate's extrapolation at 2 s and 1 s | **Done** — **UNRESOLVED: +0.010 on dense**; a 1 s cap costs sparse 0.085 (p = 0.0005) |
+| 5z | Gaussian noise on each observed mover position, 2 mm to 5 cm | **Done** — **UNRESOLVED at 1 cm (+0.005)**; noise costs more than the model bought; the fit wins at 5 cm |
 | 5y | Fit each mover's oscillation instead of a straight line | **Done** — **MODEL: +0.070 on dense (p = 0.0001)**; matches the oracle, motion cost 0.005 |
 | 5x | Replay with the velocity input overwritten, open and closed loop | **Done** — **PARTIAL: one-way latch (+0.367 exit, +0.008 entry)**; released, stalls become crashes |
 | 6 | *(Stretch)* Isaac Lab / Habitat port, sim-to-real on hardware | Not started |
@@ -2420,6 +2421,55 @@ measurement taken in the regime it was applied to -- here the estimator's own
 error, measured before registering and disclosed in the commit, which made the
 planner-level prediction close to arithmetic. Every category that has held in
 this project is that one.
+
+## Phase 5z — Noise on the observations: it costs more than the model bought
+
+Phase 5y's fitted oscillation matched the oracle from exact observations. Here
+each observed mover position carries a Gaussian error, 2 mm to 5 cm. Two stages:
+the estimators' own error over the grid with no planner, then the planner at
+levels chosen by a rule fixed before the sweep (a centimetre, plus the coarsest
+level where the fit still won at two seconds -- which turned out to be 0.05).
+Pre-registered in `f20f7e1`. Full treatment in `dynamic_obstacles.md`.
+
+Checks: the oracle bit-identical with noise and without, and reproducing Phase
+5r. Registered decision: **UNRESOLVED**.
+
+- Fitted minus line at σ = 0.01, dense: +0.005, p = 1.0, 15 won and 14 lost,
+  CI [−0.050, +0.055] -- neither MATTERS nor bounded-INERT.
+- Fitted minus line at σ = 0.05, dense: +0.115, p = 0.0002, 30 won and 7 lost.
+- Against their noise-free selves at σ = 0.01, dense: the line −0.095
+  (p = 0.0013), the fit −0.160 (p < 0.0001).
+- Fitted at σ = 0.01 against the oracle, dense: −0.155 (p < 0.0001).
+- Stage 1, dense, 2 s median error: line 0.086 → 0.443 → 2.093 as σ goes
+  0 → 0.01 → 0.05; fit 0.000 → 0.688 → 0.715. At 7 s the fit is bounded
+  (0.93 m at σ = 0.05) where the line diverges (7.25 m).
+
+### Consequences
+
+The estimator chain reads: with exact observations the model was everything;
+with a centimetre of error it is worth nothing measurable, and the error costs
+more than the model ever bought. The fit's advantage returns only at coarse
+noise, where its bounded orbit beats a diverging line.
+
+Neither estimator smooths. Differencing raw observations twice to read curvature
+divides the error by dt squared, which is what the sweep is measuring; a filter
+that tracks position, velocity and frequency jointly is the repair, with 0.160
+of dense-clutter success to win back.
+
+### Calibration
+
+Prediction 25 failed: registered FRAGILE, returned UNRESOLVED. Two clauses held
+-- at a centimetre the fit is not better than the line, and both are far behind
+the noise-free fit -- and two failed: the fit does *not* lose to the line at
+every level from 5 mm up (it wins at 0.02 and 0.05), and at 0.01 it is 1.6 times
+the line's error, not the tenfold registered.
+
+The arithmetic behind it was right about the mechanism and wrong about the
+consequence, which is Phase 5r's lesson repeated: a second difference does
+amplify the error by dt squared, and the fit is duly swamped -- but a swamped
+fit degrades into a bounded orbit, and a bounded wrong answer beats an unbounded
+one. Nothing in the calculation said what the *failure mode* of each estimator
+would look like.
 
 ## Hardware notes
 

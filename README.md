@@ -55,11 +55,12 @@ decision below follows from wanting that comparison to be trustworthy.
 | Motion cost traced to planning: oracle prediction, space-time planning, a temporal margin — ~0 given exact trajectories | Done |
 | With a real estimate instead: about half survives, and four changes to how the planner uses it recover none of the rest | Done |
 | Fitting the mover's oscillation from observation: recovers all of it and matches the oracle — the model was the problem | Done |
+| Noise on the observations: a centimetre costs more than the model bought, and only then does the model class stop mattering | Done |
 | Encoder cost re-priced at 1:1: survives (−0.180 narrow), and still fails by stalling | Done |
 | Why the pixel policy stalls: the image carries the depth, and a velocity latch holds the stall — released, it crashes | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Forty experiments, each pre-registered where it tests a hypothesis. The
+Forty-one experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).

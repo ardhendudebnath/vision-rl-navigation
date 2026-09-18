@@ -840,6 +840,56 @@ perfect sensing and the right model class, a real estimator is worth what the
 oracle was worth. What a noisy scan does to a three-second fit is the next
 question, and nothing here answers it.
 
+### Noise on the observations
+
+Phase 5y's fit matched the oracle from observations that were exact. This puts a
+Gaussian error on every observed mover position, 2 mm to 5 cm, corrupting what
+the agent sees and never the world. The oracle reads no observations, so an
+oracle arm is bit-identical with noise and without -- checked, and it also
+reproduces Phase 5r. The noise levels the planner ran at were fixed by a rule
+written before the sweep: a centimetre, plus the coarsest level at which the fit
+was still the better estimator at two seconds. Pre-registered in `f20f7e1`.
+
+| median error, `dynamic_dense`, 2 s ahead | σ = 0 | 0.005 | 0.01 | 0.02 | 0.05 |
+|---|---|---|---|---|---|
+| straight line | 0.086 | 0.245 | 0.443 | 0.860 | 2.093 |
+| fitted oscillation | 0.000 | 0.304 | 0.688 | 0.840 | 0.715 |
+
+| 200 episodes, `dynamic_dense` | success | collisions |
+|---|---|---|
+| oracle | 0.975 | 0.010 |
+| fitted, noise-free (Phase 5y) | 0.980 | 0.005 |
+| straight line at σ = 0.01 | 0.815 | 0.160 |
+| fitted at σ = 0.01 | 0.820 | 0.160 |
+| straight line at σ = 0.05 | 0.680 | 0.310 |
+| fitted at σ = 0.05 | 0.795 | 0.195 |
+
+**A centimetre of noise costs more than the model ever bought.** Against their
+own noise-free selves the line loses 0.095 on dense clutter (p = 0.0013) and
+the fit 0.160 (p < 0.0001) -- where the whole of Phase 5y's model gain was
+0.070. Against the oracle the fitted arm is now 0.155 behind
+(p < 0.0001). Everything the previous five phases moved is inside the
+error a real sensor would add.
+
+**At a centimetre the fit's advantage is gone, and the run cannot say it is
+equal.** Fitted minus line on dense clutter is +0.005, interval
+[−0.050, +0.055], 15 episodes won and 14 lost: neither the gain the prediction
+registered nor a bounded null, so the rule returns UNRESOLVED.
+
+**At five centimetres the fit is the better estimator again** --
++0.115 on dense clutter, p = 0.0002, 30 episodes won and 7 lost.
+Stage 1 says why: a fitted oscillation is bounded, so its error saturates
+(0.93 m at seven seconds) while a straight line diverges (7.25 m). The
+model earns its keep where the estimate is *worst*, not where it is best, which
+is the opposite of what the prediction assumed.
+
+So the honest summary of the estimator chain is this. With exact observations the
+model was everything (Phase 5y). With a centimetre of error the model is worth
+nothing measurable and the noise is worth more than the model was. Neither
+estimator smooths; the obvious repair is a filter that tracks position, velocity
+and frequency together rather than differencing raw observations twice, and it
+has 0.160 of dense-clutter success to win back.
+
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
 ones, where a correct map means the path is never blocked and it never fires.
