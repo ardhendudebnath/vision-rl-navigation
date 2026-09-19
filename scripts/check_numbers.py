@@ -663,6 +663,37 @@ def claims():
                     (f"innovation {arm} dense collision", dense_c,
                      icells[arm]["dynamic_dense"]["collision"])]
 
+    # --- the map test as registered, Phase 6d ------------------------------
+    mp, md = "results/mapping_experiment.json", "results/mapping_diagnostic.json"
+    if os.path.exists(mp):
+        mj = load(mp)
+        out += [("map decision COSTLY", 1.0, float(mj["decision"] == "COSTLY")),
+                ("map full reproduces", 1.0, float(mj["checks"]["full_map_reproduces_all"]))]
+        table = {
+            "sparse": (1.000, 1.000, 1.000), "nominal": (1.000, 0.990, 0.960),
+            "large": (1.000, 0.980, 0.990), "dense": (0.890, 0.610, 0.660),
+            "narrow": (0.850, 0.540, 0.590), "noisy_lidar": (1.000, 0.540, 0.520),
+        }
+        for cond, (full, lidar, camera) in table.items():
+            cells = mj["conditions"][cond]["cells"]
+            out += [(f"map {cond} full", full, cells["full_map"]["success"]),
+                    (f"map {cond} lidar", lidar, cells["mapped_lidar32"]["success"]),
+                    (f"map {cond} camera", camera, cells["mapped_camera64"]["success"])]
+    if os.path.exists(md):
+        dj = load(md)
+        keys = ("dense/lidar32", "dense/camera64", "narrow/lidar32", "narrow/camera64")
+        out += [
+            ("map diag collisions", 79, sum(dj[k]["collisions"] for k in keys)),
+            ("map diag mapped a second before", 79,
+             sum(dj[k]["collisions_mapped_1s_before"] for k in keys)),
+            ("map diag mapped in the last half second", 0,
+             sum(dj[k]["collisions_mapped_last_0p5s"] for k in keys)),
+            ("map diag median scans low", 63, min(dj[k]["median_scans_mapped_before_contact"]
+                                                  for k in keys)),
+            ("map diag median scans high", 121, max(dj[k]["median_scans_mapped_before_contact"]
+                                                    for k in keys)),
+        ]
+
     # --- observing only what a sensor could see, Phase 6c -----------------
     oc = "results/occlusion_experiment.json"
     if os.path.exists(oc):

@@ -50,6 +50,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
 | 5w | Cap the estimate's extrapolation at 2 s and 1 s | **Done** — **UNRESOLVED: +0.010 on dense**; a 1 s cap costs sparse 0.085 (p = 0.0005) |
+| 6d | The classical planner builds its own map (registered run) | **Recorded** — **COSTLY, from two bugs of mine**: every collision was into an obstacle mapped ≥1 s earlier |
 | 6c | Observe only what a sensor could see: 360° scanner and 90° camera | **Done** — **UNRESOLVED for the scanner (−0.035)**; the camera costs −0.125 (p < 0.0001) |
 | 6b | Where a released pixel policy crashes; probe for gap width | **Done** — **MIXED on where**; the CNN features cannot measure a gap (R² −0.29 against 0.22) |
 | 6a | Fit the orbit by least squares instead of differencing | **Done** — **FILTER: +0.145 on dense at 1 cm noise (p < 0.0001)**; no longer distinguishable from the oracle |
@@ -2610,6 +2611,56 @@ the clause assumed the estimator would keep its advantage on whatever it could
 see, without measuring how much a 90-degree view leaves it to see. The scanner's
 cost is not significant, so "seeing less costs something" is established for the
 camera only.
+
+## Phase 6d — The map test, as registered: it measured two bugs of mine
+
+The report's Result 1 was measured with the planner handed a perfect static map.
+Here it builds its own from its sensor as it drives, pose still exact
+(`vision_nav.mapping`, `agents/mapped.py`). Pre-registered in `915c76a`.
+
+The full-map arm reproduces the published classical row on all six conditions.
+Registered decision: **COSTLY** -- and it is not a finding about mapping.
+
+| success, 100 worlds | full map | own map, 32-beam scanner | own map, 90° camera | PPO |
+|---|---|---|---|---|
+| sparse | 1.000 | 1.000 | 1.000 | 0.980 |
+| nominal | 1.000 | 0.990 | 0.960 | 0.960 |
+| large | 1.000 | 0.980 | 0.990 | 0.970 |
+| dense | 0.890 | 0.610 | 0.660 | 0.640 |
+| narrow | 0.850 | 0.540 | 0.590 | 0.600 |
+| noisy_lidar | 1.000 | 0.540 | 0.520 | 0.960 |
+
+A drop that large would overturn Result 1 in clutter, so before reading it a
+post hoc diagnostic (`scripts/mapping_diagnostic.py`) asked what the robot hit.
+On `dense` and `narrow`, all 79 collisions across both sensors were into
+obstacles the map had held for **at least a second** before contact -- a median
+of 63 to 121 scans, six to twelve seconds -- and none into one mapped in the last
+half second. The robot drove into what it already knew was there. That is a
+fault in the planner I built, not the limit of the sensor.
+
+Two faults, both mine and both departures from standard mapping practice:
+
+1. **Surface extent.** The map took each obstacle surface to sit at the centre of
+   its occupied cell. It can sit anywhere in it, up to half a cell diagonal
+   (about 0.07 m) closer, so inflation, the smoother's line-of-sight check and
+   the controller's slow-down all overestimated clearance, and paths grazed
+   what the full-map planner, reading exact geometry, keeps clear of.
+2. **Evidence under noise.** Occupied cells were sticky -- correct for a
+   noise-free sensor, and wrong for `noisy_lidar`, where every return landing
+   short marked free space occupied for good and phantom obstacles accumulated.
+   A real mapper counts evidence for and against.
+
+Neither is a finding about what mapping costs, so the report's Result 1 stands
+as written, and this result is not quoted there. The repaired planner is re-run
+under its own pre-registration; the repairs are made and checked on the `val`
+seed band, which the experiment never scores, so that pre-registration can be
+clean.
+
+### Calibration
+
+Prediction 29 is recorded and not scored: its registered decision (COSTLY) was
+reached, but by a planner that could not do what the prediction was about.
+Counting it either way would score the bug.
 
 ## Hardware notes
 

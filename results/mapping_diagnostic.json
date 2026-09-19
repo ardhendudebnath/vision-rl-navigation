@@ -1,0 +1,58 @@
+{
+  "dense/lidar32": {
+    "episodes": 100,
+    "success": 0.61,
+    "collision": 0.21,
+    "timeout": 0.18,
+    "collisions": 21,
+    "collisions_into_mapped": 21,
+    "collisions_into_unmapped": 0,
+    "median_known": 0.5092013888888889,
+    "collisions_mapped_1s_before": 21,
+    "collisions_mapped_last_0p5s": 0,
+    "median_scans_mapped_before_contact": 63.0,
+    "median_replans": 29.0
+  },
+  "dense/camera64": {
+    "episodes": 100,
+    "success": 0.66,
+    "collision": 0.17,
+    "timeout": 0.17,
+    "collisions": 17,
+    "collisions_into_mapped": 17,
+    "collisions_into_unmapped": 0,
+    "median_known": 0.35111111111111115,
+    "collisions_mapped_1s_before": 17,
+    "collisions_mapped_last_0p5s": 0,
+    "median_scans_mapped_before_contact": 121.0,
+    "median_replans": 27.0
+  },
+  "narrow/lidar32": {
+    "episodes": 100,
+    "success": 0.54,
+    "collision": 0.25,
+    "timeout": 0.21,
+    "collisions": 25,
+    "collisions_into_mapped": 25,
+    "collisions_into_unmapped": 0,
+    "median_known": 0.4434027777777778,
+    "collisions_mapped_1s_before": 25,
+    "collisions_mapped_last_0p5s": 0,
+    "median_scans_mapped_before_contact": 65.0,
+    "median_replans": 36.0
+  },
+  "narrow/camera64": {
+    "episodes": 100,
+    "success": 0.59,
+    "collision": 0.16,
+    "timeout": 0.25,
+    "collisions": 16,
+    "collisions_into_mapped": 16,
+    "collisions_into_unmapped": 0,
+    "median_known": 0.32906250000000004,
+    "collisions_mapped_1s_before": 16,
+    "collisions_mapped_last_0p5s": 0,
+    "median_scans_mapped_before_contact": 109.0,
+    "median_replans": 34.0
+  }
+}

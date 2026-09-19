@@ -55,12 +55,17 @@ class OccupancyMap:
         #: Bumped whenever a cell becomes occupied: everything derived from the
         #: occupied set (inflation, clearance) is cached against it.
         self.version = 0
+        #: Scan index at which each cell was first seen occupied (-1: never).
+        #: Diagnostic only -- says whether an obstacle was known in time.
+        self.first_occupied = np.full(self.shape, -1, dtype=np.int32)
+        self.scans = 0
 
     # --- building ---------------------------------------------------------
     def integrate(self, pose: np.ndarray) -> bool:
         """Add one scan taken at ``pose``. Returns whether any cell became
         occupied -- the only change that can invalidate a plan."""
         pose = np.asarray(pose, dtype=np.float64)
+        self.scans += 1
         ranges = np.asarray(self.sensor.scan(self._world, pose, self.rng), dtype=np.float64)
         angles = np.asarray(self.sensor._angles, dtype=np.float64) + pose[2]
         dirs = np.stack([np.cos(angles), np.sin(angles)], axis=-1)
@@ -88,6 +93,7 @@ class OccupancyMap:
         if not new.any():
             return False
         self.grid[rows[new], cols[new]] = OCCUPIED
+        self.first_occupied[rows[new], cols[new]] = self.scans
         self.version += 1
         self._inflated.clear()
         occ = np.argwhere(self.grid == OCCUPIED)
