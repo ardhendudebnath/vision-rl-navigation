@@ -2616,7 +2616,7 @@ camera only.
 
 The report's Result 1 was measured with the planner handed a perfect static map.
 Here it builds its own from its sensor as it drives, pose still exact
-(`vision_nav.mapping`, `agents/mapped.py`). Pre-registered in `915c76a`.
+(`src/vision_nav/mapping/occupancy.py`, `src/vision_nav/agents/mapped.py`). Pre-registered in `915c76a`.
 
 The full-map arm reproduces the published classical row on all six conditions.
 Registered decision: **COSTLY** -- and it is not a finding about mapping.
