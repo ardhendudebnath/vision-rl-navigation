@@ -663,6 +663,49 @@ def claims():
                     (f"innovation {arm} dense collision", dense_c,
                      icells[arm]["dynamic_dense"]["collision"])]
 
+    # --- observing only what a sensor could see, Phase 6c -----------------
+    oc = "results/occlusion_experiment.json"
+    if os.path.exists(oc):
+        vj = load(oc)
+        vcells, vx = vj["cells"], vj["contrasts"]
+        lid, cam = vx["lidar_vs_all_round"], vx["camera_vs_all_round"]
+        out += [
+            ("occlusion decision UNRESOLVED", 1.0, float(vj["decision"] == "UNRESOLVED")),
+            ("occlusion reproduces 6a", 1.0, float(vj["checks"]["reproduces_phase_6a"])),
+            ("occlusion lidar dense", -0.035, lid["dynamic_dense"]["success_gain"]),
+            ("occlusion lidar dense p", 0.092, lid["dynamic_dense"]["p"]),
+            ("occlusion lidar dense won", 3, lid["dynamic_dense"]["episodes_won"]),
+            ("occlusion lidar dense lost", 10, lid["dynamic_dense"]["episodes_lost"]),
+            ("occlusion lidar dense ci lo", -0.070, lid["dynamic_dense"]["ci95"][0]),
+            ("occlusion lidar dense ci hi", 0.000, lid["dynamic_dense"]["ci95"][1]),
+            ("occlusion lidar sparse", -0.015, lid["dynamic"]["success_gain"]),
+            ("occlusion camera dense", -0.125, cam["dynamic_dense"]["success_gain"]),
+            ("occlusion camera dense won", 1, cam["dynamic_dense"]["episodes_won"]),
+            ("occlusion camera dense lost", 26, cam["dynamic_dense"]["episodes_lost"]),
+            ("occlusion camera sparse", -0.085, cam["dynamic"]["success_gain"]),
+            ("occlusion camera sparse p", 0.0002, cam["dynamic"]["p"]),
+            ("occlusion lidar vs line dense", 0.110,
+             vx["lidar_vs_line@0.01"]["dynamic_dense"]["success_gain"]),
+            ("occlusion lidar vs line dense p", 0.0001, vx["lidar_vs_line@0.01"]["dynamic_dense"]["p"]),
+            ("occlusion camera vs line dense", 0.020,
+             vx["camera_vs_line@0.01"]["dynamic_dense"]["success_gain"]),
+            ("occlusion camera vs line dense p", 0.61,
+             round(vx["camera_vs_line@0.01"]["dynamic_dense"]["p"], 2)),
+            ("occlusion lidar vs oracle dense", -0.050,
+             vx["lidar_vs_oracle"]["dynamic_dense"]["success_gain"]),
+            ("occlusion lidar vs oracle dense p", 0.002, vx["lidar_vs_oracle"]["dynamic_dense"]["p"]),
+            ("occlusion camera vs oracle dense", -0.140,
+             vx["camera_vs_oracle"]["dynamic_dense"]["success_gain"]),
+        ]
+        for arm, s_s, d_s, d_c in (("all_round", 0.975, 0.960, 0.020),
+                                   ("lidar", 0.960, 0.925, 0.050),
+                                   ("camera", 0.890, 0.835, 0.155)):
+            out += [(f"occlusion {arm} sparse success", s_s, vcells[arm]["dynamic"]["success"]),
+                    (f"occlusion {arm} dense success", d_s,
+                     vcells[arm]["dynamic_dense"]["success"]),
+                    (f"occlusion {arm} dense collision", d_c,
+                     vcells[arm]["dynamic_dense"]["collision"])]
+
     # --- released crashes and the gap probe, Phase 6b ---------------------
     cr = "results/stall_crash_audit.json"
     if os.path.exists(cr):

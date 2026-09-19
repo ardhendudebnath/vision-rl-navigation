@@ -939,6 +939,47 @@ an estimator that does not amplify its own error.
 step: no field of view, no occlusion, nothing missed behind a wall. That is the
 next thing to take away, and it is a larger gift than exactness was.
 
+### Seeing only what a sensor could see
+
+The last privilege the estimator held was sight: it observed every mover at
+every step, through walls, behind the robot and at any range. Here a mover is
+observed only when it is within 6 m, inside the sensor's field of view, and not
+hidden behind static geometry. Out of sight, the estimate coasts on the track it
+has; never seen, the mover is not on the planner's map at all. The see-everything
+arm reproduces Phase 6a episode for episode. Pre-registered in `da22fce`.
+
+| 200 episodes, σ = 0.01 | sparse success | dense success | dense collisions |
+|---|---|---|---|
+| oracle | 0.995 | 0.975 | 0.010 |
+| sees every mover (Phase 6a) | 0.975 | 0.960 | 0.020 |
+| 360° scanner, occluded | 0.960 | 0.925 | 0.050 |
+| 90° camera, occluded | 0.890 | 0.835 | 0.155 |
+| straight line, sees every mover (Phase 5z) | 0.910 | 0.815 | 0.160 |
+
+**A scanner costs little.** Occlusion alone costs −0.035 on dense clutter
+(p = 0.09, interval [−0.070, +0.000]) -- not significant, not a
+bounded null, so the registered rule returns UNRESOLVED -- and the scanner-limited
+estimator is still +0.110 ahead of the straight line that saw everything
+(p = 0.0001).
+
+**A camera's field of view costs almost everything the estimator gained.**
+Limited to 90 degrees ahead, the stack loses 0.125 on dense clutter
+(p < 0.0001, 26 episodes lost and 1 won), all of it collisions, and ends
+indistinguishable from a straight-line estimator with full sight
+(+0.020, p = 0.61). The robot drives forward; these movers cross from
+the side; what it cannot see coming it cannot plan around, and the best estimator
+in the project has nothing to fit.
+
+That is §8.1's finding arriving from the other side of the comparison. For the
+learned policy, coverage was causal and resolution was not; for the classical
+stack's view of movers, a 360-degree scanner with walls in the way costs a
+fraction of what a 90-degree camera does. What a moving world demands of a
+sensor is, first, that it look sideways.
+
+The classical stack still holds the static map and its exact pose, which the
+learned policy never had, and even camera-limited it keeps 0.835 on dense
+clutter against the best learned policy's 0.710.
+
 **All dynamic numbers here use block-triggered replanning**, which wins on all
 four dynamic cells and is identical to the previous best on the six static
 ones, where a correct map means the path is never blocked and it never fires.

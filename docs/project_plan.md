@@ -50,6 +50,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
 | 5w | Cap the estimate's extrapolation at 2 s and 1 s | **Done** — **UNRESOLVED: +0.010 on dense**; a 1 s cap costs sparse 0.085 (p = 0.0005) |
+| 6c | Observe only what a sensor could see: 360° scanner and 90° camera | **Done** — **UNRESOLVED for the scanner (−0.035)**; the camera costs −0.125 (p < 0.0001) |
 | 6b | Where a released pixel policy crashes; probe for gap width | **Done** — **MIXED on where**; the CNN features cannot measure a gap (R² −0.29 against 0.22) |
 | 6a | Fit the orbit by least squares instead of differencing | **Done** — **FILTER: +0.145 on dense at 1 cm noise (p < 0.0001)**; no longer distinguishable from the oracle |
 | 5z | Gaussian noise on each observed mover position, 2 mm to 5 cm | **Done** — **UNRESOLVED at 1 cm (+0.005)**; noise costs more than the model bought; the fit wins at 5 cm |
@@ -2566,6 +2567,49 @@ that failed -- a metre *and* three seconds -- was written without measuring how
 long a released robot takes to reach anything, and the distance half of it was
 right. A bound picked for a quantity nothing had measured is the same mistake
 Phase 5r's arithmetic made, in a smaller way.
+
+## Phase 6c — Seeing only what a sensor could see: the field of view is the cost
+
+Phase 6a's estimator observed every mover at every step. Here it observes a mover
+only when in range (6 m), in view, and not occluded by static geometry; unseen
+movers coast, never-seen movers are absent from the planner's grid. Three arms at
+Phase 6a's centimetre of noise. Pre-registered in `da22fce`, before the result
+file existed. Full treatment in `dynamic_obstacles.md`.
+
+Checks: the see-everything arm reproduces Phase 6a on every episode. Registered
+decision: **UNRESOLVED**.
+
+- 360° scanner against full sight, dense: −0.035, p = 0.092, 3 won and 10
+  lost, CI [−0.070, +0.000]. Sparse −0.015.
+- 90° camera against full sight, dense: −0.125, p < 0.0001, 1 won and
+  26 lost; collisions 0.020 to 0.155. Sparse −0.085, p = 0.0002.
+- Against the straight line with full sight (Phase 5z): scanner +0.110
+  (p = 0.0001), camera +0.020 (p = 0.61).
+- Against the oracle, dense: scanner −0.050 (p = 0.002), camera
+  −0.140.
+
+### Consequences
+
+Occlusion by walls is cheap for a sensor that looks all round; a forward-facing
+field of view is not, and costs nearly everything the estimator chain had won.
+It is the report's coverage finding (§8.1) seen from the classical side: what a
+moving world asks of a sensor is first that it look sideways.
+
+Taking sight away leaves the largest privilege standing -- the static map and
+the exact pose, both given to the classical stack from the start and never to
+the policy. Even with a camera's view of movers it keeps 0.835 on dense clutter
+against the best learned policy's 0.710.
+
+### Calibration
+
+Prediction 28 is partial. Held: the scanner's cost landed in its registered band
+(−0.035 against −0.02 to −0.10) and was not a bounded null; the camera cost at
+least 0.10 and was HARMS (−0.125). Failed: the camera arm was predicted to stay
+far ahead of the straight line with full sight, and is not (+0.020, p = 0.61) --
+the clause assumed the estimator would keep its advantage on whatever it could
+see, without measuring how much a 90-degree view leaves it to see. The scanner's
+cost is not significant, so "seeing less costs something" is established for the
+camera only.
 
 ## Hardware notes
 

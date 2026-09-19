@@ -739,9 +739,11 @@ better model class but one that does not amplify its own error: fitting the
 same oscillation to the observations by least squares, without differencing
 them, is worth +0.145 on dense clutter at a centimetre of noise
 (p < 0.0001) and is no longer distinguishable from the oracle
-(−0.015, p = 0.45). The agent still observes every mover at every
-step, through walls and behind it; that, rather than exactness, is the gift
-left to take away.
+(−0.015, p = 0.45). Taking sight away as well — observing a mover only
+when a sensor could see it — costs a 360-degree scanner −0.035 on dense
+clutter (p = 0.09) and a 90-degree camera −0.125 (p < 0.0001),
+leaving the camera-limited stack no better than a straight line that saw
+everything. §8.1's coverage finding, from the classical side.
 
 **Recurrence is worse, and not because of motion.** An LSTM policy — the last
 untested way of supplying motion information, and the only one that learns what
@@ -816,7 +818,7 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of twenty-seven predictions made in advance, four derived from
+**Calibration.** Of twenty-eight predictions made in advance, four derived from
 a *measurement* held — two to within 0.021 and 0.001, one on both magnitude and
 mechanism, and one whose magnitude came from measuring the estimator it was
 about; thirteen from extrapolation, intuition, arithmetic or a post hoc
@@ -907,13 +909,14 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Observe only what a sensor could see.** The classical stack's motion
-   result now holds from the robot's own observations rather than an oracle
-   (§9.1), but those observations cover every mover in the world at every
-   step — no field of view, no occlusion, nothing lost behind a wall. That is a
-   larger gift than exactness was, and the machinery to take it back exists:
-   the same ray-caster the depth camera uses decides which movers are visible,
-   and the estimator already carries a track it can coast on when one is not.
+1. **Take away the map.** Every privilege but one has now been removed from
+   the classical stack's view of movers — the oracle, exact observations, sight
+   through walls and behind it — and it keeps most of its motion result with a
+   scanner and loses most of it with a camera (§9.1). The one left is the
+   largest: a perfect static map and an exact pose, given from the start and
+   never to the learned policy. Building the map from the same scans, with the
+   pose estimated rather than read, is the comparison this study was designed
+   to make fair and has not yet made.
 2. **An encoder that can measure a gap.** The RGB features carry the
    clearance ahead as well as a depth vector does and the *width* of the gap
    past it not at all (§8.5). The first convolution strides 4 across a
