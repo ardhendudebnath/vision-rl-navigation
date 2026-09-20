@@ -13,7 +13,10 @@ We compare a PPO navigation policy against a classical A\* + pure-pursuit
 stack on a procedurally generated point-goal task, across five environment
 distributions, with the planner given the full map and exact pose throughout.
 **The planner wins on every condition**, by margins that grow with clutter
-(1.000 vs 0.960 success nominally; 0.850 vs 0.682 in tight corridors).
+(1.000 vs 0.960 success nominally; 0.850 vs 0.682 in tight corridors) — while
+it is handed the map. Building that map from the same scan the policy reads
+costs it the clutter margin entirely (0.590 vs 0.600 in tight corridors) and
+almost nothing in open worlds.
 
 We then eliminate the standard explanations for a losing RL result —
 insufficient data, wrong training distribution, insufficient compute (tested
@@ -157,15 +160,26 @@ term.
 
 Success / SPL, 100 held-out worlds per condition:
 
-| Condition | Classical | PPO (privileged) |
-|---|---|---|
-| nominal | **1.000** / 0.985 | 0.960 / 0.910 |
-| sparse | **1.000** / 1.000 | 0.980 / 0.963 |
-| large | **1.000** / 0.990 | 0.970 / 0.940 |
-| dense | **0.890** / 0.841 | 0.640 / 0.593 |
-| narrow | **0.850** / 0.795 | 0.600 / 0.556 |
+| Condition | Classical, given the map | Classical, own map | PPO (privileged) |
+|---|---|---|---|
+| nominal | **1.000** / 0.985 | 0.970 / 0.951 | 0.960 / 0.910 |
+| sparse | **1.000** / 1.000 | 1.000 / 1.000 | 0.980 / 0.963 |
+| large | **1.000** / 0.990 | 0.990 / 0.977 | 0.970 / 0.940 |
+| dense | **0.890** / 0.841 | 0.650 / 0.602 | 0.640 / 0.593 |
+| narrow | **0.850** / 0.795 | 0.590 / 0.544 | 0.600 / 0.556 |
 
 The learned policy is competitive in open worlds and collapses under clutter.
+
+**Most of that clutter margin is the map, not the planner.** The middle column
+is the same planner building its own occupancy grid from the same 32-beam scan
+the policy reads, with its pose still exact (§9.2). In open worlds it keeps
+almost everything: 0.970 to 1.000. In clutter the margin goes: 0.650
+against the policy's 0.640 on `dense`, and 0.590 against
+0.600 on `narrow` -- a tie either way at a hundred episodes, where
+the mapped planner had led by 0.25. It gives up 0.240 and
+0.260 to mapping, almost all of it in timeouts (0.330 and
+0.390) rather than collisions (0.020), from a robot exploring
+its way around obstacles it cannot see through.
 
 The project's original hypothesis was the opposite. We had measured the
 baseline's weakness precisely: under shift, **A\* never once fails to find a
@@ -770,6 +784,46 @@ policy on `dynamic_dense` once given its best replanning policy. Every
 narrowing of the headline came from improving the baseline; none came from new
 evidence about the policy.
 
+### 9.2 What the map was worth
+
+Every classical number above is the planner reading a perfect static map. The
+report has called that privilege deliberate throughout -- a baseline that loses
+through handicap proves nothing -- and this is what it was worth. The planner
+builds an occupancy grid from its own range returns as it drives, plans on it
+with unknown space treated as free, and replans when something newly mapped
+cuts across its route. Its pose is still exact: taking both privileges at once
+would leave a result nobody could attribute.
+
+| success, 100 worlds | given the map | own map, 32-beam scanner | own map, 90° camera | PPO |
+|---|---|---|---|---|
+| sparse | 1.000 | 1.000 | 1.000 | 0.980 |
+| large | 1.000 | 0.990 | 0.990 | 0.970 |
+| nominal | 1.000 | 0.970 | 0.980 | 0.960 |
+| noisy_lidar | 1.000 | 0.940 | 0.930 | 0.960 |
+| dense | 0.890 | 0.650 | 0.690 | 0.640 |
+| narrow | 0.850 | 0.590 | 0.610 | 0.600 |
+
+**Open worlds barely notice; clutter is where the map was doing the work.** The
+losses are −0.240 on `dense` and −0.260 on `narrow`
+(both p < 0.0001), against at most −0.030 on the three open
+conditions. What the planner loses is not safety -- collisions stay at
+0.020 -- but arrival: timeouts rise to 0.330 and
+0.390 as it explores its way around obstacles it cannot see
+through, replanning about 75 times an episode and finishing with half the world
+still unmapped.
+
+**And `noisy_lidar` is no longer a no-op for the classical stack.** Reading the
+sensor at all means reading the condition's 0.10 m of range noise, which costs
+it 0.060 (p = 0.031) where a perfect map cost it nothing.
+
+Two cautions on reading the middle column against the policy. The comparison is
+descriptive: the published PPO column is one training run's aggregate, without
+per-episode outcomes to pair against, and a 0.010 difference at a hundred
+episodes is nothing either way. And what is measured is *this* mapping stack --
+an occupancy grid, A\*, pure pursuit and the standard recoveries. A production
+stack would plausibly do better, and the project already has a Nav2 bridge to
+ask with.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -818,18 +872,18 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of twenty-eight predictions made in advance, four derived from
+**Calibration.** Of twenty-nine predictions made in advance, four derived from
 a *measurement* held — two to within 0.021 and 0.001, one on both magnitude and
 mechanism, and one whose magnitude came from measuring the estimator it was
 about; thirteen from extrapolation, intuition, arithmetic or a post hoc
-description failed outright; ten got part right and part wrong. Confidence of
-expression was identical throughout. Three rules came out of them; the record
-of each prediction is in [`project_plan.md`](project_plan.md). The fifteenth
-also broke this report's own stated practice: its null was registered as an
-interval including zero, which intervals of ±0.4 satisfy whatever is true, so
-its conclusion rests on a sharper test added afterwards and labelled as such.
-The sixteenth was committed to the repository before its data existed, so its
-timing is checkable rather than asserted.
+description failed outright; eleven got part right and part wrong. Confidence
+of expression was identical throughout. Three rules came out of them; the
+record of each prediction is in [`project_plan.md`](project_plan.md). The
+fifteenth also broke this report's own stated practice: its null was registered
+as an interval including zero, which intervals of ±0.4 satisfy whatever is
+true, so its conclusion rests on a sharper test added afterwards and labelled
+as such. The sixteenth was committed to the repository before its data existed,
+so its timing is checkable rather than asserted.
 
 **A measurement predicts only where something has been measured.** Carried
 into regimes nothing had measured, measurement-derived forecasts failed like
@@ -901,6 +955,10 @@ enough.**
   `dynamic_dense` margin (+0.150 to +0.170) is far outside that spread but the
   `dynamic` result (−0.020 to +0.010) sits inside it and is read as parity
   rather than as a measured equality.
+- **The mapping stack of §9.2 is basic**: an occupancy grid, A\*, pure
+  pursuit and the standard recoveries, built for this comparison and fixed
+  after its first run measured five faults in it rather than the cost of
+  mapping. Its numbers bound what *this* stack pays, not what mapping costs.
 - **Single-seed findings are flagged as unreplicated** throughout, including
   the one significant reward-ablation result (`step_penalty` improving nominal
   SPL by +0.066).
@@ -909,22 +967,23 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Take away the map.** Every privilege but one has now been removed from
-   the classical stack's view of movers — the oracle, exact observations, sight
-   through walls and behind it — and it keeps most of its motion result with a
-   scanner and loses most of it with a camera (§9.1). The one left is the
-   largest: a perfect static map and an exact pose, given from the start and
-   never to the learned policy. Building the map from the same scans, with the
-   pose estimated rather than read, is the comparison this study was designed
-   to make fair and has not yet made.
-2. **An encoder that can measure a gap.** The RGB features carry the
+1. **Take away the pose.** §9.2 removed the map and left the planner its
+   exact pose, which is now the last privilege it holds and the one a real
+   robot lacks most obviously. Odometry drift with scan matching against the
+   map it is already building is the standard answer, and the comparison it
+   completes is the one this study was designed to make.
+2. **Ask a production stack the same question.** The mapped planner of §9.2 is
+   deliberately basic, and the project already drives real Nav2 over a ROS 2
+   bridge (§4.1). Nav2 with SLAM on these worlds would say how much of the
+   0.25 that mapping cost is this implementation and how much is the problem.
+3. **An encoder that can measure a gap.** The RGB features carry the
    clearance ahead as well as a depth vector does and the *width* of the gap
    past it not at all (§8.5). The first convolution strides 4 across a
    64-pixel-wide image, so a gap two columns wide survives as at most half a
    feature; a narrower stride, or a wider render at the same field of view, is
    one training run per arm, and the probe says in advance what to measure
    rather than waiting for success rates to move.
-3. **A recurrent policy that was actually tuned.** §9.1 tested one and it was
+4. **A recurrent policy that was actually tuned.** §9.1 tested one and it was
    worse everywhere, but it ran on hyperparameters chosen for an MLP so the
    comparison would be algorithm-only. That makes the result a statement about
    dropping recurrence into this setup rather than about recurrence, and it
@@ -932,9 +991,9 @@ In order of expected information per GPU-hour:
    LSTM width and a learning rate chosen *for* the recurrent arm would say
    whether the idea or the transplant failed. Lowest expected value of the
    five: the control cell says the deficit is not about motion at all.
-4. **Harder perception** — texture, lighting variation, sensor artefacts — to
+5. **Harder perception** — texture, lighting variation, sensor artefacts — to
    turn the encoder-cost lower bound into an estimate.
-5. **Sim-to-real** on a TurtleBot-class base. The action space is already
+6. **Sim-to-real** on a TurtleBot-class base. The action space is already
    `Twist`, so the policy transfers without modification.
 
 ## 13. Reproducing

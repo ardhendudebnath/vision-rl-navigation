@@ -29,8 +29,12 @@ nothing.
 
 ## Findings
 
-1. **The planner wins on every condition**, by margins that grow with clutter
-   (1.000 vs 0.960 success nominally, 0.850 vs 0.682 in tight corridors). Four
+1. **The planner wins on every condition — while it is handed the map**, by
+   margins that grow with clutter (1.000 vs 0.960 success nominally, 0.850 vs
+   0.682 in tight corridors). Building that map from the same scan the policy
+   reads costs it the clutter margin entirely (0.590 vs 0.600 in tight
+   corridors, 0.650 vs 0.640 in dense clutter) and almost nothing in open
+   worlds. Four
    standard explanations — insufficient data, wrong training distribution,
    insufficient compute (tested twice, to 2.7× budget), reward
    mis-specification — were each tested and rejected. The cause is
@@ -116,8 +120,8 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of twenty-eight advance predictions, four derived from
-*measurements* held; fourteen failed outright and ten got part right and part
+pre-registered endpoints. Of twenty-nine advance predictions, four derived from
+*measurements* held; fourteen failed outright and eleven got part right and part
 wrong, with identical confidence of expression
 throughout. The three failures that reasoned from a real measurement all
 carried it into a regime nothing had been measured in — and the one that

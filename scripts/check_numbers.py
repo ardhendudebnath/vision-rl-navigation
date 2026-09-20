@@ -663,6 +663,61 @@ def claims():
                     (f"innovation {arm} dense collision", dense_c,
                      icells[arm]["dynamic_dense"]["collision"])]
 
+    # --- the repaired map test, Phase 6e -----------------------------------
+    rp = "results/mapping_experiment_repaired.json"
+    if os.path.exists(rp):
+        rj = load(rp)
+        out += [("repaired map decision COSTLY", 1.0, float(rj["decision"] == "COSTLY")),
+                ("repaired map full reproduces", 1.0,
+                 float(rj["checks"]["full_map_reproduces_all"]))]
+        # success, scanner / camera / full, per condition, as both documents print.
+        table = {
+            "sparse": (1.000, 1.000, 1.000), "large": (1.000, 0.990, 0.990),
+            "nominal": (1.000, 0.970, 0.980), "noisy_lidar": (1.000, 0.940, 0.930),
+            "dense": (0.890, 0.650, 0.690), "narrow": (0.850, 0.590, 0.610),
+        }
+        for cond, (full, lidar, camera) in table.items():
+            cells = rj["conditions"][cond]["cells"]
+            out += [(f"repaired {cond} full", full, cells["full_map"]["success"]),
+                    (f"repaired {cond} lidar", lidar, cells["mapped_lidar32"]["success"]),
+                    (f"repaired {cond} camera", camera, cells["mapped_camera64"]["success"])]
+        for cond, gain, coll, tmo in (("dense", -0.240, 0.020, 0.330),
+                                      ("narrow", -0.260, 0.020, 0.390)):
+            c = rj["conditions"][cond]
+            out += [(f"repaired {cond} gain", gain, c["contrasts"]["mapped_lidar32"]["success_gain"]),
+                    (f"repaired {cond} collision", coll, c["cells"]["mapped_lidar32"]["collision"]),
+                    (f"repaired {cond} timeout", tmo, c["cells"]["mapped_lidar32"]["timeout"]),
+                    (f"repaired {cond} harms", 1.0,
+                     float(c["contrasts"]["mapped_lidar32"]["verdict"] == "HARMS"))]
+        dense_ci = rj["conditions"]["dense"]["contrasts"]["mapped_lidar32"]["ci95"]
+        narrow_ci = rj["conditions"]["narrow"]["contrasts"]["mapped_lidar32"]["ci95"]
+        noisy = rj["conditions"]["noisy_lidar"]["contrasts"]["mapped_lidar32"]
+        out += [
+            ("repaired dense ci lo", -0.330, dense_ci[0]),
+            ("repaired dense ci hi", -0.150, dense_ci[1]),
+            ("repaired narrow ci lo", -0.350, narrow_ci[0]),
+            ("repaired narrow ci hi", -0.180, narrow_ci[1]),
+            ("repaired noisy gain", -0.060, noisy["success_gain"]),
+            ("repaired noisy p", 0.031, noisy["p"]),
+            ("repaired nominal worst open loss", -0.030,
+             min(rj["conditions"][c]["contrasts"]["mapped_lidar32"]["success_gain"]
+                 for c in ("nominal", "sparse", "large"))),
+            # The learned columns the documents compare against.
+            ("repaired dense ppo", 0.640, rj["conditions"]["dense"]["learned"]["ppo_privileged"]),
+            ("repaired narrow ppo", 0.600, rj["conditions"]["narrow"]["learned"]["ppo_privileged"]),
+            # SPL, quoted in the Result 1 table.
+            ("repaired narrow lidar spl", 0.544,
+             rj["conditions"]["narrow"]["cells"]["mapped_lidar32"]["spl"]),
+            ("repaired dense lidar spl", 0.602,
+             rj["conditions"]["dense"]["cells"]["mapped_lidar32"]["spl"]),
+            ("repaired nominal lidar spl", 0.951,
+             rj["conditions"]["nominal"]["cells"]["mapped_lidar32"]["spl"]),
+            ("repaired sparse lidar spl", 1.000,
+             rj["conditions"]["sparse"]["cells"]["mapped_lidar32"]["spl"]),
+            ("repaired large lidar spl", 0.977,
+             rj["conditions"]["large"]["cells"]["mapped_lidar32"]["spl"]),
+        ]
+
     # --- the map test as registered, Phase 6d ------------------------------
     mp, md = "results/mapping_experiment.json", "results/mapping_diagnostic.json"
     if os.path.exists(mp):

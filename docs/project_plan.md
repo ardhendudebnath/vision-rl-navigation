@@ -50,6 +50,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
 | 5w | Cap the estimate's extrapolation at 2 s and 1 s | **Done** — **UNRESOLVED: +0.010 on dense**; a 1 s cap costs sparse 0.085 (p = 0.0005) |
+| 6e | The repaired mapping stack, re-run | **Done** — **COSTLY: −0.240 dense, −0.260 narrow**; Result 1's clutter margin was the map |
 | 6d | The classical planner builds its own map (registered run) | **Recorded** — **COSTLY, from two bugs of mine**: every collision was into an obstacle mapped ≥1 s earlier |
 | 6c | Observe only what a sensor could see: 360° scanner and 90° camera | **Done** — **UNRESOLVED for the scanner (−0.035)**; the camera costs −0.125 (p < 0.0001) |
 | 6b | Where a released pixel policy crashes; probe for gap width | **Done** — **MIXED on where**; the CNN features cannot measure a gap (R² −0.29 against 0.22) |
@@ -2661,6 +2662,65 @@ clean.
 Prediction 29 is recorded and not scored: its registered decision (COSTLY) was
 reached, but by a planner that could not do what the prediction was about.
 Counting it either way would score the bug.
+
+## Phase 6e — The map, repaired and re-run: it was worth the clutter margin
+
+Phase 6d's run measured five faults in the mapping stack. Repaired -- conservative
+surface placement, log-odds evidence, never driving a plan the map rules out,
+footprint clearing, goal relaxation, rotate-in-place recovery, and replanning
+rate limited to 1 Hz for anything not close ahead -- and re-registered in
+`34cf3bc` with a prediction derived from checks on the `val` band, which this
+experiment does not score. Full treatment in report §9.2.
+
+The full-map arm reproduces the published classical row on all six conditions.
+Registered decision: **COSTLY**.
+
+| success, 100 worlds | given the map | own map, scanner | own map, camera | PPO |
+|---|---|---|---|---|
+| sparse | 1.000 | 1.000 | 1.000 | 0.980 |
+| large | 1.000 | 0.990 | 0.990 | 0.970 |
+| nominal | 1.000 | 0.970 | 0.980 | 0.960 |
+| noisy_lidar | 1.000 | 0.940 | 0.930 | 0.960 |
+| dense | 0.890 | 0.650 | 0.690 | 0.640 |
+| narrow | 0.850 | 0.590 | 0.610 | 0.600 |
+
+- Dense: −0.240, p < 0.0001, CI [−0.330, −0.150]. Narrow: −0.260,
+  p < 0.0001, CI [−0.350, −0.180]. Open conditions: −0.030 at worst.
+- The cost is timeouts (0.330 dense, 0.390 narrow), not collisions
+  (0.020 on both). About 75 replans an episode, half the world still
+  unmapped at the end.
+- `noisy_lidar`, which a perfect map made a no-op for this stack, now costs
+  0.060 (p = 0.031).
+- The camera's 64 columns over 90 degrees beat the scanner's 32 over 360 in
+  clutter, on both conditions -- forward resolution over coverage, when what is
+  being mapped is static and the robot is driving into it.
+
+### Consequences
+
+Result 1's margin in clutter was mostly the map. Given the same scan the policy
+reads, the planner's 0.25 lead on `dense` and `narrow` becomes 0.650 against
+0.640 and 0.590 against 0.600 -- a tie at a hundred episodes either way, and the
+comparison is descriptive: the PPO column is one run's aggregate with no
+per-episode outcomes to pair against. In open worlds the planner keeps its lead.
+
+The report's headline now carries that qualifier, in the abstract and in the
+Result 1 table, which gained the column rather than the finding being buried in
+a later section. What is measured is this mapping stack, which §11 says plainly;
+the pose is still exact, and Nav2 with SLAM is the production comparison.
+
+### Calibration
+
+Prediction 30 is partial. The registered decision (COSTLY) was reached, both
+magnitude bands held (−0.240 in [−0.12, −0.25]; −0.260 in [−0.15, −0.28]), the
+collision ceiling held (0.020 against 0.05), the open conditions held (−0.030
+against 0.03) and `noisy_lidar` held (0.940 against 0.90). The clause that failed
+was "still beats the privileged PPO policy on dense and narrow": on narrow it
+lands at 0.590 against 0.600.
+
+The prediction came from val-band measurements of the same repaired stack, which
+is the category that has held before -- and did hold here, to within 0.03 on
+every cell. What it got wrong was the comparison it had not measured: where the
+policy sits.
 
 ## Hardware notes
 

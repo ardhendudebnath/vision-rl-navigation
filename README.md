@@ -58,12 +58,13 @@ decision below follows from wanting that comparison to be trustworthy.
 | Noise on the observations: a centimetre costs more than the model bought, and only then does the model class stop mattering | Done |
 | Fitting without differencing: the filter closes the gap — from the robot's own noisy observations, indistinguishable from an oracle | Done |
 | Seeing only what a sensor could: a 360° scanner costs little, a 90° camera nearly everything | Done |
+| The planner builds its own map: open worlds unchanged, and the clutter margin over the policy gone | Done |
 | Encoder cost re-priced at 1:1: survives (−0.180 narrow), and still fails by stalling | Done |
 | Why the pixel policy stalls: the image carries the depth, and a velocity latch holds the stall — released, it crashes | Done |
 | And what its features lack: the clearance ahead is there, the width of the gap past it is not | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Forty-four experiments, each pre-registered where it tests a hypothesis. The
+Forty-five experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).
