@@ -718,6 +718,99 @@ def claims():
              rj["conditions"]["large"]["cells"]["mapped_lidar32"]["spl"]),
         ]
 
+    # --- the pose test, Phase 6f -------------------------------------------
+    lp = "results/localisation_experiment.json"
+    if os.path.exists(lp):
+        lj = load(lp)
+        lc = lj["conditions"]
+        out += [
+            ("pose decision COSTLY", 1.0, float(lj["decision"] == "COSTLY")),
+            ("pose matching PAYS", 1.0, float(lj["decision_matching"] == "PAYS")),
+            ("pose full reproduces", 1.0, float(lj["checks"]["full_map_reproduces_all"])),
+            ("pose reproduces 6e", 1.0, float(lj["checks"]["mapped_reproduces_phase_6e"])),
+            ("pose identity control", 1.0,
+             float(lj["checks"]["perfect_odometry_is_the_mapped_agent"])),
+        ]
+        # The table both the report and the plan print.
+        table = {
+            "sparse": (1.000, 1.000, 0.670, 0.570), "large": (1.000, 0.990, 0.300, 0.530),
+            "nominal": (1.000, 0.970, 0.700, 0.850), "noisy_lidar": (1.000, 0.940, 0.640, 0.780),
+            "dense": (0.890, 0.650, 0.410, 0.640), "narrow": (0.850, 0.590, 0.420, 0.630),
+        }
+        for cond, (full, mapped, odom, matched) in table.items():
+            cells = lc[cond]["cells"]
+            out += [(f"pose {cond} full", full, cells["full_map"]["success"]),
+                    (f"pose {cond} mapped", mapped, cells["mapped"]["success"]),
+                    (f"pose {cond} odometry", odom, cells["odometry"]["success"]),
+                    (f"pose {cond} matched", matched, cells["matched"]["success"])]
+        # Odometry alone: HARMS everywhere, and the spread quoted in the prose.
+        for cond in table:
+            out.append((f"pose {cond} odometry harms", 1.0,
+                        float(lc[cond]["contrasts"]["odometry_vs_mapped"]["verdict"] == "HARMS")))
+        gains = {c: lc[c]["contrasts"]["odometry_vs_mapped"]["success_gain"] for c in table}
+        out += [
+            ("pose odometry best case", -0.170, max(gains.values())),
+            ("pose odometry worst case", -0.690, min(gains.values())),
+            ("pose odometry worst is large", 1.0,
+             float(min(gains, key=lambda c: gains[c]) == "large")),
+            # "every one at p < 0.001" — pinned as the claim, not as a value.
+            ("pose odometry all significant", 1.0,
+             float(max(lc[c]["contrasts"]["odometry_vs_mapped"]["p"] for c in table) < 0.001)),
+            ("pose odometry collision ceiling", 0.030,
+             max(lc[c]["cells"]["odometry"]["collision"] for c in table)),
+            ("pose odometry timeout ceiling", 0.680,
+             max(lc[c]["cells"]["odometry"]["timeout"] for c in table)),
+        ]
+        # Matching: MATTERS on five of six, and the residual against an exact pose.
+        matters = sum(lc[c]["contrasts"]["matched_vs_odometry"]["verdict"] == "MATTERS"
+                      for c in table)
+        out.append(("pose matching matters on five", 5, matters))
+        for cond, gain in (("dense", 0.230), ("large", 0.230), ("narrow", 0.210),
+                           ("nominal", 0.150), ("noisy_lidar", 0.140)):
+            out.append((f"pose {cond} matching gain", gain,
+                        lc[cond]["contrasts"]["matched_vs_odometry"]["success_gain"]))
+        for cond, gain in (("dense", -0.010), ("narrow", 0.040),
+                           ("large", -0.460), ("sparse", -0.430)):
+            out.append((f"pose {cond} residual", gain,
+                        lc[cond]["contrasts"]["matched_vs_mapped"]["success_gain"]))
+        # The one clause of prediction 30 that failed.
+        sparse = lc["sparse"]["contrasts"]["matched_vs_odometry"]
+        out += [("pose sparse matching gain", -0.100, sparse["success_gain"]),
+                ("pose sparse matching p", 0.184, sparse["p"])]
+        # The mechanism: the pose error itself.
+        for cond, odom, matched in (("dense", 0.329, 0.084), ("narrow", 0.393, 0.083)):
+            cells = lc[cond]["cells"]
+            out += [(f"pose {cond} odometry error", odom,
+                     cells["odometry"]["pose_error_median"]),
+                    (f"pose {cond} matched error", matched,
+                     cells["matched"]["pose_error_median"])]
+        # The sensor ordering reversing.
+        for cond, gain, pv in (("narrow", -0.100, 0.0063), ("large", 0.140, 0.038)):
+            cam = lc[cond]["contrasts"]["matched_cam_vs_matched"]
+            out += [(f"pose {cond} camera gain", gain, cam["success_gain"]),
+                    (f"pose {cond} camera p", pv, cam["p"])]
+        out += [("pose narrow camera", 0.530, lc["narrow"]["cells"]["matched_cam"]["success"]),
+                ("pose large camera", 0.670, lc["large"]["cells"]["matched_cam"]["success"]),
+                ("pose sparse ppo", 0.980, lc["sparse"]["learned"]["ppo_privileged"]),
+                ("pose large ppo", 0.970, lc["large"]["learned"]["ppo_privileged"])]
+        # SPL, quoted in the Result 1 table.
+        for cond, spl in (("nominal", 0.823), ("sparse", 0.569), ("large", 0.524),
+                          ("dense", 0.587), ("narrow", 0.584)):
+            out.append((f"pose {cond} matched spl", spl, lc[cond]["cells"]["matched"]["spl"]))
+
+    # --- why matching hurts where it hurts, Phase 6f -----------------------
+    ld = "results/localisation_diagnostic.json"
+    if os.path.exists(ld):
+        dj = load(ld)["conditions"]
+        out += [
+            ("pose diag sparse score", 0.925, dj["sparse"]["score_median"]),
+            ("pose diag sparse error", 0.570, dj["sparse"]["pose_error_median"]),
+            ("pose diag sparse error when confident", 0.441,
+             dj["sparse"]["pose_error_median_when_confident"]),
+            ("pose diag dense score", 0.965, dj["dense"]["score_median"]),
+            ("pose diag dense error", 0.058, dj["dense"]["pose_error_median"]),
+        ]
+
     # --- the map test as registered, Phase 6d ------------------------------
     mp, md = "results/mapping_experiment.json", "results/mapping_diagnostic.json"
     if os.path.exists(mp):

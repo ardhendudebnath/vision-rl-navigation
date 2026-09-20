@@ -1,0 +1,38 @@
+{
+  "episodes": 20,
+  "split": "val",
+  "conditions": {
+    "sparse": {
+      "steps": 7343,
+      "score_median": 0.9248697784996128,
+      "score_p10": 0.8155299043368733,
+      "pose_error_median": 0.5696525454208639,
+      "pose_error_p90": 1.2571663619117608,
+      "pose_error_median_when_confident": 0.4411803668519821
+    },
+    "dense": {
+      "steps": 6030,
+      "score_median": 0.965051237311626,
+      "score_p10": 0.9351386024136883,
+      "pose_error_median": 0.05766835929314423,
+      "pose_error_p90": 0.17338959314569968,
+      "pose_error_median_when_confident": 0.052579392233985105
+    },
+    "large": {
+      "steps": 6707,
+      "score_median": 0.9349225052550784,
+      "score_p10": 0.8033156845309621,
+      "pose_error_median": 0.3317883113369442,
+      "pose_error_p90": 1.8765298439934712,
+      "pose_error_median_when_confident": 0.14706134670138243
+    },
+    "narrow": {
+      "steps": 5971,
+      "score_median": 0.9676106613113238,
+      "score_p10": 0.9374525372605119,
+      "pose_error_median": 0.0525540328880943,
+      "pose_error_p90": 0.21180257728459087,
+      "pose_error_median_when_confident": 0.04576536772713041
+    }
+  }
+}

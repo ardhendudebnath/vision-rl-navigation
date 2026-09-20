@@ -50,7 +50,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
 | 5w | Cap the estimate's extrapolation at 2 s and 1 s | **Done** — **UNRESOLVED: +0.010 on dense**; a 1 s cap costs sparse 0.085 (p = 0.0005) |
-| 6f | Take away the pose: wheel odometry, and scan matching against the robot's own map | **Registered, not yet run** — prediction in `scripts/localisation_experiment.py` |
+| 6f | Take away the pose: wheel odometry, and scan matching against the robot's own map | **Done** — **COSTLY, and matching PAYS**: free in clutter (−0.010, +0.040), ruinous in the open (−0.460 `large`) |
 | 6e | The repaired mapping stack, re-run | **Done** — **COSTLY: −0.240 dense, −0.260 narrow**; Result 1's clutter margin was the map |
 | 6d | The classical planner builds its own map (registered run) | **Recorded** — **COSTLY, from two bugs of mine**: every collision was into an obstacle mapped ≥1 s earlier |
 | 6c | Observe only what a sensor could see: 360° scanner and 90° camera | **Done** — **UNRESOLVED for the scanner (−0.035)**; the camera costs −0.125 (p < 0.0001) |
@@ -2722,6 +2722,61 @@ The prediction came from val-band measurements of the same repaired stack, which
 is the category that has held before -- and did hold here, to within 0.03 on
 every cell. What it got wrong was the comparison it had not measured: where the
 policy sits.
+
+## Phase 6f — Take away the pose: the last privilege
+
+§9.2 left the planner its exact pose and called it the last privilege it held.
+This takes it. The pose comes from wheel odometry carrying both errors a real
+base has — the random walk of the standard motion model, and a scale and
+heading bias drawn once per robot — and, in the arm that matters, from that
+estimate corrected by matching each scan against the map the robot is building.
+Registered in `90724be` with a prediction derived from val-band measurement,
+before any test world was scored. Full treatment in report §9.3.
+
+Registered decisions: **COSTLY** (the pose was worth a great deal) and **PAYS**
+(scan matching gets most of it back).
+
+| success, 100 worlds | given the map | own map | odometry | odometry + matching | PPO |
+|---|---|---|---|---|---|
+| sparse | 1.000 | 1.000 | 0.670 | 0.570 | 0.980 |
+| large | 1.000 | 0.990 | 0.300 | 0.530 | 0.970 |
+| nominal | 1.000 | 0.970 | 0.700 | 0.850 | 0.960 |
+| noisy_lidar | 1.000 | 0.940 | 0.640 | 0.780 | 0.960 |
+| dense | 0.890 | 0.650 | 0.410 | 0.640 | 0.640 |
+| narrow | 0.850 | 0.590 | 0.420 | 0.630 | 0.600 |
+
+- Dead reckoning alone is HARMS on all six, from −0.170 on `narrow` to −0.690
+  on `large`, all p < 0.001, and the size tracks the distance driven.
+- Matching is MATTERS on five of six, and in clutter the pose then costs
+  nothing measurable: −0.010 on `dense`, +0.040 on `narrow`. Median pose error
+  0.084 m and 0.083 m, under a degree of heading.
+- **The exact inverse of Phase 6e.** The map cost −0.240/−0.260 in clutter and
+  nothing in the open; the pose costs nothing in clutter and −0.460/−0.430 in
+  the open. Structure is what a map is needed for *and* what a pose is
+  recovered from.
+- `sparse` is the one place matching hurts (0.570 against 0.670). Its own score
+  stays high while the pose is wrong: the map is built at the estimate and the
+  estimate matched against the map, so both drift together. No back end.
+- The 90° camera's clutter advantage from 6e reverses on `narrow` (0.530
+  against the scanner's 0.630, p = 0.0063) and holds on `large` (+0.140).
+
+### Controls
+
+Three, all passing: the full-map arm reproduces the published classical row on
+all six conditions; the own-map arm reproduces Phase 6e's per-episode outcomes
+on all six; and the same localised agent with the odometry noise off is
+bit-identical to it.
+
+### Calibration
+
+Prediction 30 is partial. The two registered decisions were both reached, and
+every clause held — the HARMS bands on `narrow` and `dense`, `large` being the
+worst of the six, the MATTERS bands for matching, the near-zero residual in
+clutter, the pose-error bands, the collision ceiling and all three controls —
+except one. It predicted matching would fall below dead reckoning on `sparse`
+"by between 0.15 and 0.50"; it fell below by 0.100, and inconclusively
+(p = 0.184). The direction was right, from a mechanism measured on val; the
+magnitude was not.
 
 ## Hardware notes
 

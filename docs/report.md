@@ -16,7 +16,11 @@ distributions, with the planner given the full map and exact pose throughout.
 (1.000 vs 0.960 success nominally; 0.850 vs 0.682 in tight corridors) — while
 it is handed the map. Building that map from the same scan the policy reads
 costs it the clutter margin entirely (0.590 vs 0.600 in tight corridors) and
-almost nothing in open worlds.
+almost nothing in open worlds. Taking its pose too — odometry, corrected by
+scan matching against that same self-built map — costs nothing further in
+clutter (0.630 in tight corridors) and most of what is left in open worlds
+(0.530 on the largest arenas, against 0.990 with the pose given). The two
+privileges are worth opposite things, and structure is why.
 
 We then eliminate the standard explanations for a losing RL result —
 insufficient data, wrong training distribution, insufficient compute (tested
@@ -160,26 +164,42 @@ term.
 
 Success / SPL, 100 held-out worlds per condition:
 
-| Condition | Classical, given the map | Classical, own map | PPO (privileged) |
-|---|---|---|---|
-| nominal | **1.000** / 0.985 | 0.970 / 0.951 | 0.960 / 0.910 |
-| sparse | **1.000** / 1.000 | 1.000 / 1.000 | 0.980 / 0.963 |
-| large | **1.000** / 0.990 | 0.990 / 0.977 | 0.970 / 0.940 |
-| dense | **0.890** / 0.841 | 0.650 / 0.602 | 0.640 / 0.593 |
-| narrow | **0.850** / 0.795 | 0.590 / 0.544 | 0.600 / 0.556 |
+| Condition | Classical: given the map | own map | own map, own pose | PPO (privileged) |
+|---|---|---|---|---|
+| nominal | **1.000** / 0.985 | 0.970 / 0.951 | 0.850 / 0.823 | 0.960 / 0.910 |
+| sparse | **1.000** / 1.000 | 1.000 / 1.000 | 0.570 / 0.569 | 0.980 / 0.963 |
+| large | **1.000** / 0.990 | 0.990 / 0.977 | 0.530 / 0.524 | 0.970 / 0.940 |
+| dense | **0.890** / 0.841 | 0.650 / 0.602 | 0.640 / 0.587 | 0.640 / 0.593 |
+| narrow | **0.850** / 0.795 | 0.590 / 0.544 | 0.630 / 0.584 | 0.600 / 0.556 |
 
 The learned policy is competitive in open worlds and collapses under clutter.
 
-**Most of that clutter margin is the map, not the planner.** The middle column
+**Most of that clutter margin is the map, not the planner.** The second column
 is the same planner building its own occupancy grid from the same 32-beam scan
 the policy reads, with its pose still exact (§9.2). In open worlds it keeps
 almost everything: 0.970 to 1.000. In clutter the margin goes: 0.650
 against the policy's 0.640 on `dense`, and 0.590 against
-0.600 on `narrow` -- a tie either way at a hundred episodes, where
+0.600 on `narrow` — a tie either way at a hundred episodes, where
 the mapped planner had led by 0.25. It gives up 0.240 and
 0.260 to mapping, almost all of it in timeouts (0.330 and
 0.390) rather than collisions (0.020), from a robot exploring
 its way around obstacles it cannot see through.
+
+**Taking its pose as well costs nothing more in clutter and most of what is
+left in open worlds.** The third column adds wheel odometry, drifting, corrected by
+matching each scan against the map the robot is building (§9.3). On `dense` and
+`narrow` that is free — 0.640 and 0.630, against 0.650 and 0.590 with the pose
+handed over — and on `large` it is ruinous, 0.530 against 0.990. The two
+privileges are worth opposite things, for one reason: clutter is structure, and
+structure is both what a map is needed for and what a pose can be recovered
+from.
+
+A caution on reading the last column against the first three, stronger than the
+one §9.2 needed. The privileged policy is given an exact goal vector, which is
+exact localisation relative to the goal, and ground-truth ranges. The third
+column has neither privilege. Where it falls below the policy in open worlds
+that is not a like-for-like comparison, and the comparison the experiment was
+built for is between the classical columns.
 
 The project's original hypothesis was the opposite. We had measured the
 baseline's weakness precisely: under shift, **A\* never once fails to find a
@@ -639,7 +659,7 @@ its episodes. Released, its stalls become crashes, not successes.
 
 **It cannot measure a gap.** A probe on the CNN's image features decodes the
 angular width of the traversable gap toward the goal at R² = −0.29 --
-worse than predicting the mean -- where the same probe on the depth policy's
+worse than predicting the mean — where the same probe on the depth policy's
 input vector reaches 0.220 (p = 0.002 over seeds). The same
 features do carry the clearance half a metre ahead about as well as depth does
 (0.205 against 0.264, p = 0.13), so this is not
@@ -647,7 +667,7 @@ a general blindness: the encoding keeps how far the wall ahead is and loses how
 wide the way past it is, which is exactly the quantity a 0.22 m disc in a
 corridor needs. Where the released episodes crash fits that: 13 of the 19
 added collisions happen within a metre of where the robot had stalled, at a
-median 0.51 m and 3.1 s after the release -- it edges into something
+median 0.51 m and 3.1 s after the release — it edges into something
 beside the opening rather than driving off and failing elsewhere. That split by
 distance is post hoc; the registered rule asked for a metre *and* three
 seconds, which 9 of 19 meet, and returns MIXED.
@@ -787,8 +807,8 @@ evidence about the policy.
 ### 9.2 What the map was worth
 
 Every classical number above is the planner reading a perfect static map. The
-report has called that privilege deliberate throughout -- a baseline that loses
-through handicap proves nothing -- and this is what it was worth. The planner
+report has called that privilege deliberate throughout — a baseline that loses
+through handicap proves nothing — and this is what it was worth. The planner
 builds an occupancy grid from its own range returns as it drives, plans on it
 with unknown space treated as free, and replans when something newly mapped
 cuts across its route. Its pose is still exact: taking both privileges at once
@@ -806,8 +826,8 @@ would leave a result nobody could attribute.
 **Open worlds barely notice; clutter is where the map was doing the work.** The
 losses are −0.240 on `dense` and −0.260 on `narrow`
 (both p < 0.0001), against at most −0.030 on the three open
-conditions. What the planner loses is not safety -- collisions stay at
-0.020 -- but arrival: timeouts rise to 0.330 and
+conditions. What the planner loses is not safety — collisions stay at
+0.020 — but arrival: timeouts rise to 0.330 and
 0.390 as it explores its way around obstacles it cannot see
 through, replanning about 75 times an episode and finishing with half the world
 still unmapped.
@@ -823,6 +843,101 @@ episodes is nothing either way. And what is measured is *this* mapping stack --
 an occupancy grid, A\*, pure pursuit and the standard recoveries. A production
 stack would plausibly do better, and the project already has a Nav2 bridge to
 ask with.
+
+### 9.3 What the exact pose was worth
+
+§9.2 took the map away and kept the pose, saying why: taking both at once would
+leave a result nobody could attribute. This takes the second one, which is the
+last privilege the planner holds and the one a real robot lacks most obviously.
+
+The pose now comes from the wheels. The odometry model carries both errors a
+real base has — the random walk of the standard motion model, growing with the
+square root of the distance driven, and a scale and heading bias drawn once per
+robot, growing with the distance itself. The second is what matters over a long
+run, and is why calibration procedures like UMBmark exist. Two arms read that
+estimate: one drives on it as it comes, and one corrects it by matching each
+scan against the map the robot is already building — a correlative matcher over
+a likelihood field, searched coarse to fine, charged for departing from the
+odometry prediction, which is the front end of a standard 2-D SLAM stack.
+Nothing else changes: same planner, same controller, same margins, same map,
+same sensor.
+
+The true pose still reaches the sensor, because the scanner is bolted to the
+robot and not to its belief, and the diagnostics that score the estimate. It
+reaches neither the map, nor the planner, nor the controller, and a unit test
+holds the control path to that. Arrival is judged where the robot physically
+is: a robot that believes it has arrived and has not, fails.
+
+| success, 100 worlds | given the map | own map | own map, odometry | own map, odometry + matching | PPO |
+|---|---|---|---|---|---|
+| sparse | 1.000 | 1.000 | 0.670 | 0.570 | 0.980 |
+| large | 1.000 | 0.990 | 0.300 | 0.530 | 0.970 |
+| nominal | 1.000 | 0.970 | 0.700 | 0.850 | 0.960 |
+| noisy_lidar | 1.000 | 0.940 | 0.640 | 0.780 | 0.960 |
+| dense | 0.890 | 0.650 | 0.410 | 0.640 | 0.640 |
+| narrow | 0.850 | 0.590 | 0.420 | 0.630 | 0.600 |
+
+**Dead reckoning alone is not enough anywhere.** Against the same planner
+holding its exact pose it is HARMS on all six conditions, from −0.170 on
+`narrow` to −0.690 on `large`, every one at p < 0.001. The size tracks the
+distance driven, which is what a drift model predicts: `large` has the longest
+journeys and loses seven tenths of its success, `narrow` the shortest and loses
+least. Collisions stay at or below 0.030. The robot does not hit things, it
+fails to arrive, and timeouts reach 0.680.
+
+**Scan matching pays most of it back, and in clutter the pose then costs
+nothing measurable.** Correcting against its own map is MATTERS on five of the
+six conditions: +0.230 on `dense`, +0.230 on `large`, +0.210 on `narrow`,
++0.150 on `nominal`, +0.140 on `noisy_lidar`. In clutter that closes the gap
+entirely — 0.640 on `dense` against 0.650 with the pose handed over
+(−0.010), and 0.630 on `narrow` against 0.590 (+0.040), neither
+resolvable at a hundred episodes. The mechanism is visible in the estimate
+itself: median final pose error 0.084 m on `dense` and 0.083 m on
+`narrow`, against 0.329 m and 0.393 m without correction, and under a degree of
+heading error against about five.
+
+**This is the exact inverse of what the map was worth.** §9.2 measured the map
+costing −0.240 and −0.260 in clutter and nothing in open worlds. The pose costs
+nothing in clutter and −0.460 on `large`, −0.430 on `sparse`. One fact explains
+both: clutter is structure, and structure is simultaneously what a map is needed
+for — you cannot see through it — and what a pose can be recovered from — you
+have something to match against. An open room is the opposite on both counts.
+
+**Which is why matching can make things worse.** On `sparse` it does: 0.570
+against dead reckoning's 0.670. The mechanism was named in the registration
+before the run and is measured directly by
+[`localisation_diagnostic.py`](../scripts/localisation_diagnostic.py), which
+records the matcher's own score against the true error for every control period
+of a val run. On `sparse` it scores a median 0.925 while the pose is 0.570 m
+out; on `dense`, where it works, it scores 0.965 and is 0.058 m out. The score
+it is maximising barely distinguishes the two, and its confidence carries almost
+no information: restricting to the half of the steps it was most confident about
+still leaves `sparse` 0.441 m out. The map is built at the estimate and the
+estimate is matched against the map, so the two agree with each other while both
+drift away from the world. This stack has no back end — no pose graph, no loop
+closure, nothing that reconsiders a past decision — and a front end alone cannot
+tell a consistent error from a correct pose.
+
+**The sensor ordering reverses.** §9.2 found the 90° camera's forward resolution
+beating the 360° scanner in clutter. With a pose to estimate as well, `narrow`
+flips — 0.530 for the camera against 0.630 for the scanner (−0.100,
+p = 0.0063) — while `large` goes the other way, 0.670 against 0.530
+(+0.140, p = 0.038). Coverage is what pins a pose between two walls a metre
+apart; forward resolution is what maps a far wall across a large room.
+
+**On the PPO column, a caution stronger than §9.2's.** The privileged policy
+reads an exact goal vector, which is exact localisation relative to the goal,
+and ground-truth ranges. The two right-hand classical columns hold neither
+privilege. Where the planner now falls below the policy in open worlds — 0.570
+against 0.980 on `sparse` — that is a planner with no map and no pose against a
+policy that still has a pose, and it is not a like-for-like comparison.
+
+**Controls.** The full-map arm reproduces the published classical row on all six
+conditions. The own-map arm reproduces Phase 6e's per-episode outcomes on all
+six. And the same localised agent with its odometry noise switched off is
+bit-identical to it, because the estimator is then the robot's own integrator
+driven by exact wheel readings — so a difference between these arms is the
+pose, not the plumbing.
 
 ## 10. Discussion
 
@@ -872,11 +987,11 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of twenty-nine predictions made in advance, four derived from
+**Calibration.** Of thirty predictions made in advance, four derived from
 a *measurement* held — two to within 0.021 and 0.001, one on both magnitude and
 mechanism, and one whose magnitude came from measuring the estimator it was
-about; thirteen from extrapolation, intuition, arithmetic or a post hoc
-description failed outright; eleven got part right and part wrong. Confidence
+about; fourteen from extrapolation, intuition, arithmetic or a post hoc
+description failed outright; twelve got part right and part wrong. Confidence
 of expression was identical throughout. Three rules came out of them; the
 record of each prediction is in [`project_plan.md`](project_plan.md). The
 fifteenth also broke this report's own stated practice: its null was registered
@@ -955,6 +1070,11 @@ enough.**
   `dynamic_dense` margin (+0.150 to +0.170) is far outside that spread but the
   `dynamic` result (−0.020 to +0.010) sits inside it and is read as parity
   rather than as a measured equality.
+- **The localisation of §9.3 is a front end with no back end**: no pose
+  graph, no loop closure, nothing that revisits a past estimate. Its worst
+  failure — matching doing more harm than dead reckoning on `sparse` --
+  is the failure that a back end exists to prevent, so that number bounds
+  this design rather than scan matching.
 - **The mapping stack of §9.2 is basic**: an occupancy grid, A\*, pure
   pursuit and the standard recoveries, built for this comparison and fixed
   after its first run measured five faults in it rather than the cost of
@@ -967,15 +1087,15 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Take away the pose.** §9.2 removed the map and left the planner its
-   exact pose, which is now the last privilege it holds and the one a real
-   robot lacks most obviously. Odometry drift with scan matching against the
-   map it is already building is the standard answer, and the comparison it
-   completes is the one this study was designed to make.
-2. **Ask a production stack the same question.** The mapped planner of §9.2 is
-   deliberately basic, and the project already drives real Nav2 over a ROS 2
-   bridge (§4.1). Nav2 with SLAM on these worlds would say how much of the
-   0.25 that mapping cost is this implementation and how much is the problem.
+1. **Ask a production stack the same question.** The mapped, self-localising
+   planner of §9.2 and §9.3 is deliberately basic, and the project already
+   drives real Nav2 over a ROS 2 bridge (§4.1). Nav2 with SLAM on these worlds
+   would say how much of what those two sections measured is this
+   implementation and how much is the problem.
+2. **Give it a back end.** §9.3's one harmful result — scan matching worse
+   than dead reckoning on `sparse` — is a front end agreeing with a map it
+   corrupted itself. Loop closure over a pose graph is the standard answer, and
+   `sparse` is the condition that would say whether it is the whole answer.
 3. **An encoder that can measure a gap.** The RGB features carry the
    clearance ahead as well as a depth vector does and the *width* of the gap
    past it not at all (§8.5). The first convolution strides 4 across a
@@ -1000,7 +1120,7 @@ In order of expected information per GPU-hour:
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 457 tests
+pytest                                        # 470 tests
 python scripts/check_docs.py                  # every doc link resolves
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix
