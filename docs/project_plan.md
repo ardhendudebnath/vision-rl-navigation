@@ -50,6 +50,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
 | 5w | Cap the estimate's extrapolation at 2 s and 1 s | **Done** — **UNRESOLVED: +0.010 on dense**; a 1 s cap costs sparse 0.085 (p = 0.0005) |
+| 6f | Take away the pose: wheel odometry, and scan matching against the robot's own map | **Registered, not yet run** — prediction in `scripts/localisation_experiment.py` |
 | 6e | The repaired mapping stack, re-run | **Done** — **COSTLY: −0.240 dense, −0.260 narrow**; Result 1's clutter margin was the map |
 | 6d | The classical planner builds its own map (registered run) | **Recorded** — **COSTLY, from two bugs of mine**: every collision was into an obstacle mapped ≥1 s earlier |
 | 6c | Observe only what a sensor could see: 360° scanner and 90° camera | **Done** — **UNRESOLVED for the scanner (−0.035)**; the camera costs −0.125 (p < 0.0001) |

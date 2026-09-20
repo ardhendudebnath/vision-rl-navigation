@@ -203,6 +203,14 @@ class MappedPursuitAgent(AStarPursuitAgent):
         self._steps += 1
         pose = np.asarray(pose, dtype=np.float64)
         self.map.integrate(pose)
+        return self._drive(pose)
+
+    def _drive(self, pose: np.ndarray) -> np.ndarray:
+        """Plan if the map has invalidated the plan, then track it.
+
+        Split from :meth:`act` for the subclass that has to sense and localise
+        before it knows which pose to drive from; everything below is shared.
+        """
         if self._track is None:
             # Stopped after a failed plan: try again on what the new scan adds.
             self.reset(self._world, pose)

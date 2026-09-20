@@ -84,12 +84,28 @@ class OccupancyMap:
         self.scans = 0
 
     # --- building ---------------------------------------------------------
-    def integrate(self, pose: np.ndarray) -> bool:
-        """Add one scan taken at ``pose``. Returns whether any cell became
-        occupied -- the only change that can invalidate a plan."""
+    def scan(self, pose: np.ndarray) -> np.ndarray:
+        """The ranges the sensor returns from ``pose``.
+
+        Separate from :meth:`integrate` for the one caller that needs the scan
+        before it knows where to put it: a robot estimating its own pose matches
+        the scan against the map first, and integrates it at the pose the match
+        settles on (:mod:`vision_nav.mapping.localisation`).
+        """
+        return np.asarray(self.sensor.scan(self._world, np.asarray(pose, dtype=np.float64),
+                                           self.rng), dtype=np.float64)
+
+    def integrate(self, pose: np.ndarray, ranges: np.ndarray | None = None) -> bool:
+        """Add one scan at ``pose``. Returns whether any cell became occupied --
+        the only change that can invalidate a plan.
+
+        ``ranges`` supplies a scan already taken; by default one is taken at
+        ``pose``, which is the same thing whenever the robot knows where it is.
+        """
         pose = np.asarray(pose, dtype=np.float64)
         self.scans += 1
-        ranges = np.asarray(self.sensor.scan(self._world, pose, self.rng), dtype=np.float64)
+        ranges = (self.scan(pose) if ranges is None
+                  else np.asarray(ranges, dtype=np.float64))
         angles = np.asarray(self.sensor._angles, dtype=np.float64) + pose[2]
         dirs = np.stack([np.cos(angles), np.sin(angles)], axis=-1)
         max_range = float(self.sensor.config.max_range)
