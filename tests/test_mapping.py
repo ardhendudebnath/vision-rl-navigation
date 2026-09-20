@@ -59,15 +59,54 @@ def test_a_return_at_max_range_marks_nothing_occupied():
     assert not (m.grid == OCCUPIED).any()
 
 
-def test_occupied_cells_are_not_cleared_by_later_beams():
-    world = _NoGeometry()
-    hit = _FakeSensor([0.0], [2.0])
-    m = OccupancyMap(world, hit)
-    m.integrate(np.array([1.0, 1.05, 0.0]))
+def test_one_contrary_beam_does_not_erase_a_surface_and_many_do():
+    """Evidence, not stickiness. A single beam grazing through a cell once hit
+    must not erase it -- that is how a surface would vanish from under a robot
+    turning past it -- but a cell repeatedly seen through is free space, which
+    is how noise stops accumulating as phantom obstacles."""
+    m = OccupancyMap(_NoGeometry(), _FakeSensor([0.0], [2.0]))
+    pose = np.array([1.0, 1.05, 0.0])
+    m.integrate(pose)
     cell = (int(1.05 / m.resolution), int(3.0 / m.resolution))
-    m.sensor = _FakeSensor([0.0], [6.0])  # a later beam passing straight through
-    m.integrate(np.array([1.0, 1.05, 0.0]))
     assert m.grid[cell] == OCCUPIED
+    m.sensor = _FakeSensor([0.0], [6.0])  # beams now pass straight through
+    m.integrate(pose)
+    assert m.grid[cell] == OCCUPIED, "one pass erased a surface"
+    for _ in range(4):
+        m.integrate(pose)
+    assert m.grid[cell] == FREE, "repeated passes left a phantom in free space"
+
+
+def test_every_mapped_cell_really_holds_a_surface_within_the_assumed_reach():
+    """What conservative placement guarantees. It cannot promise the map never
+    reports more room than there is -- unknown is free, and an unseen face of an
+    obstacle is exactly such room. It does promise that every cell called
+    occupied holds a real surface no further from its centre than the half
+    diagonal the clearance subtracts, so clearance to what *has* been mapped is
+    never overstated. First written as the stronger claim, which failed where
+    32 beams had not yet landed on part of the box: correctly."""
+    world = _open_world(boxes=[(5.0, 4.5, 5.6, 7.5)])
+    m = OccupancyMap(world, make_sensor("lidar32"))
+    for x, y in ((3.5, 6.0), (7.0, 6.0), (5.3, 3.0), (5.3, 9.0), (3.8, 3.8), (6.8, 8.2)):
+        for heading in np.linspace(0, 2 * np.pi, 8, endpoint=False):
+            m.integrate(np.array([x, y, heading]))
+    occupied = m.grid_to_world(np.argwhere(m.grid == OCCUPIED))
+    assert len(occupied) > 20, "the scans mapped almost nothing; the check would be empty"
+    true = world.clearance(occupied, include_dynamic=False)
+    assert (true <= m.half_diagonal + 1e-9).all(), true.max()
+
+
+def test_noise_does_not_accumulate_into_phantoms():
+    """Phase 6d's first map filled open floor with obstacles under 0.10 m of
+    range noise. With evidence, open floor far from any surface stays free."""
+    world = _open_world(boxes=[(8.0, 4.0, 8.6, 8.0)])
+    m = OccupancyMap(world, make_sensor("lidar32", noise_std=0.10),
+                     rng=np.random.default_rng(0))
+    for _ in range(200):
+        m.integrate(np.array([3.0, 6.0, 0.0]))
+    open_floor = m.world_to_grid(np.array([[4.5, 6.0], [5.5, 6.0], [3.0, 7.5]]))
+    assert all(m.grid[tuple(c)] == FREE for c in open_floor)
+    assert (m.clearance(np.array([[5.0, 6.0]])) > 2.0).all()
 
 
 def test_unknown_space_is_free_to_plan_through():
@@ -124,16 +163,30 @@ def test_the_mapped_planner_never_asks_the_world_for_its_map():
 
 
 def test_discovering_an_obstacle_on_the_path_triggers_a_replan():
+    """Three metres ahead is not urgent, so the answer comes at the replanning
+    rate rather than on the next scan -- within a second either way."""
     world = _open_world(boxes=[(5.0, 4.5, 5.6, 7.5)])
     agent = MappedPursuitAgent(sensor="camera64")
     # Start facing away, so the first scan does not see the box.
     assert agent.start_episode(world, np.array([2.0, 6.0, np.pi]))
     replans_before = agent.replans
-    agent.act(np.array([2.0, 6.0, 0.0]))  # now facing it
+    for _ in range(agent.replan_period + 1):
+        agent.act(np.array([2.0, 6.0, 0.0]))  # now facing it
     assert agent.replans > replans_before, "a newly seen obstacle on the plan was ignored"
     assert agent.path is not None
     # And the new plan goes round it rather than through.
     assert (agent.map.clearance(agent._track) >= agent.map.robot_radius - 1e-6).all()
+
+
+def test_something_close_ahead_is_answered_at_once():
+    """The rate limit must not delay the near horizon: a wall a metre away is
+    replanned around on the scan that finds it, not a second later."""
+    world = _open_world(boxes=[(3.2, 4.0, 3.8, 8.0)])
+    agent = MappedPursuitAgent(sensor="camera64")
+    assert agent.start_episode(world, np.array([2.0, 6.0, np.pi]))
+    before = agent.replans
+    agent.act(np.array([2.0, 6.0, 0.0]))
+    assert agent.replans == before + 1, "a wall a metre ahead waited for the timer"
 
 
 def test_an_unknown_sensor_is_refused():

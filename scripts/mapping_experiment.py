@@ -48,25 +48,36 @@ CONDITIONS = tuple(BENCHMARK_CONDITIONS)
 LEARNED = {"ppo_privileged": "nominal_trained", "depth_policy": "depth64",
            "best_lidar_policy": "lidar64"}
 
-#: Recorded before the run and committed to the repository before any result
-#: exists.
+#: The registered run of this experiment is Phase 6d, kept in
+#: ``results/mapping_experiment.json`` with its own prediction (see git history,
+#: commit 915c76a). Its diagnostic showed every collision going into an obstacle
+#: the map had held for seconds: it measured five faults in this planner, not the
+#: cost of mapping. They are fixed, and this is the repaired run.
 #:
-#: Confidence LOW on every number, and none rests on a measurement. The reasoning:
-#: a 32-beam scanner samples a surface every 0.2 m at a metre and every 0.6 m
-#: at three, against a 0.40 m planning inflation, so what the robot is about to
-#: pass is well mapped and what is far away is not. Open conditions should
-#: barely notice. In `narrow` and `dense`, planning optimistically through
-#: space nobody has looked at means committing to gaps that turn out closed,
-#: then replanning -- and Phase 5d measured replanning in clutter costing the
-#: pure-pursuit controller. The margin to the learned policy there is 0.25, which
-#: is why the planner is predicted to keep its lead even so.
+#: Recorded before the repaired run and committed before any result on the test
+#: worlds exists. DISCLOSED: the repairs were made and checked on the ``val``
+#: seed band, which this experiment never scores, and the numbers below come
+#: from those checks -- a forecast derived from a measurement, in a regime one
+#: band away from the one it is applied to. On val, against a full map scoring
+#: 0.950 on dense and 0.880 on narrow, the repaired planner scores 0.770 and
+#: 0.660 with the scanner, 0.790 and 0.660 with the camera, and 0.970 and 0.940
+#: on noisy_lidar against 1.000. Collisions are 0.000 to 0.010 everywhere; the
+#: cost is timeouts, from a robot that drives 17 m of an 8.6 m journey while
+#: exploring and does not arrive.
+#:
+#: What is being measured is this mapping stack -- an occupancy grid, A*, pure
+#: pursuit, and the standard recoveries -- not mapping in general. A production
+#: stack would likely do better, and the project already has a Nav2 bridge to
+#: find out with.
 PREDICTION = (
-    "mapping costs the planner in clutter and little elsewhere, and it still "
-    "wins: mapped_lidar32 minus full_map on narrow is HARMS, between -0.05 and "
-    "-0.15; on sparse, large and nominal it loses at most 0.03. mapped_lidar32 "
-    "still beats the privileged PPO policy's published success on all five "
-    "static conditions. mapped_camera64 loses more than mapped_lidar32 on narrow "
-    "and on dense. full_map reproduces the published classical row on all six. "
+    "the repaired planner pays about a fifth of its success to mapping in "
+    "clutter, and pays it in timeouts: mapped_lidar32 minus full_map on narrow "
+    "is HARMS, between -0.15 and -0.28, and on dense between -0.12 and -0.25; "
+    "collisions stay at or below 0.05 on both. On sparse, large and nominal it "
+    "loses at most 0.03, and on noisy_lidar it scores at least 0.90. "
+    "mapped_lidar32 still beats the privileged PPO policy on dense and narrow, "
+    "by less than 0.10 on each. full_map reproduces the published classical row "
+    "on all six. "
     "Decision on mapped_lidar32 minus full_map, narrow -- CHEAP: INERT (bounded). "
     "COSTLY: HARMS. Otherwise UNRESOLVED."
 )
@@ -106,7 +117,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--episodes", type=int, default=100)
     p.add_argument("--bootstrap", type=int, default=10000)
-    p.add_argument("--out", default="results/mapping_experiment.json")
+    p.add_argument("--out", default="results/mapping_experiment_repaired.json")
     args = p.parse_args(argv)
 
     report = {"episodes": args.episodes, "prediction": PREDICTION, "conditions": {},

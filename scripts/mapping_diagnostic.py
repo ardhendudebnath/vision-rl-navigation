@@ -41,8 +41,11 @@ def contact_point(world, position: np.ndarray) -> np.ndarray:
     return ring[int(np.argmin(world.clearance(ring, include_dynamic=False)))]
 
 
-def diagnose(cond: str, sensor: str, episodes: int) -> dict:
+def diagnose(cond: str, sensor: str, episodes: int, split_override: str | None = None) -> dict:
     split, shift, noise = BENCHMARK_CONDITIONS[cond]
+    # The repairs after Phase 6d were checked on the ``val`` band, which the
+    # experiment never scores, so that the re-run's pre-registration stays clean.
+    split = split_override or split
     overrides = {"lidar": {"noise_std": noise}} if noise else {}
     cfg = build_env_config(overrides, split=split, shift=shift, n_worlds=episodes)
     env = ProceduralNavEnv(cfg)
@@ -72,9 +75,16 @@ def diagnose(cond: str, sensor: str, episodes: int) -> dict:
             row["scans_mapped_before_contact"] = (int(agent.map.scans - first.min())
                                                   if len(first) else None)
             row["mapped_clearance_at_contact"] = float(agent.map.clearance(env.robot.position))
+            # Was the robot driving a plan its own map had already ruled out?
+            # A replan that finds no route keeps the old plan, which the full-map
+            # planner -- never replanning on a static world -- never meets.
+            end = agent._steps
+            row["failed_replan_last_2s"] = any(end - s <= 20 for s in agent.failed_plan_steps)
         rows.append(row)
     coll = [r for r in rows if r["outcome"] == "collision"]
+    full = sum(bool(o) for o in _full_map_successes(cfg))
     return {
+        "full_map_success": full / len(rows),
         "episodes": len(rows),
         "success": sum(r["outcome"] == "success" for r in rows) / len(rows),
         "collision": len(coll) / len(rows),
@@ -93,26 +103,50 @@ def diagnose(cond: str, sensor: str, episodes: int) -> dict:
             [r["scans_mapped_before_contact"] for r in coll
              if r.get("scans_mapped_before_contact") is not None])) if coll else None,
         "median_replans": float(np.median([r["replans"] for r in rows if "replans" in r])),
+        # The sharper question: at the moment of contact, did the map itself
+        # believe the robot was touching something? If it did, the planner or
+        # controller drove into what it knew. If not, the robot found a gap in
+        # the map -- a face its beams had not covered, between cells that were.
+        "collisions_map_knew_contact": sum(
+            r["mapped_clearance_at_contact"] <= cfg.world.robot_radius + 1e-9 for r in coll),
+        "collisions_after_failed_replan": sum(r["failed_replan_last_2s"] for r in coll),
+        "collisions_map_saw_room": sum(
+            r["mapped_clearance_at_contact"] > cfg.world.robot_radius + 1e-9 for r in coll),
     }
+
+
+def _full_map_successes(cfg):
+    """The published baseline on the same worlds, for reference."""
+    from vision_nav.training.actors import build_actor
+    from vision_nav.training.evaluate import evaluate
+
+    _, results = evaluate(build_actor("classical", robot=cfg.robot), cfg)
+    return [r.success for r in results]
 
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--episodes", type=int, default=100)
     p.add_argument("--out", default="results/mapping_diagnostic.json")
+    p.add_argument("--split", default=None, help="override every condition's seed band")
+    p.add_argument("--conditions", nargs="+", default=["dense", "narrow"])
     args = p.parse_args(argv)
     report = {}
-    for cond in ("dense", "narrow"):
+    for cond in args.conditions:
         for sensor in ("lidar32", "camera64"):
-            d = diagnose(cond, sensor, args.episodes)
+            d = diagnose(cond, sensor, args.episodes, args.split)
             report[f"{cond}/{sensor}"] = d
-            print(f"{cond:7s} {sensor:9s} success {d['success']:.3f} collision {d['collision']:.3f} "
+            print(f"{cond:7s} {sensor:9s} full map {d['full_map_success']:.3f} | "
+                  f"success {d['success']:.3f} collision {d['collision']:.3f} "
                   f"timeout {d['timeout']:.3f} | collisions into mapped {d['collisions_into_mapped']}"
                   f" / unmapped {d['collisions_into_unmapped']} | map seen {d['median_known']:.2f}"
                   f" | replans {d['median_replans']:.0f} | mapped >=1 s before contact "
                   f"{d['collisions_mapped_1s_before']}, in the last 0.5 s "
                   f"{d['collisions_mapped_last_0p5s']}, median "
-                  f"{d['median_scans_mapped_before_contact']} scans", flush=True)
+                  f"{d['median_scans_mapped_before_contact']} scans | map knew contact "
+                  f"{d['collisions_map_knew_contact']}, map saw room "
+                  f"{d['collisions_map_saw_room']} | after a failed replan "
+                  f"{d['collisions_after_failed_replan']} of {d['collisions']}", flush=True)
     Path(args.out).write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(f"Wrote {args.out}")
     return 0
