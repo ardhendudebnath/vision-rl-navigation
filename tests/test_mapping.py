@@ -189,6 +189,23 @@ def test_something_close_ahead_is_answered_at_once():
     assert agent.replans == before + 1, "a wall a metre ahead waited for the timer"
 
 
+def test_the_dense_scanner_is_the_one_nav2_was_given():
+    """Report §9.4 compared this stack with Nav2 at 360 beams. The bridge builds
+    that scan by raising the env lidar's beam count and nothing else, and
+    publishes it as angle_min = -pi in steps of 2*pi/360; the two must agree
+    beam for beam or the comparison would hold the sensor only nominally."""
+    from dataclasses import replace
+
+    from vision_nav.envs.sensors import LidarConfig
+
+    sensor = make_sensor("lidar360", noise_std=0.1)
+    bridge = replace(LidarConfig(), n_beams=360).beam_angles()
+    np.testing.assert_allclose(sensor._angles, bridge)
+    np.testing.assert_allclose(sensor._angles, -np.pi + np.arange(360) * (2 * np.pi / 360))
+    assert sensor.config.max_range == LidarConfig().max_range
+    assert sensor.config.noise_std == 0.1
+
+
 def test_an_unknown_sensor_is_refused():
     with pytest.raises(ValueError, match="unknown sensor"):
         make_sensor("sonar")

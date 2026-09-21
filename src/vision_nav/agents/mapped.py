@@ -67,16 +67,22 @@ def make_sensor(kind: str, noise_std: float = 0.0) -> Lidar2D:
     policy reads, so the mapped planner and the policy see the same returns.
     ``"camera64"`` is the depth camera's geometry -- 64 columns over 90 degrees,
     sampled at column centres exactly as :class:`DepthCamera` does.
+    ``"lidar360"`` is the scanner every Nav2 row in the report is given: the same
+    360-degree, 6 m sensor at ten times the beams, so this stack can be asked
+    the question report §9.4 asked Nav2 with the sensor held the same.
     """
     if kind == "lidar32":
         return Lidar2D(LidarConfig(n_beams=32, fov=2.0 * np.pi, max_range=6.0,
+                                   noise_std=noise_std))
+    if kind == "lidar360":
+        return Lidar2D(LidarConfig(n_beams=360, fov=2.0 * np.pi, max_range=6.0,
                                    noise_std=noise_std))
     if kind == "camera64":
         fov = np.pi / 2
         sensor = Lidar2D(LidarConfig(n_beams=64, fov=fov, max_range=6.0, noise_std=noise_std))
         sensor._angles = -fov / 2.0 + (np.arange(64) + 0.5) * (fov / 64)
         return sensor
-    raise ValueError(f"unknown sensor {kind!r}; expected 'lidar32' or 'camera64'")
+    raise ValueError(f"unknown sensor {kind!r}; expected 'lidar32', 'lidar360' or 'camera64'")
 
 
 class MappedPursuitAgent(AStarPursuitAgent):
