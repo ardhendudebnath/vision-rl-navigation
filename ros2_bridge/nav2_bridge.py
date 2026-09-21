@@ -18,6 +18,20 @@ nothing:
 - a **360-beam** ``/scan``, denser than anything the learned policies get,
   so the local costmap is not the bottleneck.
 
+Taking those privileges away
+----------------------------
+Report §9.2 and §9.3 took the map and then the pose away from the hand-written
+stack and measured what each was worth. ``privileges="slam"`` does the same
+here, so the two answers are comparable: the bridge stops publishing ``/map``
+and stops publishing ``map -> odom``, leaving both to ``slam_toolbox``, and
+``odom -> base_link`` carries a *drifting* estimate instead of the truth.
+
+The drift comes from :class:`~vision_nav.mapping.localisation.DeadReckoning`
+with the default :class:`OdometryConfig` — the same model, the same parameters
+and the same per-world seeding as §9.3, imported rather than reimplemented.
+A second odometry model would have made the difference between the two stacks
+partly a difference between two noise generators.
+
 Time
 ----
 The simulator is a 10 Hz stepped process, not a wall-clock one. The node
@@ -30,6 +44,7 @@ racing a simulator that only moves when told to.
 from __future__ import annotations
 
 import math
+import os
 from dataclasses import replace
 
 import numpy as np
@@ -44,6 +59,7 @@ from tf2_ros import StaticTransformBroadcaster, TransformBroadcaster
 
 from vision_nav.envs import NavEnvConfig, ProceduralNavEnv
 from vision_nav.envs.sensors import Lidar2D
+from vision_nav.mapping.localisation import DeadReckoning, OdometryConfig
 
 #: Beams in the scan handed to Nav2. Far denser than the learned policies get
 #: (16-128), so the local costmap is never the limiting factor.
@@ -67,15 +83,34 @@ def yaw_to_quaternion(yaw: float) -> Quaternion:
 class Nav2Bridge(Node):
     """Publishes the simulator to ROS 2 and applies Nav2's velocity commands."""
 
-    def __init__(self, env_config: NavEnvConfig) -> None:
+    def __init__(self, env_config: NavEnvConfig, privileges: str = "full",
+                 beams: int = NAV2_SCAN_BEAMS) -> None:
         super().__init__("nav2_bridge")
+        if privileges not in ("full", "slam"):
+            raise ValueError(f"privileges must be 'full' or 'slam', got {privileges!r}")
+        #: ``"full"``: the static map and the exact pose. ``"slam"``: neither —
+        #: slam_toolbox owns ``/map`` and ``map -> odom``, and this node
+        #: publishes a drifting ``odom -> base_link``.
+        self.privileges = privileges
+        self.slam = privileges == "slam"
         self.env = ProceduralNavEnv(env_config)
         self.dt = env_config.robot.dt
+        # §9.3's odometry, imported so the two stacks drift the same way.
+        # NAV2_PERFECT_ODOM=1 turns the noise off: a development control, which
+        # separates what SLAM does from what the odometry feeding it does.
+        noisy = self.slam and not os.environ.get("NAV2_PERFECT_ODOM")
+        self._odom = DeadReckoning(env_config.robot, OdometryConfig() if noisy else None)
         # Only the beam count is replaced. Range, FOV and — critically — the
         # noise and dropout of the evaluation condition are inherited from the
         # env config: building a fresh LidarConfig here would hand Nav2 a clean
         # sensor under `noisy_lidar` and quietly score the wrong experiment.
-        self._scan = Lidar2D(replace(env_config.lidar, n_beams=NAV2_SCAN_BEAMS))
+        #
+        # 360 by default, as in every published Nav2 row. The SLAM comparison
+        # also runs at 32, the scanner the hand-written mapping stack of report
+        # §9.2 built its map from: at 360 against 32, a difference between the
+        # two stacks would be partly a sensor ten times denser.
+        self.beams = int(beams)
+        self._scan = Lidar2D(replace(env_config.lidar, n_beams=self.beams))
 
         self._cmd = np.zeros(2)  # (v, omega) in SI units, as Nav2 sends them
         self._sim_time = 0.0
@@ -152,9 +187,20 @@ class Nav2Bridge(Node):
         self._episode_active = True
         self.last_info = info
         self._map_msg = None  # new layout; rebuild on next publish
+        # Seeded from the world, exactly as §9.3 seeds it, so a world drifts
+        # the same way in both stacks. Starting from the true pose is not a
+        # privilege: it is the origin the map frame is defined by.
+        self._odom.rng = np.random.default_rng((int(world_seed), 7))
+        self._odom.reset(self.env.robot.pose)
         self.publish_all()
         self.publish_map()
         return info
+
+    @property
+    def believed_pose(self) -> np.ndarray:
+        """Where odometry alone says the robot is. In ``slam`` mode this is the
+        ``odom`` frame's answer, before slam_toolbox's correction."""
+        return self._odom.pose
 
     def action_from_cmd(self) -> np.ndarray:
         """Map Nav2's (v, omega) in SI units into the env's normalised action.
@@ -171,6 +217,10 @@ class Nav2Bridge(Node):
         if not self._episode_active:
             return False
         _, _, terminated, truncated, info = self.env.step(self.action_from_cmd())
+        # The encoders read the velocity the base actually achieved, which is
+        # what the robot integrates. With privileges="full" the model is
+        # noiseless and this reproduces the true pose exactly.
+        self._odom.update(self.env.robot.velocity)
         self.steps += 1
         self._sim_time += self.dt
         self.last_info = info
@@ -199,16 +249,23 @@ class Nav2Bridge(Node):
         self.publish_scan()
 
     def publish_tf(self) -> None:
-        """map -> odom (identity) -> base_link (ground truth).
+        """``map -> odom -> base_link``.
 
-        Ground-truth pose is the same privilege the hand-written baseline
-        receives, so localisation error is not a confound in the comparison.
+        With full privileges, ``map -> odom`` is identity and ``odom ->
+        base_link`` is the ground-truth pose — the same privilege the
+        hand-written baseline receives, so localisation error is not a confound.
+
+        In ``slam`` mode only ``odom -> base_link`` is published here, carrying
+        the drifting estimate, because ``map -> odom`` is precisely the
+        correction slam_toolbox exists to compute. Publishing both would leave
+        two broadcasters fighting over one edge, and TF would take whichever
+        arrived last.
         """
-        x, y, yaw = self.env.robot.pose
-        for parent, child, tx, ty, rot in (
-            ("map", "odom", 0.0, 0.0, yaw_to_quaternion(0.0)),
-            ("odom", "base_link", float(x), float(y), yaw_to_quaternion(float(yaw))),
-        ):
+        x, y, yaw = self.believed_pose if self.slam else self.env.robot.pose
+        edges = [("odom", "base_link", float(x), float(y), yaw_to_quaternion(float(yaw)))]
+        if not self.slam:
+            edges.insert(0, ("map", "odom", 0.0, 0.0, yaw_to_quaternion(0.0)))
+        for parent, child, tx, ty, rot in edges:
             t = TransformStamped()
             self._stamp(t.header)
             t.header.frame_id = parent
@@ -219,7 +276,7 @@ class Nav2Bridge(Node):
             self.tf.sendTransform(t)
 
     def publish_odom(self) -> None:
-        x, y, yaw = self.env.robot.pose
+        x, y, yaw = self.believed_pose if self.slam else self.env.robot.pose
         v, omega = self.env.robot.velocity
         msg = Odometry()
         self._stamp(msg.header)
@@ -238,8 +295,8 @@ class Nav2Bridge(Node):
         self._stamp(msg.header)
         msg.header.frame_id = "laser"
         msg.angle_min = -math.pi
-        msg.angle_max = math.pi - (2 * math.pi / NAV2_SCAN_BEAMS)
-        msg.angle_increment = 2 * math.pi / NAV2_SCAN_BEAMS
+        msg.angle_max = math.pi - (2 * math.pi / self.beams)
+        msg.angle_increment = 2 * math.pi / self.beams
         msg.range_min = 0.0
         msg.range_max = float(self._scan.config.max_range)
         msg.scan_time = self.dt
@@ -256,7 +313,12 @@ class Nav2Bridge(Node):
 
         Cached per episode: the grid is thousands of clearance queries and this
         is called on every pump of the startup loop.
+
+        Nothing is published in ``slam`` mode: the map is what the robot is
+        there to build, and slam_toolbox owns the topic.
         """
+        if self.slam:
+            return
         if self._map_msg is not None:
             self._stamp(self._map_msg.header)
             self.map_pub.publish(self._map_msg)

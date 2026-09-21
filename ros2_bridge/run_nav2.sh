@@ -56,15 +56,54 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "=== launching Nav2 ==="
+# The SLAM arm (report §9.4). `--privileges slam` has to reach both the launch,
+# which then starts slam_toolbox, and the evaluation, which stops publishing the
+# map and the true pose. Passing it to only one of them would silently produce
+# a robot with no map and no localiser, or two publishers of map -> odom.
+SLAM=False
+for arg in "$@"; do
+  [ "$arg" = "slam" ] && SLAM=True
+done
+# Under SLAM, navigation starts after slam_toolbox has had time to publish the
+# map frame; see the comment above `navigation` in nav2_launch.py. And the
+# global costmap becomes a rolling window over the whole arena, derived from
+# the published params in code; see make_slam_params.py for why.
+DELAY=0.0
+if [ "$SLAM" = True ]; then
+  DELAY="${NAV2_SLAM_DELAY:-15.0}"
+  SLAM_PARAMS="$LOG/nav2_params_slam.yaml"
+  "$MM" run -n ros_nav2 python "$BRIDGE/make_slam_params.py" "$PARAMS" "$SLAM_PARAMS" || exit 1
+  PARAMS="$SLAM_PARAMS"
+fi
+
+# The evaluation starts first and Nav2 only once it is publishing. Started the
+# other way round, Nav2's costmaps look for the odom frame, give up after half a
+# second, and the lifecycle manager aborts the whole bringup; that happened when
+# six runs started together and one runner waited on micromamba's lock for
+# longer than Nav2 would. The runner touches NAV2_READY_FILE when /clock, /scan
+# and TF are flowing.
+export NAV2_READY_FILE="$LOG/runner_publishing"
+rm -f "$NAV2_READY_FILE"
+echo "=== running evaluation ==="
+"$MM" run -n ros_nav2 python "$BRIDGE/run_nav2_eval.py" "$@" &
+EVAL_PID=$!
+for _ in $(seq 1 600); do
+  [ -f "$NAV2_READY_FILE" ] && break
+  kill -0 "$EVAL_PID" 2>/dev/null || break
+  sleep 0.5
+done
+
+echo "=== launching Nav2 (slam=$SLAM, navigation delay ${DELAY}s) ==="
 setsid "$MM" run -n ros_nav2 ros2 launch "$BRIDGE/nav2_launch.py" \
   use_sim_time:=True \
   params_file:="$PARAMS" \
+  slam:="$SLAM" \
+  slam_params_file:="$BRIDGE/slam_params.yaml" \
+  nav2_delay:="$DELAY" \
   > "$LOG/nav2.log" 2>&1 &
 NAV2_PID=$!
 
-echo "=== running evaluation ==="
-"$MM" run -n ros_nav2 python "$BRIDGE/run_nav2_eval.py" "$@"
+wait "$EVAL_PID"
 STATUS=$?
 
 if [ $STATUS -ne 0 ]; then

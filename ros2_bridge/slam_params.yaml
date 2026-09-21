@@ -1,0 +1,109 @@
+# slam_toolbox configuration for the SLAM arm of the Nav2 comparison.
+#
+# Report §9.2 and §9.3 took the map and then the exact pose away from the
+# hand-written stack. This is the same removal for Nav2, so the two answers can
+# be compared: slam_toolbox builds /map from /scan and publishes the map -> odom
+# correction, while nav2_bridge.py publishes a drifting odom -> base_link.
+#
+# This is slam_toolbox's own mapper_params_online_sync.yaml, with only the
+# settings that describe *this* robot and *this* sensor changed:
+#
+#   use_sim_time            added as true    the simulator is a stepped 10 Hz
+#                                            process and publishes /clock
+#   base_frame              base_footprint   the bridge has no footprint frame;
+#                           -> base_link     it publishes base_link
+#   max_laser_range         20.0 -> 6.0      LidarConfig.max_range. Checked to
+#                                            make no difference with slam_probe.py
+#                                            (identical to 1 cm over 6 m); kept
+#                                            because it is the true value
+#   enable_interactive_mode true -> false    no rviz in an automated run
+#
+# The first version of this file also "scaled four settings to the size of
+# these worlds" — minimum_travel_distance and minimum_travel_heading 0.5 -> 0.2,
+# minimum_time_interval 0.5 -> 0.2, map_update_interval 5.0 -> 1.0 — on the
+# reasoning that each gave slam_toolbox more to work with, and changed
+# resolution to 0.1 to match the project's grid. It was wrong. slam_probe.py,
+# which drives slam_toolbox in a straight line with *perfect* odometry and no
+# Nav2 in the loop, measured the upstream defaults tracking 5.96 m of travel to
+# within 0.07 m, and the travel thresholds at 0.2 alone reporting 2.64 m for the
+# same 5.96 — every processed scan dragging the pose back towards where the
+# robot had been. At resolution 0.1 it never published a map at all. Every
+# Nav2 SLAM result before this file was reverted measured that, not SLAM.
+#
+# So the scan matcher, the pose graph, loop closure and every threshold are left
+# exactly as upstream ships them, which is also the only defensible reading of
+# "Nav2 with SLAM": §9.3's stack has no back end at all, and this one does.
+
+slam_toolbox:
+  ros__parameters:
+    use_sim_time: true
+
+    # Plugin params
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_trust_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: None
+
+    # ROS Parameters
+    odom_frame: odom
+    map_frame: map
+    base_frame: base_link
+    scan_topic: /scan
+    use_map_saver: true
+    mode: mapping
+
+    debug_logging: false
+    throttle_scans: 1
+    transform_publish_period: 0.02
+    map_update_interval: 5.0
+    resolution: 0.05
+    restamp_tf: false
+    min_laser_range: 0.0
+    max_laser_range: 6.0
+    minimum_time_interval: 0.5
+    transform_timeout: 0.2
+    tf_buffer_duration: 30.0
+    stack_size_to_use: 40000000
+    enable_interactive_mode: false
+
+    # General Parameters
+    use_scan_matching: true
+    use_scan_barycenter: true
+    minimum_travel_distance: 0.5
+    minimum_travel_heading: 0.5
+    check_min_dist_and_heading_precisely: false
+    scan_buffer_size: 10
+    scan_buffer_maximum_scan_distance: 10.0
+    link_match_minimum_response_fine: 0.1
+    link_scan_maximum_distance: 1.5
+    loop_search_maximum_distance: 3.0
+    do_loop_closing: true
+    loop_match_minimum_chain_size: 10
+    loop_match_maximum_variance_coarse: 3.0
+    loop_match_minimum_response_coarse: 0.35
+    loop_match_minimum_response_fine: 0.45
+
+    # Correlation Parameters - Correlation Parameters
+    correlation_search_space_dimension: 0.5
+    correlation_search_space_resolution: 0.01
+    correlation_search_space_smear_deviation: 0.1
+
+    # Correlation Parameters - Loop Closure Parameters
+    loop_search_space_dimension: 8.0
+    loop_search_space_resolution: 0.05
+    loop_search_space_smear_deviation: 0.03
+
+    # Scan Matcher Parameters
+    distance_variance_penalty: 0.5
+    angle_variance_penalty: 1.0
+
+    fine_search_angle_offset: 0.00349
+    coarse_search_angle_offset: 0.349
+    coarse_angle_resolution: 0.0349
+    minimum_angle_penalty: 0.9
+    minimum_distance_penalty: 0.5
+    use_response_expansion: true
+    min_pass_through: 2
+    occupancy_threshold: 0.1

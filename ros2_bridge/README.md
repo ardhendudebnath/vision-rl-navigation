@@ -103,6 +103,37 @@ Then:
 python scripts/nav2_comparison.py
 ```
 
+## Without the map and the pose (report §9.4)
+
+`--privileges slam` takes both privileges away, the way report §9.2 and §9.3
+took them from the hand-written stack. The bridge stops publishing `/map` and
+`map → odom`; slam_toolbox (`slam_params.yaml`, upstream defaults plus four
+documented changes) builds the map and localises against it; and `odom →
+base_link` carries §9.3's drifting odometry, imported rather than
+reimplemented. `--beams 32` gives Nav2 the hand-written stack's scanner.
+
+```bash
+bash ros2_bridge/run_nav2.sh --condition nominal --episodes 100 --privileges slam
+bash ros2_bridge/run_nav2.sh --condition nominal --episodes 100 --privileges slam --beams 32
+python scripts/nav2_slam_comparison.py
+```
+
+What the SLAM arm does differently, each for a reason given where it is set:
+
+- The simulator is held to at most 5× real time (`SLAM_REALTIME_FACTOR`), so
+  slam_toolbox is not scored on a flood of scans it had to drop.
+- The global costmap is a rolling 34 m window (`make_slam_params.py`), so a goal
+  the robot has not seen yet is somewhere it can plan to.
+- Navigation starts 15 s after slam_toolbox, which must publish the `map` frame
+  before Nav2's global costmap will activate.
+- The pose graph is reset between episodes, as the costmaps already were.
+
+`slam_probe.py` drives slam_toolbox alone in a straight line and reports how far
+it thinks the robot went — the tool that found the one fault that mattered.
+Development switches, none used by a registered run: `NAV2_TRACE=1` prints true,
+odometry and SLAM poses every 25 steps; `NAV2_PERFECT_ODOM=1` turns the odometry
+noise off; `NAV2_SLAM_RTF` and `NAV2_FULL_RTF` change the real-time cap.
+
 ## Files
 
 | File | |
@@ -111,4 +142,7 @@ python scripts/nav2_comparison.py
 | `nav2_launch.py` | Minimal four-node bringup. |
 | `nav2_params.yaml` | DWB controller + NavFn planner, limits copied from `RobotConfig`. |
 | `run_nav2_eval.py` | Episodic runner: same worlds, same seed order, same metrics. |
-| `run_nav2.sh` | Launches Nav2 and the runner together, and cleans up after both. |
+| `run_nav2.sh` | Starts the runner, then Nav2 once the runner is publishing, and cleans up after both. |
+| `slam_params.yaml` | slam_toolbox for the SLAM arm: upstream defaults, four changes, each justified. |
+| `make_slam_params.py` | Derives the SLAM arm's Nav2 parameters from `nav2_params.yaml` in code. |
+| `slam_probe.py` | slam_toolbox alone, driven straight, against the truth. |
