@@ -38,7 +38,10 @@ nothing.
    against that same map — costs nothing further in clutter (0.630 and 0.640)
    and most of what remains in open worlds (0.530 against 0.990 on the largest
    arenas). The two privileges are worth opposite things, and structure is why:
-   it is both what a map is needed for and what a pose is recovered from. Four
+   it is both what a map is needed for and what a pose is recovered from. Nav2
+   with SLAM, asked the same question, pays at least as much given the same
+   32-beam scanner and a seventh of it given 360 beams: what the privileges
+   stood in for was mostly the sensor. Four
    standard explanations — insufficient data, wrong training distribution,
    insufficient compute (tested twice, to 2.7× budget), reward
    mis-specification — were each tested and rejected. The cause is
@@ -124,8 +127,8 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of thirty advance predictions, four derived from
-*measurements* held; fourteen failed outright and twelve got part right and part
+pre-registered endpoints. Of thirty-one advance predictions, four derived from
+*measurements* held; fourteen failed outright and thirteen got part right and part
 wrong, with identical confidence of expression
 throughout. The three failures that reasoned from a real measurement all
 carried it into a regime nothing had been measured in — and the one that

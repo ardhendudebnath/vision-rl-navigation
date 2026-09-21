@@ -798,6 +798,68 @@ def claims():
                           ("dense", 0.587), ("narrow", 0.584)):
             out.append((f"pose {cond} matched spl", spl, lc[cond]["cells"]["matched"]["spl"]))
 
+    # --- a production stack asked the same question, Phase 6g --------------
+    sp = "results/nav2_slam_comparison.json"
+    if os.path.exists(sp):
+        sj = load(sp)
+        sc = sj["conditions"]
+        passes = list(sc["sparse"]["nav2_with"])
+        out += [("slam decision UNRESOLVED", 1.0, float(sj["decision"] == "UNRESOLVED")),
+                ("slam decision 360 IMPLEMENTATION", 1.0,
+                 float(sj["decision_360"] == "IMPLEMENTATION"))]
+        # The table the report and the plan print: hand-written with / without,
+        # Nav2 with (two passes), Nav2 + SLAM at 360 and at 32.
+        table = {
+            "sparse": (1.000, 0.570, 0.990, 0.990, 0.960, 0.690),
+            "large": (1.000, 0.530, 0.990, 0.990, 0.960, 0.400),
+            "nominal": (1.000, 0.850, 0.980, 0.970, 0.970, 0.800),
+            "noisy_lidar": (1.000, 0.780, 0.970, 0.980, 1.000, 0.750),
+            "dense": (0.890, 0.640, 0.940, 0.910, 0.820, 0.620),
+            "narrow": (0.850, 0.630, 0.930, 0.910, 0.810, 0.450),
+        }
+        for cond, (hw_w, hw_wo, n1, n2, s360, s32) in table.items():
+            e = sc[cond]
+            out += [(f"slam {cond} hw with", hw_w, e["handwritten"]["with"]),
+                    (f"slam {cond} hw without", hw_wo, e["handwritten"]["without"]),
+                    (f"slam {cond} nav2 with pass1", n1, e["nav2_with"][passes[0]]),
+                    (f"slam {cond} nav2 with pass2", n2, e["nav2_with"][passes[1]]),
+                    (f"slam {cond} 360", s360, e["nav2_without"]["360"]["success"]),
+                    (f"slam {cond} 32", s32, e["nav2_without"]["32"]["success"])]
+        p360, p32 = sj["pooled"]["360"], sj["pooled"]["32"]
+        for label, pool, rows in (
+            ("360", p360, ((-0.047, 0.243, 0.203, 0.285), (-0.038, 0.252, 0.212, 0.292))),
+            ("32", p32, ((-0.348, -0.058, -0.108, -0.008), (-0.340, -0.050, -0.100, 0.000))),
+        ):
+            for i, (cost, did, lo, hi) in enumerate(rows):
+                v = pool[passes[i]]
+                out += [(f"slam {label} pass{i + 1} nav2 cost", cost, v["nav2_cost"]),
+                        (f"slam {label} pass{i + 1} did", did, v["did"]),
+                        (f"slam {label} pass{i + 1} ci lo", lo, v["ci95"][0]),
+                        (f"slam {label} pass{i + 1} ci hi", hi, v["ci95"][1])]
+        out.append(("slam hand-written pooled cost", -0.290, p360[passes[0]]["handwritten_cost"]))
+        # "a seventh of it": Nav2's pooled cost at 360 over the hand-written one.
+        ratio = st.mean([p360[p]["nav2_cost"] for p in passes]) / p360[passes[0]]["handwritten_cost"]
+        out.append(("slam 360 cost is about a seventh", 1.0, float(1 / 8 < ratio < 1 / 6)))
+        # Clutter at 360: timeouts, not collisions, with pose error under 8 cm.
+        for cond, to, coll in (("dense", 0.140, 0.040), ("narrow", 0.180, 0.010)):
+            w = sc[cond]["nav2_without"]["360"]
+            out += [(f"slam {cond} 360 timeout", to, w["timeout"]),
+                    (f"slam {cond} 360 collision", coll, w["collision"]),
+                    (f"slam {cond} 360 pose error under 8 cm", 1.0,
+                     float(w["pose_error_median"] < 0.08))]
+        gaps = [sc[c]["nav2_with"][p] - sc[c]["nav2_without"]["360"]["success"]
+                for c in ("dense", "narrow") for p in passes]
+        out += [("slam clutter cost low", 0.09, min(gaps)), ("slam clutter cost high", 0.12, max(gaps))]
+        # Tight corridors at 32 beams, and sparse.
+        d = sc["narrow"]["direct"]["32"]
+        w = sc["narrow"]["nav2_without"]["32"]
+        out += [("slam narrow 32 direct", -0.180, d["gain"]), ("slam narrow 32 p", 0.0039, d["p"]),
+                ("slam narrow 32 collision", 0.180, w["collision"]),
+                ("slam narrow 32 timeout", 0.370, w["timeout"])]
+        # Prediction 31's failed clauses, as the plan states them.
+        out += [("slam dense 360 gap to pass 2", 0.09,
+                 sc["dense"]["nav2_with"][passes[1]] - sc["dense"]["nav2_without"]["360"]["success"])]
+
     # --- why matching hurts where it hurts, Phase 6f -----------------------
     ld = "results/localisation_diagnostic.json"
     if os.path.exists(ld):

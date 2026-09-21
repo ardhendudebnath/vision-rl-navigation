@@ -50,7 +50,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
 | 5w | Cap the estimate's extrapolation at 2 s and 1 s | **Done** — **UNRESOLVED: +0.010 on dense**; a 1 s cap costs sparse 0.085 (p = 0.0005) |
-| 6g | Ask a production stack the same question: Nav2 with slam_toolbox, no map, no pose | **Registered, not yet run** — prediction in `scripts/nav2_slam_comparison.py` |
+| 6g | Ask a production stack the same question: Nav2 with slam_toolbox, no map, no pose | **Done** — **UNRESOLVED at 32 beams, IMPLEMENTATION at 360**: the same sensor, the same cost; a dense one, a seventh |
 | 6f | Take away the pose: wheel odometry, and scan matching against the robot's own map | **Done** — **COSTLY, and matching PAYS**: free in clutter (−0.010, +0.040), ruinous in the open (−0.460 `large`) |
 | 6e | The repaired mapping stack, re-run | **Done** — **COSTLY: −0.240 dense, −0.260 narrow**; Result 1's clutter margin was the map |
 | 6d | The classical planner builds its own map (registered run) | **Recorded** — **COSTLY, from two bugs of mine**: every collision was into an obstacle mapped ≥1 s earlier |
@@ -2778,6 +2778,64 @@ except one. It predicted matching would fall below dead reckoning on `sparse`
 "by between 0.15 and 0.50"; it fell below by 0.100, and inconclusively
 (p = 0.184). The direction was right, from a mechanism measured on val; the
 magnitude was not.
+
+## Phase 6g — Ask a production stack the same question
+
+§9.2 and §9.3 measured what the map and the pose were worth to this project's
+stack and both ended on the same caution. This asks Nav2 with slam_toolbox —
+no map, no pose, §9.3's odometry imported — at 360 beams and at the
+hand-written stack's 32. The statistic is the difference in costs, world by
+world, pooled: what Nav2 loses without its privileges minus what the
+hand-written stack loses. Registered in `cb26af9`. Full treatment in report
+§9.4.
+
+Registered decisions: **UNRESOLVED** at 32 beams (the primary, like for like),
+**IMPLEMENTATION** at 360.
+
+| success, 100 worlds | hand-written, with / without | Nav2, with | Nav2 + SLAM, 360 | Nav2 + SLAM, 32 |
+|---|---|---|---|---|
+| sparse | 1.000 / 0.570 | 0.990 / 0.990 | 0.960 | 0.690 |
+| large | 1.000 / 0.530 | 0.990 / 0.990 | 0.960 | 0.400 |
+| nominal | 1.000 / 0.850 | 0.980 / 0.970 | 0.970 | 0.800 |
+| noisy_lidar | 1.000 / 0.780 | 0.970 / 0.980 | 1.000 | 0.750 |
+| dense | 0.890 / 0.640 | 0.940 / 0.910 | 0.820 | 0.620 |
+| narrow | 0.850 / 0.630 | 0.930 / 0.910 | 0.810 | 0.450 |
+
+- Pooled costs: hand-written 0.290; Nav2 at 360 beams 0.047 and 0.038 against
+  the two full-privilege passes; Nav2 at 32 beams 0.348 and 0.340.
+- 360 beams: difference +0.243 [+0.203, +0.285] and +0.252 [+0.212, +0.292].
+  In clutter Nav2 pays 0.09 to 0.12, in timeouts, with pose error under 8 cm:
+  the map, not the pose.
+- 32 beams: −0.058 [−0.108, −0.008] and −0.050 [−0.100, +0.000]. Nav2 pays at
+  least as much; better on `sparse`, much worse in tight corridors (0.450
+  against 0.630, p = 0.0039).
+- What the privileges stood in for was mostly the sensor. The hand-written
+  stack at 360 beams — the missing cell — was not run.
+
+### What it took
+
+Seven faults found on the val band, all this project's: slam_toolbox launched
+as a plain node when it is a lifecycle node; an unthrottled startup loop; Nav2's
+commands queued behind TF traffic in a shared executor; a global costmap too
+small for unseen goals; startup races between parallel runs; a cleanup script
+defeated by Linux's fifteen-character process names; and — the one that
+mattered — this project's own "scaled-down" slam_toolbox thresholds, which made
+SLAM drag the pose backwards with perfect odometry. `slam_probe.py` found that
+one in four runs.
+
+### Calibration
+
+Prediction 31 is partial. Held: IMPLEMENTATION at 360 beams inside its
++0.15 to +0.35 band; the 32-beam point estimates inside −0.07 to +0.07; at
+least 0.93 on the four open conditions at 360; 32 below 360 everywhere and
+lowest on `large`; open-world timeouts at 32 of at least 0.15; pose error under
+0.20 m at 360 and larger at 32 everywhere; the starvation gate and the
+SLAM-readiness bound. Failed: the primary decision (UNRESOLVED, not PROBLEM —
+the intervals reached −0.108 and −0.100 against a ±0.10 band); `dense` at 360
+fell 0.09 below the second full-privilege pass, not 0.10; and the mechanism.
+Val had shown clutter losses at 360 as collisions, 0.15 and 0.20; on test they
+were 0.040 and 0.010, and the loss was timeouts. Three or four collisions in
+twenty worlds were never a mechanism.
 
 ## Hardware notes
 

@@ -1,0 +1,410 @@
+{
+  "prediction": "a production stack pays for losing the map and the pose what this project's stack pays when it has the same sensor, and a quarter of it when it has a dense one: the sensor, not the implementation, is what the privileges were standing in for. At 32 beams the pooled difference in costs is PROBLEM -- between -0.07 and +0.07, 95% CI inside +-0.10 -- against both published full-privilege passes. At 360 beams it is IMPLEMENTATION, between +0.15 and +0.35 against both. At 360 beams Nav2+SLAM scores at least 0.93 on sparse, large, nominal and noisy_lidar; on dense and narrow it scores at least 0.10 below Nav2's own full-privilege row in both passes, and collides at a rate of at least 0.08 on each, so what it pays in clutter is collisions. At 32 beams it scores below the 360-beam arm on every condition, lowest on large, with a timeout rate of at least 0.15 on each of sparse, large, nominal and noisy_lidar. Median final pose error is at most 0.20 m on every condition at 360 beams and larger at 32 than at 360 on every condition. All twelve runs pass the starvation gate, and no run sends more than 5% of its goals before SLAM is ready. Decision on the 32-beam arm, like for like -- IMPLEMENTATION: pooled difference at least +0.10 with CI above 0. PROBLEM: CI inside +-0.10. BACKWARDS: at most -0.10 with CI below 0. Otherwise UNRESOLVED. A label stands only if it holds against both passes. Same rule, secondary, at 360 beams.",
+  "bound": 0.1,
+  "conditions": {
+    "sparse": {
+      "handwritten": {
+        "with": 1.0,
+        "without": 0.57
+      },
+      "nav2_with": {
+        "results/nav2_runs/run1": 0.99,
+        "results/nav2_runs/run2": 0.99
+      },
+      "nav2_without": {
+        "360": {
+          "success": 0.96,
+          "collision": 0.0,
+          "timeout": 0.04,
+          "commands": 0.9990732962333428,
+          "aborted": 0,
+          "not_ready": 0,
+          "pose_error_median": 0.1652658402800024
+        },
+        "32": {
+          "success": 0.69,
+          "collision": 0.0,
+          "timeout": 0.31,
+          "commands": 0.9992277717789181,
+          "aborted": 0,
+          "not_ready": 0,
+          "pose_error_median": 0.36666848145415637
+        }
+      },
+      "direct": {
+        "360": {
+          "gain": 0.39,
+          "p": 3.8198777474462986e-11,
+          "won": 40,
+          "lost": 1,
+          "ci95": [
+            0.2899999999999999,
+            0.49
+          ],
+          "verdict": "MATTERS"
+        },
+        "32": {
+          "gain": 0.12,
+          "p": 0.08842954698775429,
+          "won": 27,
+          "lost": 15,
+          "ci95": [
+            -0.010000000000000009,
+            0.24000000000000005
+          ],
+          "verdict": "inconclusive"
+        }
+      }
+    },
+    "large": {
+      "handwritten": {
+        "with": 1.0,
+        "without": 0.53
+      },
+      "nav2_with": {
+        "results/nav2_runs/run1": 0.99,
+        "results/nav2_runs/run2": 0.99
+      },
+      "nav2_without": {
+        "360": {
+          "success": 0.96,
+          "collision": 0.0,
+          "timeout": 0.04,
+          "commands": 0.9995701527776868,
+          "aborted": 0,
+          "not_ready": 0,
+          "pose_error_median": 0.1480550612589111
+        },
+        "32": {
+          "success": 0.4,
+          "collision": 0.03,
+          "timeout": 0.57,
+          "commands": 0.9998161764705882,
+          "aborted": 0,
+          "not_ready": 0,
+          "pose_error_median": 0.5963657654338401
+        }
+      },
+      "direct": {
+        "360": {
+          "gain": 0.42999999999999994,
+          "p": 2.2737367544323206e-13,
+          "won": 43,
+          "lost": 0,
+          "ci95": [
+            0.33000000000000007,
+            0.52
+          ],
+          "verdict": "MATTERS"
+        },
+        "32": {
+          "gain": -0.13,
+          "p": 0.07894069368148848,
+          "won": 17,
+          "lost": 30,
+          "ci95": [
+            -0.26,
+            0.0
+          ],
+          "verdict": "inconclusive"
+        }
+      }
+    },
+    "nominal": {
+      "handwritten": {
+        "with": 1.0,
+        "without": 0.85
+      },
+      "nav2_with": {
+        "results/nav2_runs/run1": 0.98,
+        "results/nav2_runs/run2": 0.97
+      },
+      "nav2_without": {
+        "360": {
+          "success": 0.97,
+          "collision": 0.0,
+          "timeout": 0.03,
+          "commands": 0.9991670647226817,
+          "aborted": 0,
+          "not_ready": 0,
+          "pose_error_median": 0.07832399720419264
+        },
+        "32": {
+          "success": 0.8,
+          "collision": 0.02,
+          "timeout": 0.18,
+          "commands": 0.9992409505226444,
+          "aborted": 0,
+          "not_ready": 0,
+          "pose_error_median": 0.2391946364148453
+        }
+      },
+      "direct": {
+        "360": {
+          "gain": 0.12,
+          "p": 0.007537841796875,
+          "won": 15,
+          "lost": 3,
+          "ci95": [
+            0.039999999999999925,
+            0.19999999999999996
+          ],
+          "verdict": "MATTERS"
+        },
+        "32": {
+          "gain": -0.04999999999999993,
+          "p": 0.45825831964612007,
+          "won": 12,
+          "lost": 17,
+          "ci95": [
+            -0.15999999999999992,
+            0.050000000000000044
+          ],
+          "verdict": "inconclusive"
+        }
+      }
+    },
+    "noisy_lidar": {
+      "handwritten": {
+        "with": 1.0,
+        "without": 0.78
+      },
+      "nav2_with": {
+        "results/nav2_runs/run1": 0.97,
+        "results/nav2_runs/run2": 0.98
+      },
+      "nav2_without": {
+        "360": {
+          "success": 1.0,
+          "collision": 0.0,
+          "timeout": 0.0,
+          "commands": 0.9995542671529491,
+          "aborted": 0,
+          "not_ready": 0,
+          "pose_error_median": 0.07537864836035277
+        },
+        "32": {
+          "success": 0.75,
+          "collision": 0.07,
+          "timeout": 0.18,
+          "commands": 0.9995073119343584,
+          "aborted": 0,
+          "not_ready": 0,
+          "pose_error_median": 0.22556670352600486
+        }
+      },
+      "direct": {
+        "360": {
+          "gain": 0.21999999999999997,
+          "p": 4.76837158203125e-07,
+          "won": 22,
+          "lost": 0,
+          "ci95": [
+            0.14,
+            0.31000000000000005
+          ],
+          "verdict": "MATTERS"
+        },
+        "32": {
+          "gain": -0.030000000000000027,
+          "p": 0.7011080384254456,
+          "won": 12,
+          "lost": 15,
+          "ci95": [
+            -0.13,
+            0.07000000000000006
+          ],
+          "verdict": "inconclusive"
+        }
+      }
+    },
+    "dense": {
+      "handwritten": {
+        "with": 0.89,
+        "without": 0.64
+      },
+      "nav2_with": {
+        "results/nav2_runs/run1": 0.94,
+        "results/nav2_runs/run2": 0.91
+      },
+      "nav2_without": {
+        "360": {
+          "success": 0.82,
+          "collision": 0.04,
+          "timeout": 0.14,
+          "commands": 0.9987617936687625,
+          "aborted": 0,
+          "not_ready": 0,
+          "pose_error_median": 0.074411753862274
+        },
+        "32": {
+          "success": 0.62,
+          "collision": 0.16,
+          "timeout": 0.22,
+          "commands": 0.9980387533858254,
+          "aborted": 0,
+          "not_ready": 0,
+          "pose_error_median": 0.19547160584368484
+        }
+      },
+      "direct": {
+        "360": {
+          "gain": 0.17999999999999994,
+          "p": 0.001430906355381012,
+          "won": 24,
+          "lost": 6,
+          "ci95": [
+            0.07999999999999996,
+            0.28
+          ],
+          "verdict": "MATTERS"
+        },
+        "32": {
+          "gain": -0.020000000000000018,
+          "p": 0.8641662404406816,
+          "won": 16,
+          "lost": 18,
+          "ci95": [
+            -0.13,
+            0.09000000000000008
+          ],
+          "verdict": "inconclusive"
+        }
+      }
+    },
+    "narrow": {
+      "handwritten": {
+        "with": 0.85,
+        "without": 0.63
+      },
+      "nav2_with": {
+        "results/nav2_runs/run1": 0.93,
+        "results/nav2_runs/run2": 0.91
+      },
+      "nav2_without": {
+        "360": {
+          "success": 0.81,
+          "collision": 0.01,
+          "timeout": 0.18,
+          "commands": 0.9977677782113782,
+          "aborted": 0,
+          "not_ready": 0,
+          "pose_error_median": 0.07563616160619505
+        },
+        "32": {
+          "success": 0.45,
+          "collision": 0.18,
+          "timeout": 0.37,
+          "commands": 0.9988766846725001,
+          "aborted": 0,
+          "not_ready": 0,
+          "pose_error_median": 0.18338411576272323
+        }
+      },
+      "direct": {
+        "360": {
+          "gain": 0.18000000000000005,
+          "p": 0.0002771615982055664,
+          "won": 21,
+          "lost": 3,
+          "ci95": [
+            0.08999999999999997,
+            0.27
+          ],
+          "verdict": "MATTERS"
+        },
+        "32": {
+          "gain": -0.18,
+          "p": 0.00393317302223295,
+          "won": 9,
+          "lost": 27,
+          "ci95": [
+            -0.29000000000000004,
+            -0.06999999999999995
+          ],
+          "verdict": "HARMS"
+        }
+      }
+    }
+  },
+  "pooled": {
+    "360": {
+      "results/nav2_runs/run1": {
+        "did": 0.24333333333333335,
+        "ci95": [
+          0.20333333333333334,
+          0.285
+        ],
+        "class": "IMPLEMENTATION",
+        "nav2_cost": -0.04666666666666667,
+        "handwritten_cost": -0.29,
+        "per_condition": {
+          "sparse": 0.4,
+          "large": 0.44,
+          "nominal": 0.14,
+          "noisy_lidar": 0.25,
+          "dense": 0.13,
+          "narrow": 0.1
+        }
+      },
+      "results/nav2_runs/run2": {
+        "did": 0.25166666666666665,
+        "ci95": [
+          0.21166666666666667,
+          0.2916666666666667
+        ],
+        "class": "IMPLEMENTATION",
+        "nav2_cost": -0.03833333333333333,
+        "handwritten_cost": -0.29,
+        "per_condition": {
+          "sparse": 0.4,
+          "large": 0.44,
+          "nominal": 0.15,
+          "noisy_lidar": 0.24,
+          "dense": 0.16,
+          "narrow": 0.12
+        }
+      }
+    },
+    "32": {
+      "results/nav2_runs/run1": {
+        "did": -0.058333333333333334,
+        "ci95": [
+          -0.10833333333333334,
+          -0.008333333333333333
+        ],
+        "class": "UNRESOLVED",
+        "nav2_cost": -0.34833333333333333,
+        "handwritten_cost": -0.29,
+        "per_condition": {
+          "sparse": 0.13,
+          "large": -0.12,
+          "nominal": -0.03,
+          "noisy_lidar": 0.0,
+          "dense": -0.07,
+          "narrow": -0.26
+        }
+      },
+      "results/nav2_runs/run2": {
+        "did": -0.05,
+        "ci95": [
+          -0.1,
+          0.0
+        ],
+        "class": "UNRESOLVED",
+        "nav2_cost": -0.34,
+        "handwritten_cost": -0.29,
+        "per_condition": {
+          "sparse": 0.13,
+          "large": -0.12,
+          "nominal": -0.02,
+          "noisy_lidar": -0.01,
+          "dense": -0.04,
+          "narrow": -0.24
+        }
+      }
+    }
+  },
+  "decision": "UNRESOLVED",
+  "decision_360": "IMPLEMENTATION"
+}

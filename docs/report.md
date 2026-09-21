@@ -20,7 +20,10 @@ almost nothing in open worlds. Taking its pose too — odometry, corrected by
 scan matching against that same self-built map — costs nothing further in
 clutter (0.630 in tight corridors) and most of what is left in open worlds
 (0.530 on the largest arenas, against 0.990 with the pose given). The two
-privileges are worth opposite things, and structure is why.
+privileges are worth opposite things, and structure is why. A production
+stack — Nav2 with SLAM — pays at least as much given the same sparse
+scanner, and a seventh of it given a dense one: what the privileges were
+standing in for was mostly the sensor.
 
 We then eliminate the standard explanations for a losing RL result —
 insufficient data, wrong training distribution, insufficient compute (tested
@@ -192,7 +195,9 @@ matching each scan against the map the robot is building (§9.3). On `dense` and
 handed over — and on `large` it is ruinous, 0.530 against 0.990. The two
 privileges are worth opposite things, for one reason: clutter is structure, and
 structure is both what a map is needed for and what a pose can be recovered
-from.
+from. §9.4 asks whether that cost belongs to this implementation: Nav2 with
+SLAM pays at least as much given the same 32-beam scanner, and a seventh of it
+given 360 beams.
 
 A caution on reading the last column against the first three, stronger than the
 one §9.2 needed. The privileged policy is given an exact goal vector, which is
@@ -939,6 +944,85 @@ bit-identical to it, because the estimator is then the robot's own integrator
 driven by exact wheel readings — so a difference between these arms is the
 pose, not the plumbing.
 
+### 9.4 How much of that was the implementation
+
+§9.2 and §9.3 ended on the same caution: what they measured was *this* stack —
+an occupancy grid, A\*, pure pursuit and a scan-matching front end with no back
+end — and a production stack would say how much of it was the implementation
+and how much the problem. This asks one. Nav2 runs on the same worlds with
+neither privilege: slam_toolbox builds the map from the scan and localises
+against it, with its pose graph and loop closure, and the odometry feeding it
+is §9.3's own model — imported by the bridge rather than reimplemented, with
+the same parameters and the same per-world seeding. It runs twice: at 360
+beams, as every published Nav2 row in this report has, and at 32, the scanner
+the hand-written stack built its map from.
+
+**What is compared is what each stack loses**, not what each one scores. With
+both privileges Nav2 already beats the hand-written controller in tight
+corridors (§4.1), and a direct comparison without privileges would count that
+head start as an answer about privileges. So each stack is scored with its
+privileges and without them on the same worlds, and the statistic is the
+difference in costs — Nav2's loss minus the hand-written stack's — world by
+world, pooled over all six conditions. Nav2 is not deterministic, so its
+with-privileges side is §4.1's two published passes and a verdict has to hold
+against both.
+
+| success, 100 worlds | hand-written, with / without | Nav2, with (2 passes) | Nav2 + SLAM, 360 beams | Nav2 + SLAM, 32 beams |
+|---|---|---|---|---|
+| sparse | 1.000 / 0.570 | 0.990 / 0.990 | 0.960 | 0.690 |
+| large | 1.000 / 0.530 | 0.990 / 0.990 | 0.960 | 0.400 |
+| nominal | 1.000 / 0.850 | 0.980 / 0.970 | 0.970 | 0.800 |
+| noisy_lidar | 1.000 / 0.780 | 0.970 / 0.980 | 1.000 | 0.750 |
+| dense | 0.890 / 0.640 | 0.940 / 0.910 | 0.820 | 0.620 |
+| narrow | 0.850 / 0.630 | 0.930 / 0.910 | 0.810 | 0.450 |
+
+**Given a dense scanner, a production stack keeps almost everything.** Pooled
+over the six conditions, the hand-written stack loses 0.290 to losing the map
+and the pose; Nav2 with slam_toolbox at 360 beams loses 0.047 against the first
+pass and 0.038 against the second. The difference in costs is +0.243
+[+0.203, +0.285] and +0.252 [+0.212, +0.292] — IMPLEMENTATION, the registered
+secondary decision. In open worlds Nav2 barely notices (0.960 to 1.000);
+in clutter it pays 0.09 to 0.12, and pays it in timeouts (0.140 on `dense`,
+0.180 on `narrow`) rather than collisions (0.040, 0.010), with a median pose
+error under 8 cm. It is the map that costs it in clutter, not the pose — §9.2's
+finding, in a different stack.
+
+**Given the same 32-beam scanner, it pays at least as much.** Nav2 loses 0.348
+and 0.340; the difference in costs is −0.058 [−0.108, −0.008] and −0.050
+[−0.100, +0.000]. The registered primary decision is UNRESOLVED: the intervals
+reach a hair past the ±0.10 band a bounded null needed. What they exclude is
+Nav2 paying materially *less* — a pose graph, loop closure and a production
+controller do not buy back what a sparse scanner costs. Per condition the two
+stacks fail in different places: Nav2 does better on `sparse` (0.690 against
+0.570) and markedly worse in tight corridors (0.450 against 0.630, −0.180,
+p = 0.0039), where its costmap, built from 32 beams, both collides (0.180) and
+stalls (0.370).
+
+**So what the privileges were standing in for was mostly the sensor.** Holding
+the sensor fixed and changing the implementation to a production one buys
+nothing; holding the implementation fixed and giving it a dense sensor cuts its
+cost from 0.34 to 0.04. One cell of that argument is inferred rather than
+measured: this project's own stack has not been run at 360 beams.
+
+**Getting Nav2 with SLAM to measure SLAM** took the `val` band and found seven
+faults, all this project's: four in the harness, three in how Nav2 and
+slam_toolbox were configured. Every one produced a plausible-looking result.
+slam_toolbox 2.8 is a lifecycle node and, launched as a plain one, never
+configured. An unthrottled startup loop ran the simulator at 190× real time and
+starved the machine. Nav2's velocity commands queued behind SLAM's TF traffic in
+a shared executor, at 0.44 per control step instead of 1.0. The global costmap,
+sized to the partial map, put unseen goals outside itself. Parallel runs raced
+at startup, and the cleanup script never stopped `controller_server`, because
+Linux truncates process names to fifteen characters. And the one that mattered:
+slam_toolbox dragged the pose *backwards* — 2.64 m of believed travel for
+5.96 m driven, with perfect odometry and a scan checked to land every return on
+a real surface. A probe running slam_toolbox alone in a straight line found it
+in four runs: this project's own scan thresholds, scaled down "for these small
+worlds" on the belief that more scans could only help. Upstream's defaults track
+the same drive to 0.07 m, and the configuration now differs from them in four
+documented settings. Every val number the prediction was built from was
+collected after the last fix.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -987,11 +1071,11 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of thirty predictions made in advance, four derived from
+**Calibration.** Of thirty-one predictions made in advance, four derived from
 a *measurement* held — two to within 0.021 and 0.001, one on both magnitude and
 mechanism, and one whose magnitude came from measuring the estimator it was
 about; fourteen from extrapolation, intuition, arithmetic or a post hoc
-description failed outright; twelve got part right and part wrong. Confidence
+description failed outright; thirteen got part right and part wrong. Confidence
 of expression was identical throughout. Three rules came out of them; the
 record of each prediction is in [`project_plan.md`](project_plan.md). The
 fifteenth also broke this report's own stated practice: its null was registered
@@ -1070,6 +1154,12 @@ enough.**
   `dynamic_dense` margin (+0.150 to +0.170) is far outside that spread but the
   `dynamic` result (−0.020 to +0.010) sits inside it and is read as parity
   rather than as a measured equality.
+- **§9.4's sensor argument has an inferred cell**: the hand-written stack was
+  not run at 360 beams. Nav2 shows the sensor, not the implementation, is
+  what matters *for Nav2*; that the same holds for this project's stack is
+  the plausible reading, not a measurement. The SLAM arms also ran one pass
+  each, held to 5× real time, against the full-privilege arm's two
+  unthrottled passes.
 - **The localisation of §9.3 is a front end with no back end**: no pose
   graph, no loop closure, nothing that revisits a past estimate. Its worst
   failure — matching doing more harm than dead reckoning on `sparse` --
@@ -1087,15 +1177,16 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Ask a production stack the same question.** The mapped, self-localising
-   planner of §9.2 and §9.3 is deliberately basic, and the project already
-   drives real Nav2 over a ROS 2 bridge (§4.1). Nav2 with SLAM on these worlds
-   would say how much of what those two sections measured is this
-   implementation and how much is the problem.
+1. **Fill the missing cell.** §9.4 found a production stack no better than
+   this one with the same 32-beam scanner and nearly unhurt with 360 beams.
+   Running this project's own mapping and localising stack at 360 beams —
+   pure Python, an afternoon — would say whether the sensor explains its cost
+   too, or whether a dense scanner is only enough for a stack with a back end.
 2. **Give it a back end.** §9.3's one harmful result — scan matching worse
    than dead reckoning on `sparse` — is a front end agreeing with a map it
-   corrupted itself. Loop closure over a pose graph is the standard answer, and
-   `sparse` is the condition that would say whether it is the whole answer.
+   corrupted itself. slam_toolbox's back end did better there at 32 beams
+   (0.690 against 0.570) and worse in tight corridors, so a pose graph is not
+   the whole answer; with a dense scanner it may not be needed at all.
 3. **An encoder that can measure a gap.** The RGB features carry the
    clearance ahead as well as a depth vector does and the *width* of the gap
    past it not at all (§8.5). The first convolution strides 4 across a
