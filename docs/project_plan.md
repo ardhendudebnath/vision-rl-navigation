@@ -50,7 +50,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
 | 5w | Cap the estimate's extrapolation at 2 s and 1 s | **Done** — **UNRESOLVED: +0.010 on dense**; a 1 s cap costs sparse 0.085 (p = 0.0005) |
-| 6h | Fill the missing cell: this stack, without map or pose, at 360 beams | **Registered, not yet run** — prediction in `scripts/sensor_experiment.py` |
+| 6h | Fill the missing cell: this stack, without map or pose, at 360 beams | **Done** — **IMPLEMENTATION (+0.112, +0.120)**: the sensor fixes the pose, not the map |
 | 6g | Ask a production stack the same question: Nav2 with slam_toolbox, no map, no pose | **Done** — **UNRESOLVED at 32 beams, IMPLEMENTATION at 360**: the same sensor, the same cost; a dense one, a seventh |
 | 6f | Take away the pose: wheel odometry, and scan matching against the robot's own map | **Done** — **COSTLY, and matching PAYS**: free in clutter (−0.010, +0.040), ruinous in the open (−0.460 `large`) |
 | 6e | The repaired mapping stack, re-run | **Done** — **COSTLY: −0.240 dense, −0.260 narrow**; Result 1's clutter margin was the map |
@@ -2837,6 +2837,50 @@ fell 0.09 below the second full-privilege pass, not 0.10; and the mechanism.
 Val had shown clutter losses at 360 as collisions, 0.15 and 0.20; on test they
 were 0.040 and 0.010, and the loss was timeouts. Three or four collisions in
 twenty worlds were never a mechanism.
+
+## Phase 6h — The missing cell: this stack at 360 beams
+
+§9.4 concluded from Nav2 alone that what the privileges stood in for was
+mostly the sensor. This runs the inferred cell — the hand-written stack,
+without map or pose, at 360 beams, every parameter unchanged — and corrects
+that conclusion. Registered in `8a3ea6a`. Full treatment in report §9.5.
+
+Registered decision: **IMPLEMENTATION** — the difference in costs against Nav2
+at 360 beams is +0.112 [+0.077, +0.147] and +0.120 [+0.085, +0.155].
+
+| success, 100 worlds | given the map | own map, 32 | + own pose, 32 | own map, 360 | + own pose, 360 | Nav2 + SLAM, 360 |
+|---|---|---|---|---|---|---|
+| sparse | 1.000 | 1.000 | 0.570 | 1.000 | 0.970 | 0.960 |
+| large | 1.000 | 0.990 | 0.530 | 0.990 | 0.900 | 0.960 |
+| nominal | 1.000 | 0.970 | 0.850 | 0.970 | 0.960 | 0.970 |
+| noisy_lidar | 1.000 | 0.940 | 0.780 | 0.830 | 0.750 | 1.000 |
+| dense | 0.890 | 0.650 | 0.640 | 0.640 | 0.620 | 0.820 |
+| narrow | 0.850 | 0.590 | 0.630 | 0.590 | 0.590 | 0.810 |
+
+- The dense scanner halves this stack's cost, 0.290 to 0.158 (+0.132
+  [+0.097, +0.167]), and all of it is the pose: 0.190 to 0.038.
+- The map's cost does not fall (0.100 to 0.120), and under noise the map gets
+  worse with more beams (0.940 to 0.830 on `noisy_lidar`).
+- Against Nav2 at 360 the residual is mapping: this stack loses 0.27 to 0.28
+  more under noise and 0.14 to 0.18 more in clutter, 85% of the residual.
+  In open, noise-free worlds the two lose nearly the same.
+- §9.4 corrected: the pose stood in for the sensor; the map stood in for the
+  implementation.
+
+### Controls
+
+full_map, mapped32 and matched32 reproduce Phase 6f per episode on all six.
+
+### Calibration
+
+Prediction 32 is partial. Every quantitative clause held: the difference in
+costs inside its +0.05 to +0.15 band against both passes, the decision one of
+the two named, noisy_lidar the largest single contribution, the cost at 360,
+the scanner's effect, the pose and map costs, mapped360 below mapped32 on
+noisy_lidar, sparse at least 0.90, both pose-error clauses and the three
+controls. What failed was the headline's attribution: "what is left is mostly
+this stack's map under sensor noise." It is the map, but noise carries 38 to
+42% of the residual and clutter 43 to 47%.
 
 ## Hardware notes
 

@@ -40,8 +40,9 @@ nothing.
    arenas). The two privileges are worth opposite things, and structure is why:
    it is both what a map is needed for and what a pose is recovered from. Nav2
    with SLAM, asked the same question, pays at least as much given the same
-   32-beam scanner and a seventh of it given 360 beams: what the privileges
-   stood in for was mostly the sensor. Four
+   32-beam scanner and a seventh of it given 360 beams; this stack given 360
+   beams halves its cost, all of it in localisation. The pose stood in for the
+   sensor, the map for the implementation. Four
    standard explanations — insufficient data, wrong training distribution,
    insufficient compute (tested twice, to 2.7× budget), reward
    mis-specification — were each tested and rejected. The cause is
@@ -127,8 +128,8 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of thirty-one advance predictions, four derived from
-*measurements* held; fourteen failed outright and thirteen got part right and part
+pre-registered endpoints. Of thirty-two advance predictions, four derived from
+*measurements* held; fourteen failed outright and fourteen got part right and part
 wrong, with identical confidence of expression
 throughout. The three failures that reasoned from a real measurement all
 carried it into a regime nothing had been measured in — and the one that

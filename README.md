@@ -61,12 +61,13 @@ decision below follows from wanting that comparison to be trustworthy.
 | The planner builds its own map: open worlds unchanged, and the clutter margin over the policy gone | Done |
 | And estimates its own pose: free in clutter, ruinous in open worlds — the exact inverse of the map | Done |
 | Nav2 with SLAM, asked the same: as costly with the same scanner, a seventh of it with a dense one | Done |
+| And this stack at 360 beams: the sensor fixes its pose, not its map | Done |
 | Encoder cost re-priced at 1:1: survives (−0.180 narrow), and still fails by stalling | Done |
 | Why the pixel policy stalls: the image carries the depth, and a velocity latch holds the stall — released, it crashes | Done |
 | And what its features lack: the clearance ahead is there, the width of the gap past it is not | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Forty-seven experiments, each pre-registered where it tests a hypothesis. The
+Forty-eight experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).

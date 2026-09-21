@@ -22,8 +22,11 @@ clutter (0.630 in tight corridors) and most of what is left in open worlds
 (0.530 on the largest arenas, against 0.990 with the pose given). The two
 privileges are worth opposite things, and structure is why. A production
 stack — Nav2 with SLAM — pays at least as much given the same sparse
-scanner, and a seventh of it given a dense one: what the privileges were
-standing in for was mostly the sensor.
+scanner, and a seventh of it given a dense one; given that dense scanner
+too, this project's stack halves its cost, all of it in localisation. The
+pose was standing in for the sensor. The map was standing in for the
+implementation: in clutter and under noise, this stack loses 0.14 to 0.28 more
+than Nav2 with slam_toolbox.
 
 We then eliminate the standard explanations for a losing RL result —
 insufficient data, wrong training distribution, insufficient compute (tested
@@ -197,7 +200,8 @@ privileges are worth opposite things, for one reason: clutter is structure, and
 structure is both what a map is needed for and what a pose can be recovered
 from. §9.4 asks whether that cost belongs to this implementation: Nav2 with
 SLAM pays at least as much given the same 32-beam scanner, and a seventh of it
-given 360 beams.
+given 360 beams. §9.5 gives this stack 360 beams too: the pose's cost all but
+vanishes, and the map's does not.
 
 A caution on reading the last column against the first three, stronger than the
 one §9.2 needed. The privileged policy is given an exact goal vector, which is
@@ -998,11 +1002,12 @@ stacks fail in different places: Nav2 does better on `sparse` (0.690 against
 p = 0.0039), where its costmap, built from 32 beams, both collides (0.180) and
 stalls (0.370).
 
-**So what the privileges were standing in for was mostly the sensor.** Holding
-the sensor fixed and changing the implementation to a production one buys
-nothing; holding the implementation fixed and giving it a dense sensor cuts its
-cost from 0.34 to 0.04. One cell of that argument is inferred rather than
-measured: this project's own stack has not been run at 360 beams.
+**So, from Nav2 alone, what the privileges stood in for looked like the
+sensor.** Holding the sensor fixed and changing the implementation to a
+production one buys nothing; holding the implementation fixed and giving it a
+dense sensor cuts its cost from 0.34 to 0.04. That rested on one cell inferred
+rather than measured — this project's own stack at 360 beams — and §9.5 ran
+it: the sensor explains the pose, and not the map.
 
 **Getting Nav2 with SLAM to measure SLAM** took the `val` band and found seven
 faults, all this project's: four in the harness, three in how Nav2 and
@@ -1022,6 +1027,54 @@ worlds" on the belief that more scans could only help. Upstream's defaults track
 the same drive to 0.07 m, and the configuration now differs from them in four
 documented settings. Every val number the prediction was built from was
 collected after the last fix.
+
+### 9.5 The missing cell
+
+§9.4's conclusion rested on Nav2 alone: the hand-written stack had never been
+run at 360 beams. Here it is, with nothing else changed — the scan matcher's
+prior weights were tuned on the val band at 32 beams and are deliberately not
+re-tuned, as slam_toolbox's were not between 32 and 360. The 32-beam arms were
+run again alongside, and reproduce Phase 6f episode for episode.
+
+| success, 100 worlds | given the map | own map, 32 | + own pose, 32 | own map, 360 | + own pose, 360 | Nav2 + SLAM, 360 |
+|---|---|---|---|---|---|---|
+| sparse | 1.000 | 1.000 | 0.570 | 1.000 | 0.970 | 0.960 |
+| large | 1.000 | 0.990 | 0.530 | 0.990 | 0.900 | 0.960 |
+| nominal | 1.000 | 0.970 | 0.850 | 0.970 | 0.960 | 0.970 |
+| noisy_lidar | 1.000 | 0.940 | 0.780 | 0.830 | 0.750 | 1.000 |
+| dense | 0.890 | 0.650 | 0.640 | 0.640 | 0.620 | 0.820 |
+| narrow | 0.850 | 0.590 | 0.630 | 0.590 | 0.590 | 0.810 |
+
+**The dense scanner halves this stack's cost, and all of the gain is the
+pose.** Losing both privileges costs it 0.290 at 32 beams and 0.158 at 360
+(+0.132 [+0.097, +0.167]). The pose's share falls from 0.190 to 0.038: the open
+worlds that §9.3 found ruinous recover — `sparse` 0.570 to 0.970, `large` 0.530
+to 0.900 — and median pose error falls from 0.38 and 0.44 m to 0.08 and 0.11 m.
+The front end with no back end that failed there needed returns, not a pose
+graph.
+
+**The map's share does not fall at all**: 0.100 at 32 beams, 0.120 at 360. In
+clutter the stack stays where it was (0.620 and 0.590, against 0.640 and 0.630),
+and under sensor noise its map gets *worse* with more beams — 0.940 to 0.830 on
+`noisy_lidar` — because ten times the noisy returns means ten times the evidence
+for surfaces that are not there, on log-odds weights set for a sparse scanner
+(§9.2).
+
+**Against Nav2 with the same scanner, the implementation does matter.** The
+difference in costs is +0.112 [+0.077, +0.147] and +0.120 [+0.085, +0.155]
+against the two passes — IMPLEMENTATION, the registered decision. Very little of
+it is localisation: in open, noise-free worlds the two stacks lose nearly the
+same (0.000 on `sparse`, +0.03 to +0.04 on `nominal`, +0.07 on `large`). It is
+mapping: under noise this stack loses 0.27 to 0.28 more than Nav2 does, and in
+clutter 0.14 to 0.18 more, and those three conditions carry 85% of the
+residual.
+
+**So §9.4's conclusion was half right.** What the pose stood in for was the
+sensor: given a dense one, the median final pose error is 0.07 to 0.22 m for
+this stack and 0.07 to 0.17 m for Nav2, and the pose costs this stack 0.038.
+What the map stood in for was the implementation: given the same dense scanner,
+this stack loses 0.14 to 0.28 more than Nav2 with slam_toolbox wherever there
+is clutter or noise to map.
 
 ## 10. Discussion
 
@@ -1071,11 +1124,11 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of thirty-one predictions made in advance, four derived from
+**Calibration.** Of thirty-two predictions made in advance, four derived from
 a *measurement* held — two to within 0.021 and 0.001, one on both magnitude and
 mechanism, and one whose magnitude came from measuring the estimator it was
 about; fourteen from extrapolation, intuition, arithmetic or a post hoc
-description failed outright; thirteen got part right and part wrong. Confidence
+description failed outright; fourteen got part right and part wrong. Confidence
 of expression was identical throughout. Three rules came out of them; the
 record of each prediction is in [`project_plan.md`](project_plan.md). The
 fifteenth also broke this report's own stated practice: its null was registered
@@ -1154,12 +1207,11 @@ enough.**
   `dynamic_dense` margin (+0.150 to +0.170) is far outside that spread but the
   `dynamic` result (−0.020 to +0.010) sits inside it and is read as parity
   rather than as a measured equality.
-- **§9.4's sensor argument has an inferred cell**: the hand-written stack was
-  not run at 360 beams. Nav2 shows the sensor, not the implementation, is
-  what matters *for Nav2*; that the same holds for this project's stack is
-  the plausible reading, not a measurement. The SLAM arms also ran one pass
-  each, held to 5× real time, against the full-privilege arm's two
-  unthrottled passes.
+- **§9.4's SLAM arms ran one pass each**, held to 5× real time, against the
+  full-privilege arm's two unthrottled passes. And §9.5 ran this stack at 360
+  beams on parameters tuned for 32, deliberately: its mapper's log-odds
+  weights were set for a sparse scanner, and what that costs under noise is
+  part of what it measured.
 - **The localisation of §9.3 is a front end with no back end**: no pose
   graph, no loop closure, nothing that revisits a past estimate. Its worst
   failure — matching doing more harm than dead reckoning on `sparse` --
@@ -1177,16 +1229,18 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Fill the missing cell.** §9.4 found a production stack no better than
-   this one with the same 32-beam scanner and nearly unhurt with 360 beams.
-   Running this project's own mapping and localising stack at 360 beams —
-   pure Python, an afternoon — would say whether the sensor explains its cost
-   too, or whether a dense scanner is only enough for a stack with a back end.
-2. **Give it a back end.** §9.3's one harmful result — scan matching worse
-   than dead reckoning on `sparse` — is a front end agreeing with a map it
-   corrupted itself. slam_toolbox's back end did better there at 32 beams
-   (0.690 against 0.570) and worse in tight corridors, so a pose graph is not
-   the whole answer; with a dense scanner it may not be needed at all.
+1. **A mapper built for dense, noisy scans.** §9.5 left this stack's map as
+   the whole of what it pays at 360 beams: it gets worse with ten times the
+   noisy returns (0.940 to 0.830 on `noisy_lidar`), and in clutter this stack
+   loses 0.14 to 0.18 more than Nav2 with slam_toolbox. Its log-odds weights were set in §9.2 for 32
+   beams, so evidence per return that scales with the beam count is the first
+   thing to try, and the difference in costs against Nav2 says in advance what
+   it has to close.
+2. **Give it a back end — for a sparse sensor only.** At 360 beams this
+   stack's front end localises to about 0.1 m on noise-free worlds with no
+   pose graph at all (§9.5). The back end is a question for the 32-beam scanner, where
+   slam_toolbox's did better on `sparse` (0.690 against 0.570) and worse in
+   tight corridors, so it is not the whole answer there either.
 3. **An encoder that can measure a gap.** The RGB features carry the
    clearance ahead as well as a depth vector does and the *width* of the gap
    past it not at all (§8.5). The first convolution strides 4 across a

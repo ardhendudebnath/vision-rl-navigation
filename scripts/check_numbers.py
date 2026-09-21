@@ -798,6 +798,71 @@ def claims():
                           ("dense", 0.587), ("narrow", 0.584)):
             out.append((f"pose {cond} matched spl", spl, lc[cond]["cells"]["matched"]["spl"]))
 
+    # --- the missing cell: this stack at 360 beams, Phase 6h ---------------
+    hp = "results/sensor_experiment.json"
+    if os.path.exists(hp):
+        hj = load(hp)
+        hc, hpool = hj["conditions"], hj["pooled"]
+        hpasses = list(hpool["did_vs_nav2_360"])
+        out += [("sensor decision IMPLEMENTATION", 1.0, float(hj["decision"] == "IMPLEMENTATION"))]
+        out += [(f"sensor control {k}", 1.0, float(v)) for k, v in hj["checks"].items()]
+        table = {
+            "sparse": (1.000, 1.000, 0.570, 1.000, 0.970, 0.960),
+            "large": (1.000, 0.990, 0.530, 0.990, 0.900, 0.960),
+            "nominal": (1.000, 0.970, 0.850, 0.970, 0.960, 0.970),
+            "noisy_lidar": (1.000, 0.940, 0.780, 0.830, 0.750, 1.000),
+            "dense": (0.890, 0.650, 0.640, 0.640, 0.620, 0.820),
+            "narrow": (0.850, 0.590, 0.630, 0.590, 0.590, 0.810),
+        }
+        arms = ("full_map", "mapped32", "matched32", "mapped360", "matched360")
+        for cond, row in table.items():
+            s = hc[cond]["success"]
+            out += [(f"sensor {cond} {arm}", v, s[arm]) for arm, v in zip(arms, row[:5], strict=True)]
+            out.append((f"sensor {cond} nav2 slam360", row[5], hc[cond]["nav2"]["slam360"]))
+        for i, (did, lo, hi) in enumerate(((0.112, 0.077, 0.147), (0.120, 0.085, 0.155))):
+            v = hpool["did_vs_nav2_360"][hpasses[i]]
+            out += [(f"sensor did pass{i + 1}", did, v["did"]),
+                    (f"sensor did pass{i + 1} ci lo", lo, v["ci95"][0]),
+                    (f"sensor did pass{i + 1} ci hi", hi, v["ci95"][1])]
+        for key, val in (("cost32", -0.290), ("cost360", -0.158), ("sensor_effect", 0.132),
+                         ("map_cost32", -0.100), ("map_cost360", -0.120),
+                         ("pose_cost32", -0.190), ("pose_cost360", -0.038)):
+            out.append((f"sensor pooled {key}", val, hpool[key]["gain"]))
+        out += [("sensor effect ci lo", 0.097, hpool["sensor_effect"]["ci95"][0]),
+                ("sensor effect ci hi", 0.167, hpool["sensor_effect"]["ci95"][1])]
+        # Pose error, as §9.5 quotes it.
+        for cond, e32, e360 in (("sparse", 0.382, 0.084), ("large", 0.439, 0.113)):
+            pe = hc[cond]["pose_error_median"]
+            out += [(f"sensor {cond} pose error 32", e32, pe["32"]),
+                    (f"sensor {cond} pose error 360", e360, pe["360"])]
+        pe360 = [hc[c]["pose_error_median"]["360"] for c in hc]
+        out += [("sensor pose error 360 low", 0.07, round(min(pe360), 2)),
+                ("sensor pose error 360 high", 0.22, round(max(pe360), 2))]
+        if os.path.exists("results/nav2_slam_comparison.json"):
+            nc = load("results/nav2_slam_comparison.json")["conditions"]
+            npe = [nc[c]["nav2_without"]["360"]["pose_error_median"] for c in nc]
+            out += [("sensor nav2 pose error low", 0.07, round(min(npe), 2)),
+                    ("sensor nav2 pose error high", 0.17, round(max(npe), 2))]
+        # Where the residual is: per-condition differences in costs.
+        per = [hpool["did_vs_nav2_360"][p]["per_condition"] for p in hpasses]
+        out += [("sensor sparse residual", 0.000, max(abs(x["sparse"]) for x in per)),
+                ("sensor nominal residual low", 0.03, min(x["nominal"] for x in per)),
+                ("sensor nominal residual high", 0.04, max(x["nominal"] for x in per)),
+                ("sensor large residual", 0.07, per[0]["large"]),
+                ("sensor noise residual low", 0.27, min(x["noisy_lidar"] for x in per)),
+                ("sensor noise residual high", 0.28, max(x["noisy_lidar"] for x in per)),
+                ("sensor clutter residual low", 0.14, min(min(x["dense"], x["narrow"]) for x in per)),
+                ("sensor clutter residual high", 0.18, max(max(x["dense"], x["narrow"]) for x in per))]
+        shares = [(x["noisy_lidar"] + x["dense"] + x["narrow"]) / sum(x.values()) for x in per]
+        # Quoted as whole percentages, so pinned at two decimals.
+        out.append(("sensor noise and clutter share of residual", 0.85, round(st.mean(shares), 2)))
+        noise_share = [x["noisy_lidar"] / sum(x.values()) for x in per]
+        clutter_share = [(x["dense"] + x["narrow"]) / sum(x.values()) for x in per]
+        out += [("sensor noise share low", 0.38, round(min(noise_share), 2)),
+                ("sensor noise share high", 0.42, round(max(noise_share), 2)),
+                ("sensor clutter share low", 0.43, round(min(clutter_share), 2)),
+                ("sensor clutter share high", 0.47, round(max(clutter_share), 2))]
+
     # --- a production stack asked the same question, Phase 6g --------------
     sp = "results/nav2_slam_comparison.json"
     if os.path.exists(sp):
