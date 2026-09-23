@@ -798,6 +798,61 @@ def claims():
                           ("dense", 0.587), ("narrow", 0.584)):
             out.append((f"pose {cond} matched spl", spl, lc[cond]["cells"]["matched"]["spl"]))
 
+    # --- the corroboration rule, Phase 6i ----------------------------------
+    cp = "results/corroboration_experiment.json"
+    if os.path.exists(cp):
+        cj = load(cp)
+        cc, cpool = cj["conditions"], cj["pooled"]
+        out += [("corroboration decision UNRESOLVED", 1.0,
+                 float(cj["decision"] == "UNRESOLVED"))]
+        out += [(f"corroboration control {k}", 1.0, float(v)) for k, v in cj["checks"].items()]
+        table = {
+            "sparse": (1.000, 1.000, 0.970, 0.990), "large": (0.990, 0.990, 0.900, 0.890),
+            "nominal": (0.970, 0.960, 0.960, 0.960), "noisy_lidar": (0.830, 0.910, 0.750, 0.890),
+            "dense": (0.640, 0.620, 0.620, 0.590), "narrow": (0.590, 0.590, 0.590, 0.600),
+        }
+        arms = ("mapped", "mapped_corroborated", "matched", "matched_corroborated")
+        for cond, row in table.items():
+            s = cc[cond]["success"]
+            out += [(f"corroboration {cond} {a}", v, s[a]) for a, v in zip(arms, row, strict=True)]
+        noisy = cc["noisy_lidar"]["contrasts"]
+        out += [
+            ("corroboration noisy own-map gain", 0.080, noisy["mapped"]["gain"]),
+            ("corroboration noisy own-map p", 0.0574, noisy["mapped"]["p"]),
+            ("corroboration noisy own-map won", 11, noisy["mapped"]["won"]),
+            ("corroboration noisy own-map lost", 3, noisy["mapped"]["lost"]),
+            ("corroboration noisy own-pose gain", 0.140, noisy["matched"]["gain"]),
+            ("corroboration noisy own-pose p", 0.0005, round(noisy["matched"]["p"], 4)),
+            ("corroboration noisy own-pose won", 15, noisy["matched"]["won"]),
+            ("corroboration noisy own-pose lost", 1, noisy["matched"]["lost"]),
+            ("corroboration noisy own-pose MATTERS", 1.0,
+             float(noisy["matched"]["verdict"] == "MATTERS")),
+            ("corroboration pooled own-map", 0.008, cpool["mapped"]["gain"]),
+            ("corroboration pooled own-map ci lo", -0.007, cpool["mapped"]["ci95"][0]),
+            ("corroboration pooled own-map ci hi", 0.023, cpool["mapped"]["ci95"][1]),
+            ("corroboration pooled own-pose", 0.022, cpool["matched"]["gain"]),
+            ("corroboration pooled own-pose ci lo", 0.002, cpool["matched"]["ci95"][0]),
+            ("corroboration pooled own-pose ci hi", 0.042, cpool["matched"]["ci95"][1]),
+            ("corroboration collision ceiling", 0.02,
+             max(cc[c]["collision"][a] for c in table for a in arms)),
+            ("corroboration noisy pose error off", 0.217,
+             cc["noisy_lidar"]["pose_error_median"]["off"]),
+            ("corroboration noisy pose error on", 0.238,
+             cc["noisy_lidar"]["pose_error_median"]["on"]),
+        ]
+        # The difference in costs against Nav2, before and after the repair.
+        passes = list(cpool["did_vs_nav2_matched"])
+        for i, (before, after, lo, hi) in enumerate(((0.112, 0.090, 0.058, 0.123),
+                                                     (0.120, 0.098, 0.065, 0.133))):
+            b = cpool["did_vs_nav2_matched"][passes[i]]
+            a = cpool["did_vs_nav2_matched_corroborated"][passes[i]]
+            out += [(f"corroboration did before pass{i + 1}", before, b["did"]),
+                    (f"corroboration did after pass{i + 1}", after, a["did"]),
+                    (f"corroboration did after pass{i + 1} ci lo", lo, a["ci95"][0]),
+                    (f"corroboration did after pass{i + 1} ci hi", hi, a["ci95"][1]),
+                    (f"corroboration did after pass{i + 1} unresolved", 1.0,
+                     float(a["class"] == "UNRESOLVED"))]
+
     # --- what a dense scan does to the map, the Phase 6i diagnostic -------
     dm = "results/dense_map_diagnostic.json"
     if os.path.exists(dm):

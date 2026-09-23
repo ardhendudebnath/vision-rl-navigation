@@ -1076,6 +1076,67 @@ What the map stood in for was the implementation: given the same dense scanner,
 this stack loses 0.14 to 0.28 more than Nav2 with slam_toolbox wherever there
 is clutter or noise to map.
 
+### 9.6 Repairing the dense-scan map
+
+§9.5 left this stack's mapper as what it pays at 360 beams, and
+[`dense_map_diagnostic.py`](../scripts/dense_map_diagnostic.py) says where.
+Measuring the map against the world it was built from, on the `val` band: under
+sensor noise, ten times the returns triple the phantom cells — occupied cells
+with no real surface inside them — from 104 to 370, block 46% of the arena where
+the truth is 38%, and lose 28% of the free floor to inflation around things that
+are not there. In clutter it finds no phantoms at all at either beam count, and
+a map that blocks *less* floor than the truth because unexplored space counts as
+free. The noise regression is the mapper's; the clutter gap is not.
+
+The obvious lever is not there either. Hits and misses are already one vote per
+cell per scan, so the evidence *rate* never depended on the beam count. What a
+dense scan changes is which cells get marked, and the repair follows from that:
+a cell's hit is weighted by the returns it received over the returns a surface
+there would have produced — its width over the arc a beam separation subtends
+at its range. A lone return among six crossing beams earns a sixth of a hit.
+The rule is inert wherever beams are coarser than cells, so at 32 beams the map
+comes out identical and every published result stands.
+
+| success, 100 worlds, 360 beams | own map | own map, repaired | own map and pose | own map and pose, repaired |
+|---|---|---|---|---|
+| sparse | 1.000 | 1.000 | 0.970 | 0.990 |
+| large | 0.990 | 0.990 | 0.900 | 0.890 |
+| nominal | 0.970 | 0.960 | 0.960 | 0.960 |
+| noisy_lidar | 0.830 | 0.910 | 0.750 | 0.890 |
+| dense | 0.640 | 0.620 | 0.620 | 0.590 |
+| narrow | 0.590 | 0.590 | 0.590 | 0.600 |
+
+**It repairs the noise regression and touches nothing else.** With its own pose
+as well — the configuration the stack actually runs in — `noisy_lidar` goes
+0.750 to 0.890 (+0.140, p = 0.0005, 15 episodes won and 1 lost). Every other
+condition moves by at most 0.03, collisions stay at or below 0.020, and pooled
+over the six the gain is +0.022 [+0.002, +0.042].
+
+**The registered endpoint was the other arm, and it fell just short.** The
+decision was placed on the own-map arm, which isolates the map by keeping the
+pose exact: there `noisy_lidar` goes 0.830 to 0.910, +0.080 at p = 0.0574, 11
+episodes won and 3 lost. By the registered rule that is UNRESOLVED, not
+REPAIRED, and the prediction said REPAIRED. The cleaner isolation was the
+weaker test: keeping the pose exact removes the compounding that makes the
+repair worth twice as much when the robot has to localise on the map it is
+building.
+
+**What it is worth against Nav2.** §9.5's difference in costs at 360 beams was
++0.112 [+0.077, +0.147] and +0.120 [+0.085, +0.155] — IMPLEMENTATION. With the
+repaired mapper it is +0.090 [+0.058, +0.123] and +0.098 [+0.065, +0.133]:
+UNRESOLVED, no longer materially above the 0.10 band, though still above zero.
+One rule in the mapper closed about a fifth of the gap a production stack had
+opened.
+
+**The mechanism is not the one the rule was designed around**, which the
+registration said in advance. On val the phantom cells barely move — 370 to 309
+of about 1100 occupied, and the free floor lost 0.285 to 0.270 — while success
+goes 0.83 to 0.92 and replans 132 to 91. Making a phantom take several scans to
+appear stops most of them from ever blocking a plan; it does not stop them
+existing by the end of the episode. The median pose error under noise does not
+improve either (0.217 m to 0.238 m). What improves is how often the planner is
+made to change its mind.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -1124,11 +1185,11 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of thirty-two predictions made in advance, four derived from
+**Calibration.** Of thirty-three predictions made in advance, four derived from
 a *measurement* held — two to within 0.021 and 0.001, one on both magnitude and
 mechanism, and one whose magnitude came from measuring the estimator it was
 about; fourteen from extrapolation, intuition, arithmetic or a post hoc
-description failed outright; fourteen got part right and part wrong. Confidence
+description failed outright; fifteen got part right and part wrong. Confidence
 of expression was identical throughout. Three rules came out of them; the
 record of each prediction is in [`project_plan.md`](project_plan.md). The
 fifteenth also broke this report's own stated practice: its null was registered
@@ -1229,24 +1290,21 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **A mapper built for dense, noisy scans.**
-   [`dense_map_diagnostic.py`](../scripts/dense_map_diagnostic.py) measures
-   what §9.5 left: under noise, ten times the returns triple the phantom cells
-   — occupied cells with no real surface inside them — from 104 to 370, block
-   46% of the arena where the truth is 38%, and lose 28% of the free floor to
-   inflation around things that are not there. Evidence per return is not the
-   lever: hits and misses are already one vote per cell per scan, so the rate
-   does not depend on the beam count. What a dense scan changes is which cells
-   get marked, and the repair registered as Phase 6i weighs a cell's returns
-   against the returns a surface there would have produced.
-2. **What to do with an incomplete map.** The same diagnostic finds *no*
+1. **What to do with an incomplete map.** The dense-map diagnostic finds *no*
    phantoms in clutter at either beam count, and a map that blocks less floor
    than the truth because unexplored space counts as free. So the clutter gap
-   to Nav2 — 0.14 to 0.18 in §9.5 — is not the map being wrong but what this
-   stack does with a map that is right and unfinished: in dense clutter it
-   replans about fifty times an episode and still times out, where Nav2 reaches 0.820 and 0.810.
+   to Nav2 — 0.14 to 0.18 in §9.5, and the larger half of what is left after
+   §9.6 — is not the map being wrong but what this stack does with a map that
+   is right and unfinished: in dense clutter it replans about fifty times an
+   episode and still times out, where Nav2 reaches 0.820 and 0.810.
    Exploration order, when to commit to a route through unseen space, and the
    recoveries are where that lives.
+2. **Finish the mapper under noise.** §9.6's rule left the phantom cells
+   standing (370 to 309 of about 1100): it delays them rather than refusing
+   them, and `noisy_lidar` is still this stack's worst open condition at 360
+   beams (0.890 against Nav2's 1.000). Clearing evidence that scales with how
+   often a cell is seen through, rather than one vote per scan, is the next
+   thing to try.
 3. **Give it a back end — for a sparse sensor only.** At 360 beams this
    stack's front end localises to about 0.1 m on noise-free worlds with no
    pose graph at all (§9.5). The back end is a question for the 32-beam

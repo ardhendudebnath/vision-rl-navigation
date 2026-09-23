@@ -50,7 +50,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
 | 5w | Cap the estimate's extrapolation at 2 s and 1 s | **Done** — **UNRESOLVED: +0.010 on dense**; a 1 s cap costs sparse 0.085 (p = 0.0005) |
-| 6i | A mapper for dense scans: corroborate a cell's returns before believing them | **Registered, not yet run** — diagnostic in esults/dense_map_diagnostic.json\, prediction in \scripts/corroboration_experiment.py\ |
+| 6i | A mapper for dense scans: corroborate a cell's returns before believing them | **Done** — **UNRESOLVED at p = 0.0574**, but +0.140 (p = 0.0005) on the arm the stack actually runs |
 | 6h | Fill the missing cell: this stack, without map or pose, at 360 beams | **Done** — **IMPLEMENTATION (+0.112, +0.120)**: the sensor fixes the pose, not the map |
 | 6g | Ask a production stack the same question: Nav2 with slam_toolbox, no map, no pose | **Done** — **UNRESOLVED at 32 beams, IMPLEMENTATION at 360**: the same sensor, the same cost; a dense one, a seventh |
 | 6f | Take away the pose: wheel odometry, and scan matching against the robot's own map | **Done** — **COSTLY, and matching PAYS**: free in clutter (−0.010, +0.040), ruinous in the open (−0.460 `large`) |
@@ -2882,6 +2882,51 @@ noisy_lidar, sparse at least 0.90, both pose-error clauses and the three
 controls. What failed was the headline's attribution: "what is left is mostly
 this stack's map under sensor noise." It is the map, but noise carries 38 to
 42% of the residual and clutter 43 to 47%.
+
+## Phase 6i — A mapper for dense scans
+
+§9.5 left this stack's mapper as what it pays at 360 beams.
+`dense_map_diagnostic.py` measured the map against the world it was built from
+on the val band: under noise, ten times the returns triple the phantom cells
+(104 to 370), block 46% of the arena where the truth is 38%, and lose 28% of
+the free floor; in clutter there are no phantoms at all and the map blocks less
+than the truth. So the noise regression is the mapper's and the clutter gap is
+not. The repair weighs a cell's returns against the returns a surface there
+would have produced, and is inert for sparse scans. Registered in `6a222bf`.
+Full treatment in report §9.6.
+
+Registered decision: **UNRESOLVED** — the own-map arm on `noisy_lidar` gains
++0.080 at p = 0.0574, a whisker short of the MATTERS the prediction named.
+
+| success, 100 worlds, 360 beams | own map | repaired | own map and pose | repaired |
+|---|---|---|---|---|
+| sparse | 1.000 | 1.000 | 0.970 | 0.990 |
+| large | 0.990 | 0.990 | 0.900 | 0.890 |
+| nominal | 0.970 | 0.960 | 0.960 | 0.960 |
+| noisy_lidar | 0.830 | 0.910 | 0.750 | 0.890 |
+| dense | 0.640 | 0.620 | 0.620 | 0.590 |
+| narrow | 0.590 | 0.590 | 0.590 | 0.600 |
+
+- With its own pose too — how the stack actually runs — `noisy_lidar` goes
+  0.750 to 0.890: +0.140, p = 0.0005, MATTERS.
+- Pooled +0.008 [−0.007, +0.023] own map, +0.022 [+0.002, +0.042] own pose.
+- The difference in costs against Nav2 at 360 beams falls from +0.112 and
+  +0.120 to +0.090 and +0.098: IMPLEMENTATION becomes UNRESOLVED.
+- The mechanism is not the designed one, as the registration predicted: the
+  phantoms barely move (370 to 309 on val); what falls is replanning, 132 to 91.
+
+### Controls
+
+Both uncorroborated arms reproduce Phase 6h per episode on all six conditions.
+
+### Calibration
+
+Prediction 33 is partial. Ten clauses held: both noisy gains inside their
+bands, the other five conditions inside 0.06, both pooled bands, the shrink in
+the difference against Nav2 (0.022 twice, inside 0.01 to 0.09), the collision
+ceiling, and both controls. What failed was the registered decision: REPAIRED
+needed MATTERS on the own-map arm and it came to p = 0.0574. The endpoint that
+isolated the map best was the one with least power.
 
 ## Hardware notes
 

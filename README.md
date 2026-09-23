@@ -62,12 +62,13 @@ decision below follows from wanting that comparison to be trustworthy.
 | And estimates its own pose: free in clutter, ruinous in open worlds — the exact inverse of the map | Done |
 | Nav2 with SLAM, asked the same: as costly with the same scanner, a seventh of it with a dense one | Done |
 | And this stack at 360 beams: the sensor fixes its pose, not its map | Done |
+| A mapper that asks a cell's returns to corroborate each other: the noise regression repaired | Done |
 | Encoder cost re-priced at 1:1: survives (−0.180 narrow), and still fails by stalling | Done |
 | Why the pixel policy stalls: the image carries the depth, and a velocity latch holds the stall — released, it crashes | Done |
 | And what its features lack: the clearance ahead is there, the width of the gap past it is not | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Forty-eight experiments, each pre-registered where it tests a hypothesis. The
+Forty-nine experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).
