@@ -206,6 +206,59 @@ def test_the_dense_scanner_is_the_one_nav2_was_given():
     assert sensor.config.noise_std == 0.1
 
 
+def test_corroboration_is_inert_for_a_sparse_scan():
+    """The rule weighs a cell's returns against the returns a surface there
+    would have produced. At 32 beams fewer than one beam crosses a cell beyond
+    half a metre, so every hit is already all it could earn and the map must
+    come out identical -- which is what lets every published 32-beam result
+    stand."""
+    world = _open_world(boxes=[(5.0, 4.5, 5.6, 7.5), (7.5, 2.0, 8.1, 5.5)])
+    grids = []
+    for corroborate in (False, True):
+        m = OccupancyMap(world, make_sensor("lidar32"), corroborate=corroborate)
+        for x, y in ((3.0, 6.0), (4.0, 6.5), (6.5, 6.0), (6.5, 3.0)):
+            for heading in np.linspace(0, 2 * np.pi, 6, endpoint=False):
+                m.integrate(np.array([x, y, heading]))
+        grids.append(m.grid.copy())
+    assert np.array_equal(grids[0], grids[1])
+    assert (grids[0] == OCCUPIED).sum() > 20, "the scans mapped nothing; the check is empty"
+
+
+def test_one_return_among_many_beams_no_longer_marks_a_cell():
+    """What the rule is for. A 360-beam scan whose beams all miss except one,
+    pointing at empty floor a metre away: that is the shape of a noisy return,
+    and six beams cross the cell it lands in."""
+    angles = -np.pi + np.arange(360) * (2 * np.pi / 360)
+    ranges = np.full(360, 6.0)
+    ranges[180] = 1.0  # one lone return, straight ahead in the robot's frame
+    pose = np.array([3.0, 6.05, 0.0])
+
+    marked = {}
+    for corroborate in (False, True):
+        m = OccupancyMap(_NoGeometry(), _FakeSensor(angles, ranges), corroborate=corroborate)
+        m.integrate(pose)
+        marked[corroborate] = (m.grid == OCCUPIED).sum()
+    assert marked[False] == 1, "a single return should mark exactly its own cell"
+    assert marked[True] == 0, "a lone return among six crossing beams was believed"
+
+    # And it is not simply refusing everything: give the cell the returns a
+    # real surface there would produce and it is marked.
+    ranges[177:184] = 1.0
+    m = OccupancyMap(_NoGeometry(), _FakeSensor(angles, ranges), corroborate=True)
+    m.integrate(pose)
+    assert (m.grid == OCCUPIED).any(), "a corroborated surface was not mapped"
+
+
+def test_a_dense_scan_still_maps_real_walls():
+    world = _open_world(boxes=[(5.0, 4.5, 5.6, 7.5)])
+    m = OccupancyMap(world, make_sensor("lidar360"), corroborate=True)
+    for heading in np.linspace(0, 2 * np.pi, 6, endpoint=False):
+        m.integrate(np.array([3.5, 6.0, heading]))
+    occupied = m.grid_to_world(np.argwhere(m.grid == OCCUPIED))
+    assert len(occupied) > 10, "a dense scan of a wall a metre away mapped almost nothing"
+    assert (world.clearance(occupied, include_dynamic=False) <= m.half_diagonal + 1e-9).all()
+
+
 def test_an_unknown_sensor_is_refused():
     with pytest.raises(ValueError, match="unknown sensor"):
         make_sensor("sonar")

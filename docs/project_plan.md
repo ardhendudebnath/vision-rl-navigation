@@ -50,6 +50,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
 | 5w | Cap the estimate's extrapolation at 2 s and 1 s | **Done** — **UNRESOLVED: +0.010 on dense**; a 1 s cap costs sparse 0.085 (p = 0.0005) |
+| 6i | A mapper for dense scans: corroborate a cell's returns before believing them | **Registered, not yet run** — diagnostic in esults/dense_map_diagnostic.json\, prediction in \scripts/corroboration_experiment.py\ |
 | 6h | Fill the missing cell: this stack, without map or pose, at 360 beams | **Done** — **IMPLEMENTATION (+0.112, +0.120)**: the sensor fixes the pose, not the map |
 | 6g | Ask a production stack the same question: Nav2 with slam_toolbox, no map, no pose | **Done** — **UNRESOLVED at 32 beams, IMPLEMENTATION at 360**: the same sensor, the same cost; a dense one, a seventh |
 | 6f | Take away the pose: wheel odometry, and scan matching against the robot's own map | **Done** — **COSTLY, and matching PAYS**: free in clutter (−0.010, +0.040), ruinous in the open (−0.460 `large`) |

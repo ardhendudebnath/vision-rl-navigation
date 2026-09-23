@@ -89,7 +89,8 @@ class MappedPursuitAgent(AStarPursuitAgent):
     """A* and pure pursuit on a map the robot builds itself."""
 
     def __init__(self, config: PursuitConfig | None = None, robot: RobotConfig | None = None,
-                 sensor: str = "lidar32", noise_std: float = 0.0) -> None:
+                 sensor: str = "lidar32", noise_std: float = 0.0,
+                 corroborate: bool = False) -> None:
         # Replanning is done here, in :meth:`act`, rather than by the
         # baseline's block trigger, because a failed replan must stop the robot
         # instead of restoring the old plan. Everything else is the baseline's
@@ -98,6 +99,9 @@ class MappedPursuitAgent(AStarPursuitAgent):
                                              replan_every=0), robot)
         self.sensor_kind = sensor
         self.noise_std = noise_std
+        #: Passed to the map: weight a hit by how many returns the cell earned.
+        #: Off by default, so every published result is unchanged.
+        self.corroborate = corroborate
         self.map: OccupancyMap | None = None
         self._plan_radius = 0.0
         self._checked_version = -1
@@ -124,7 +128,8 @@ class MappedPursuitAgent(AStarPursuitAgent):
         # Seeded from the world, so a sensor with noise corrupts an episode the
         # same way every time it is run.
         self.map = OccupancyMap(world, make_sensor(self.sensor_kind, self.noise_std),
-                                rng=np.random.default_rng(int(world.seed)))
+                                rng=np.random.default_rng(int(world.seed)),
+                                corroborate=self.corroborate)
         self.map.integrate(pose)
         self._checked_version = self.map.version
         self.failed_plan_steps = []

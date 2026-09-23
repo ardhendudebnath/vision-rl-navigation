@@ -798,6 +798,34 @@ def claims():
                           ("dense", 0.587), ("narrow", 0.584)):
             out.append((f"pose {cond} matched spl", spl, lc[cond]["cells"]["matched"]["spl"]))
 
+    # --- what a dense scan does to the map, the Phase 6i diagnostic -------
+    dm = "results/dense_map_diagnostic.json"
+    if os.path.exists(dm):
+        dj = load(dm)["conditions"]
+        noisy = dj["noisy_lidar"]
+        out += [
+            ("dense map noisy phantoms 32", 104, round(noisy["lidar32"]["phantom_cells"])),
+            ("dense map noisy phantoms 360", 370, round(noisy["lidar360"]["phantom_cells"])),
+            ("dense map noisy blocked 360", 0.46, round(noisy["lidar360"]["blocked_fraction_mapped"], 2)),
+            ("dense map noisy blocked true", 0.38, round(noisy["lidar360"]["blocked_fraction_true"], 2)),
+            ("dense map noisy floor lost 360", 0.28, round(noisy["lidar360"]["free_floor_lost"], 2)),
+            # No phantoms in clutter, at either beam count, and a map that
+            # blocks less floor than the truth: the clutter gap is not the map.
+            ("dense map clutter has no phantoms", 0.0,
+             max(dj[c][s]["phantom_cells"] for c in ("dense", "narrow") for s in ("lidar32", "lidar360"))),
+            ("dense map clutter blocks less than the truth", 1.0,
+             float(all(dj[c][s]["blocked_fraction_mapped"] < dj[c][s]["blocked_fraction_true"]
+                       for c in ("dense", "narrow") for s in ("lidar32", "lidar360")))),
+            ("dense map dense replans 360", 49, round(dj["dense"]["lidar360"]["replans"])),
+            # The repair, as the plan reports it from val.
+            ("dense map noisy repaired success", 0.92,
+             round(noisy["lidar360_corroborated"]["success"], 2)),
+            ("dense map noisy repaired phantoms", 309,
+             round(noisy["lidar360_corroborated"]["phantom_cells"])),
+            ("dense map noisy repaired replans", 91,
+             round(noisy["lidar360_corroborated"]["replans"])),
+        ]
+
     # --- the missing cell: this stack at 360 beams, Phase 6h ---------------
     hp = "results/sensor_experiment.json"
     if os.path.exists(hp):

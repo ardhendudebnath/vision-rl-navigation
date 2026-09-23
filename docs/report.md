@@ -1229,26 +1229,37 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **A mapper built for dense, noisy scans.** §9.5 left this stack's map as
-   the whole of what it pays at 360 beams: it gets worse with ten times the
-   noisy returns (0.940 to 0.830 on `noisy_lidar`), and in clutter this stack
-   loses 0.14 to 0.18 more than Nav2 with slam_toolbox. Its log-odds weights were set in §9.2 for 32
-   beams, so evidence per return that scales with the beam count is the first
-   thing to try, and the difference in costs against Nav2 says in advance what
-   it has to close.
-2. **Give it a back end — for a sparse sensor only.** At 360 beams this
+1. **A mapper built for dense, noisy scans.**
+   [`dense_map_diagnostic.py`](../scripts/dense_map_diagnostic.py) measures
+   what §9.5 left: under noise, ten times the returns triple the phantom cells
+   — occupied cells with no real surface inside them — from 104 to 370, block
+   46% of the arena where the truth is 38%, and lose 28% of the free floor to
+   inflation around things that are not there. Evidence per return is not the
+   lever: hits and misses are already one vote per cell per scan, so the rate
+   does not depend on the beam count. What a dense scan changes is which cells
+   get marked, and the repair registered as Phase 6i weighs a cell's returns
+   against the returns a surface there would have produced.
+2. **What to do with an incomplete map.** The same diagnostic finds *no*
+   phantoms in clutter at either beam count, and a map that blocks less floor
+   than the truth because unexplored space counts as free. So the clutter gap
+   to Nav2 — 0.14 to 0.18 in §9.5 — is not the map being wrong but what this
+   stack does with a map that is right and unfinished: in dense clutter it
+   replans about fifty times an episode and still times out, where Nav2 reaches 0.820 and 0.810.
+   Exploration order, when to commit to a route through unseen space, and the
+   recoveries are where that lives.
+3. **Give it a back end — for a sparse sensor only.** At 360 beams this
    stack's front end localises to about 0.1 m on noise-free worlds with no
-   pose graph at all (§9.5). The back end is a question for the 32-beam scanner, where
-   slam_toolbox's did better on `sparse` (0.690 against 0.570) and worse in
-   tight corridors, so it is not the whole answer there either.
-3. **An encoder that can measure a gap.** The RGB features carry the
+   pose graph at all (§9.5). The back end is a question for the 32-beam
+   scanner, where slam_toolbox's did better on `sparse` (0.690 against 0.570)
+   and worse in tight corridors, so it is not the whole answer there either.
+4. **An encoder that can measure a gap.** The RGB features carry the
    clearance ahead as well as a depth vector does and the *width* of the gap
    past it not at all (§8.5). The first convolution strides 4 across a
    64-pixel-wide image, so a gap two columns wide survives as at most half a
    feature; a narrower stride, or a wider render at the same field of view, is
    one training run per arm, and the probe says in advance what to measure
    rather than waiting for success rates to move.
-4. **A recurrent policy that was actually tuned.** §9.1 tested one and it was
+5. **A recurrent policy that was actually tuned.** §9.1 tested one and it was
    worse everywhere, but it ran on hyperparameters chosen for an MLP so the
    comparison would be algorithm-only. That makes the result a statement about
    dropping recurrence into this setup rather than about recurrence, and it
@@ -1256,16 +1267,16 @@ In order of expected information per GPU-hour:
    LSTM width and a learning rate chosen *for* the recurrent arm would say
    whether the idea or the transplant failed. Lowest expected value of the
    five: the control cell says the deficit is not about motion at all.
-5. **Harder perception** — texture, lighting variation, sensor artefacts — to
+6. **Harder perception** — texture, lighting variation, sensor artefacts — to
    turn the encoder-cost lower bound into an estimate.
-6. **Sim-to-real** on a TurtleBot-class base. The action space is already
+7. **Sim-to-real** on a TurtleBot-class base. The action space is already
    `Twist`, so the policy transfers without modification.
 
 ## 13. Reproducing
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 477 tests
+pytest                                        # 480 tests
 python scripts/check_docs.py                  # every doc link resolves
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix

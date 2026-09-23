@@ -48,8 +48,9 @@ class LocalisedPursuitAgent(MappedPursuitAgent):
     def __init__(self, config: PursuitConfig | None = None, robot: RobotConfig | None = None,
                  sensor: str = "lidar32", noise_std: float = 0.0,
                  odometry: OdometryConfig | None = None, scan_matching: bool = False,
-                 match_config: ScanMatchConfig | None = None) -> None:
-        super().__init__(config, robot, sensor, noise_std)
+                 match_config: ScanMatchConfig | None = None,
+                 corroborate: bool = False) -> None:
+        super().__init__(config, robot, sensor, noise_std, corroborate)
         self.odometry = odometry
         self.matcher = ScanMatcher(match_config) if scan_matching else None
         self._odom: DeadReckoning | None = None

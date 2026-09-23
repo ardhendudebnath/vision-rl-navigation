@@ -55,12 +55,18 @@ OCCUPIED_AT, CLAMP = 0.5, (-2.0, 3.5)
 class OccupancyMap:
     """A grid the robot fills in from its own range sensor."""
 
-    def __init__(self, world, sensor, rng: np.random.Generator | None = None) -> None:
+    def __init__(self, world, sensor, rng: np.random.Generator | None = None,
+                 corroborate: bool = False) -> None:
         #: Used only for grid metadata and to be handed to the sensor, which
         #: returns ranges. See the module docstring.
         self._world = world
         self.sensor = sensor
         self.rng = rng
+        #: Weight a cell's hit by how many returns it received against how many
+        #: a real surface there would have produced. Off by default, which is
+        #: the behaviour every published result was measured under; see
+        #: :meth:`integrate`.
+        self.corroborate = corroborate
         self.resolution = float(world.config.grid_resolution)
         # Extent from the arena's dimensions, not from ``world.occupancy``:
         # that property computes the true obstacle grid, and reading even its
@@ -125,16 +131,19 @@ class OccupancyMap:
 
         # Returns short of max range hit something.
         landed = np.zeros(self.shape, dtype=bool)
+        weight = np.ones(self.shape, dtype=np.float32)
         hit = ranges < max_range - 1e-6
         if hit.any():
             ends = pose[None, :2] + dirs[hit] * ranges[hit, None]
             rows, cols = self._cells(ends)
             landed[rows, cols] = True
+            if self.corroborate:
+                weight = self._corroboration(landed, rows, cols, pose)
         passed &= ~landed  # a cell a return landed in is evidence for, not against
 
         before = self.grid == OCCUPIED
         self.evidence[passed] += MISS
-        self.evidence[landed] += HIT
+        self.evidence[landed] += HIT * weight[landed]
         np.clip(self.evidence, *CLAMP, out=self.evidence)
         seen = passed | landed
         self.grid[seen & (self.evidence >= OCCUPIED_AT)] = OCCUPIED
@@ -151,6 +160,35 @@ class OccupancyMap:
         self._occupied_pts = (np.stack([(occ[:, 1] + 0.5) * res, (occ[:, 0] + 0.5) * res],
                                        axis=-1) if len(occ) else np.zeros((0, 2)))
         return bool(newly.any())
+
+    def _corroboration(self, landed, rows, cols, pose) -> np.ndarray:
+        """How much of a hit each cell earned, in [0, 1].
+
+        A cell holding a real surface is crossed by several beams and should
+        return several times; one return among many beams is what noise looks
+        like. The weight is the returns a cell actually received over the
+        returns a surface there would have produced -- the cell's width divided
+        by the arc a beam separation subtends at its range -- capped at one.
+
+        This binds only where beams are finer than cells. At 32 beams over a
+        6 m range a surface cell is crossed by fewer than one beam beyond half
+        a metre, so the weight is one and nothing changes; at 360 beams it is
+        crossed by about six at a metre, and a lone return earns a sixth of a
+        hit. Report §9.5 measured what that costs: under noise, ten times the
+        returns tripled the phantom cells and lost twice the free floor.
+        """
+        counts = np.zeros(self.shape, dtype=np.float32)
+        np.add.at(counts, (rows, cols), 1.0)
+        idx = np.argwhere(landed)
+        centres = self.grid_to_world(idx)
+        distance = np.maximum(np.linalg.norm(centres - pose[:2], axis=1), 1e-6)
+        angles = np.asarray(self.sensor._angles, dtype=np.float64)
+        step = float(np.min(np.diff(angles))) if len(angles) > 1 else 2 * np.pi
+        expected = self.resolution / (distance * step)
+        weight = np.ones(self.shape, dtype=np.float32)
+        earned = np.minimum(1.0, counts[idx[:, 0], idx[:, 1]] / np.maximum(expected, 1e-9))
+        weight[idx[:, 0], idx[:, 1]] = earned
+        return weight
 
     def _cells(self, points: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         res = self.resolution

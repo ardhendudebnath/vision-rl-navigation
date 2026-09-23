@@ -1,0 +1,170 @@
+{
+  "episodes": 12,
+  "split": "val",
+  "conditions": {
+    "noisy_lidar": {
+      "lidar32": {
+        "occupied": 676.25,
+        "phantom_cells": 104.16666666666667,
+        "phantom_fraction": 0.15625999870159338,
+        "phantom_distance_median": 0.5678466232036373,
+        "real_cell_distance_median": 0.014828807737193,
+        "blocked_fraction_mapped": 0.3719560185185185,
+        "blocked_fraction_true": 0.37648726851851855,
+        "free_floor_lost": 0.14710671872348946,
+        "known": 0.6773206018518518,
+        "replans": 61.416666666666664,
+        "success": 1.0
+      },
+      "lidar360": {
+        "occupied": 1178.3333333333333,
+        "phantom_cells": 369.8333333333333,
+        "phantom_fraction": 0.30984676854527143,
+        "phantom_distance_median": 0.5754554936492883,
+        "real_cell_distance_median": -0.010524977352588678,
+        "blocked_fraction_mapped": 0.4622627314814814,
+        "blocked_fraction_true": 0.37648726851851855,
+        "free_floor_lost": 0.2846624128848893,
+        "known": 0.6951678240740741,
+        "replans": 132.5,
+        "success": 0.8333333333333334
+      },
+      "lidar360_corroborated": {
+        "occupied": 1077.0,
+        "phantom_cells": 308.75,
+        "phantom_fraction": 0.2780867040770727,
+        "phantom_distance_median": 0.7567202662683074,
+        "real_cell_distance_median": -0.0037020471170573104,
+        "blocked_fraction_mapped": 0.4580613425925926,
+        "blocked_fraction_true": 0.37648726851851855,
+        "free_floor_lost": 0.26997726375506387,
+        "known": 0.7161342592592592,
+        "replans": 91.16666666666667,
+        "success": 0.9166666666666666
+      }
+    },
+    "dense": {
+      "lidar32": {
+        "occupied": 498.9166666666667,
+        "phantom_cells": 0.0,
+        "phantom_fraction": 0.0,
+        "phantom_distance_median": 0.0,
+        "real_cell_distance_median": 0.025649623017947012,
+        "blocked_fraction_mapped": 0.33370949074074074,
+        "blocked_fraction_true": 0.5583912037037037,
+        "free_floor_lost": 0.06535552745226508,
+        "known": 0.5144791666666667,
+        "replans": 54.25,
+        "success": 0.75
+      },
+      "lidar360": {
+        "occupied": 529.6666666666666,
+        "phantom_cells": 0.0,
+        "phantom_fraction": 0.0,
+        "phantom_distance_median": 0.0,
+        "real_cell_distance_median": 0.031032503736125247,
+        "blocked_fraction_mapped": 0.3347222222222222,
+        "blocked_fraction_true": 0.5583912037037037,
+        "free_floor_lost": 0.06673531539201817,
+        "known": 0.5260532407407409,
+        "replans": 49.166666666666664,
+        "success": 0.75
+      },
+      "lidar360_corroborated": {
+        "occupied": 514.5,
+        "phantom_cells": 0.0,
+        "phantom_fraction": 0.0,
+        "phantom_distance_median": 0.0,
+        "real_cell_distance_median": 0.03160907655894811,
+        "blocked_fraction_mapped": 0.3299652777777778,
+        "blocked_fraction_true": 0.5583912037037037,
+        "free_floor_lost": 0.06420028444459462,
+        "known": 0.5300578703703704,
+        "replans": 55.75,
+        "success": 0.75
+      }
+    },
+    "narrow": {
+      "lidar32": {
+        "occupied": 464.5833333333333,
+        "phantom_cells": 0.0,
+        "phantom_fraction": 0.0,
+        "phantom_distance_median": 0.0,
+        "real_cell_distance_median": 0.039608316727428976,
+        "blocked_fraction_mapped": 0.2774074074074074,
+        "blocked_fraction_true": 0.5555787037037038,
+        "free_floor_lost": 0.0621469122834185,
+        "known": 0.4941550925925926,
+        "replans": 32.083333333333336,
+        "success": 0.75
+      },
+      "lidar360": {
+        "occupied": 487.25,
+        "phantom_cells": 0.0,
+        "phantom_fraction": 0.0,
+        "phantom_distance_median": 0.0,
+        "real_cell_distance_median": 0.0443550772949504,
+        "blocked_fraction_mapped": 0.27854745370370365,
+        "blocked_fraction_true": 0.5555787037037038,
+        "free_floor_lost": 0.060376389764066764,
+        "known": 0.49827546296296293,
+        "replans": 25.833333333333332,
+        "success": 0.75
+      },
+      "lidar360_corroborated": {
+        "occupied": 473.0,
+        "phantom_cells": 0.0,
+        "phantom_fraction": 0.0,
+        "phantom_distance_median": 0.0,
+        "real_cell_distance_median": 0.04515365576625496,
+        "blocked_fraction_mapped": 0.2756597222222222,
+        "blocked_fraction_true": 0.5555787037037038,
+        "free_floor_lost": 0.058557026629061794,
+        "known": 0.5003587962962962,
+        "replans": 34.583333333333336,
+        "success": 0.75
+      }
+    },
+    "nominal": {
+      "lidar32": {
+        "occupied": 425.0833333333333,
+        "phantom_cells": 0.0,
+        "phantom_fraction": 0.0,
+        "phantom_distance_median": 0.0,
+        "real_cell_distance_median": 0.04803918098568102,
+        "blocked_fraction_mapped": 0.2502256944444445,
+        "blocked_fraction_true": 0.37648726851851855,
+        "free_floor_lost": 0.047619584101877145,
+        "known": 0.6497685185185186,
+        "replans": 16.916666666666668,
+        "success": 1.0
+      },
+      "lidar360": {
+        "occupied": 467.0,
+        "phantom_cells": 0.0,
+        "phantom_fraction": 0.0,
+        "phantom_distance_median": 0.0,
+        "real_cell_distance_median": 0.049293240039915975,
+        "blocked_fraction_mapped": 0.25983217592592595,
+        "blocked_fraction_true": 0.37648726851851855,
+        "free_floor_lost": 0.048444736799426104,
+        "known": 0.6727893518518518,
+        "replans": 6.166666666666667,
+        "success": 1.0
+      },
+      "lidar360_corroborated": {
+        "occupied": 455.9166666666667,
+        "phantom_cells": 0.0,
+        "phantom_fraction": 0.0,
+        "phantom_distance_median": 0.0,
+        "real_cell_distance_median": 0.049293240039915975,
+        "blocked_fraction_mapped": 0.2556365740740741,
+        "blocked_fraction_true": 0.37648726851851855,
+        "free_floor_lost": 0.047096216805316275,
+        "known": 0.6727372685185186,
+        "replans": 18.75,
+        "success": 1.0
+      }
+    }
+  }
+}
