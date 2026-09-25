@@ -798,6 +798,46 @@ def claims():
                           ("dense", 0.587), ("narrow", 0.584)):
             out.append((f"pose {cond} matched spl", spl, lc[cond]["cells"]["matched"]["spl"]))
 
+    # --- clutter is indecision, the Phase 6j diagnostic --------------------
+    kp = "results/clutter_diagnostic.json"
+    if os.path.exists(kp):
+        kj = load(kp)["conditions"]
+        # The table §9.7 and the plan both print: wandering, driven/shortest,
+        # replans, reversals and spread, split by outcome.
+        table = {
+            ("dense", "successes"): (0.19, 1.15, 38, 1, 2.11),
+            ("dense", "failures"): (0.78, 1.91, 151, 46, 1.62),
+            ("narrow", "successes"): (0.05, 0.99, 13, 2, 2.38),
+            ("narrow", "failures"): (0.79, 1.68, 105, 17, 2.76),
+            ("nominal", "successes"): (0.05, 0.99, 16, 3, 2.35),
+        }
+        for (cond, outcome), (wander, driven, replans, reversals, spread) in table.items():
+            e = kj[cond]["as_published"][outcome]
+            out += [
+                (f"clutter {cond} {outcome} wandering", wander, round(e["wandering"], 2)),
+                (f"clutter {cond} {outcome} driven", driven, round(e["driven_over_shortest"], 2)),
+                (f"clutter {cond} {outcome} replans", replans, round(e["replans"])),
+                (f"clutter {cond} {outcome} reversals", reversals, round(e["reversals"])),
+                (f"clutter {cond} {outcome} spread", spread, round(e["gyration"], 2)),
+            ]
+        # Not stuck: no recoveries and no failed plans anywhere.
+        out.append(("clutter no recoveries or failed plans", 0.0,
+                    max(kj[c]["as_published"]["all"][k] for c in kj
+                        for k in ("recovery_steps", "failed_plans"))))
+        # The commitment rule, rejected on val.
+        out += [
+            ("clutter dense as published", 0.750, kj["dense"]["as_published"]["success"]),
+            ("clutter dense committed", 0.667, round(kj["dense"]["committed"]["success"], 3)),
+            ("clutter narrow as published", 0.667, round(kj["narrow"]["as_published"]["success"], 3)),
+            ("clutter narrow committed", 0.667, round(kj["narrow"]["committed"]["success"], 3)),
+            ("clutter refusals low", 4, round(min(kj[c]["committed"]["all"]["plans_refused"]
+                                                  for c in ("dense", "narrow")))),
+            ("clutter refusals high", 6, round(max(kj[c]["committed"]["all"]["plans_refused"]
+                                                   for c in ("dense", "narrow")))),
+            ("clutter replans an episode", 50, round(st.mean(
+                [kj[c]["committed"]["all"]["replans"] for c in ("dense", "narrow")]) / 10) * 10),
+        ]
+
     # --- the corroboration rule, Phase 6i ----------------------------------
     cp = "results/corroboration_experiment.json"
     if os.path.exists(cp):

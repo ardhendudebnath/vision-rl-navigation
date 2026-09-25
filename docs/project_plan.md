@@ -50,6 +50,7 @@ Phases are numbered as in the roadmap's Section 3.
 | 5u | Replan when an observation contradicts the estimate, 0.05 and 0.02 m | **Done** — **UNRESOLVED: +0.015 on dense, CI [−0.015, +0.050]**; sparse matches the oracle |
 | 5v | Pixel stall audit of the Phase 5s policies, no training | **Done** — **information held (≤ 0.114 m)**; RGB stalls facing open routes its image features see |
 | 5w | Cap the estimate's extrapolation at 2 s and 1 s | **Done** — **UNRESOLVED: +0.010 on dense**; a 1 s cap costs sparse 0.085 (p = 0.0005) |
+| 6j | Clutter is indecision: diagnosed, and one repair rejected on val | **Done** — **not registered**: failures reverse 46 times against a success's 1; commitment keyed on distant blockages made `dense` worse on val |
 | 6i | A mapper for dense scans: corroborate a cell's returns before believing them | **Done** — **UNRESOLVED at p = 0.0574**, but +0.140 (p = 0.0005) on the arm the stack actually runs |
 | 6h | Fill the missing cell: this stack, without map or pose, at 360 beams | **Done** — **IMPLEMENTATION (+0.112, +0.120)**: the sensor fixes the pose, not the map |
 | 6g | Ask a production stack the same question: Nav2 with slam_toolbox, no map, no pose | **Done** — **UNRESOLVED at 32 beams, IMPLEMENTATION at 360**: the same sensor, the same cost; a dense one, a seventh |
@@ -2927,6 +2928,33 @@ the difference against Nav2 (0.022 twice, inside 0.01 to 0.09), the collision
 ceiling, and both controls. What failed was the registered decision: REPAIRED
 needed MATTERS on the own-map arm and it came to p = 0.0574. The endpoint that
 isolated the map best was the one with least power.
+
+## Phase 6j — Clutter is indecision, and one repair that failed
+
+§9.6 left clutter as the larger half of what this stack pays at 360 beams, with
+the map already cleared of blame. `clutter_diagnostic.py` measures the driving
+instead, on the val band. Full treatment in report §9.7.
+
+| val, 360 beams, 12 worlds | wandering | driven / shortest | replans | reversals | spread |
+|---|---|---|---|---|---|
+| `dense`, successes | 0.19 | 1.15 | 38 | 1 | 2.11 m |
+| `dense`, failures | 0.78 | 1.91 | 151 | 46 | 1.62 m |
+| `narrow`, successes | 0.05 | 0.99 | 13 | 2 | 2.38 m |
+| `narrow`, failures | 0.79 | 1.68 | 105 | 17 | 2.76 m |
+
+- The failures are not stuck (no recoveries, no failed plans) and not exploring
+  (they cover less ground than the successes). They reverse: 46 against 1.
+- A commitment rule -- stand by the route unless blocked within two metres or
+  the new one is 15% shorter -- was **rejected on val**: `dense` 0.750 to 0.667,
+  `narrow` unchanged. It refuses only four to six of about fifty replans,
+  because nearly every rebuild is triggered inside two metres.
+- Nothing was registered and nothing was run on the test worlds: the candidate
+  did not survive val, which is what val is for.
+- One `narrow` failure is not planning at all -- a 0.50 m pose error left the
+  robot stopping 0.49 m short of a 0.35 m tolerance, believing it had arrived.
+
+The code stays, off by default and tested, so the val comparison is
+reproducible; `commit=True` is not used by any scored run.
 
 ## Hardware notes
 

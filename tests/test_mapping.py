@@ -259,6 +259,41 @@ def test_a_dense_scan_still_maps_real_walls():
     assert (world.clearance(occupied, include_dynamic=False) <= m.half_diagonal + 1e-9).all()
 
 
+def test_a_blockage_far_ahead_no_longer_turns_the_robot_around():
+    """Commitment. A box three metres along the route is beyond the two metres
+    the robot stands by, and the way round it is no shorter, so the committed
+    route is kept; without commitment the same discovery rebuilds it. §9.7's
+    diagnostic: rebuilding on distant blockages is what makes 78% of the
+    driving in a failed clutter episode fail to move the robot."""
+    world = _open_world(boxes=[(5.0, 4.5, 5.6, 7.5)])
+    out = {}
+    for commit in (False, True):
+        agent = MappedPursuitAgent(sensor="camera64", commit=commit)
+        # Start facing away, so the first plan does not know about the box.
+        assert agent.start_episode(world, np.array([2.0, 6.0, np.pi]))
+        first = agent.path.copy()
+        for _ in range(agent.replan_period + 1):
+            agent.act(np.array([2.0, 6.0, 0.0]))  # now facing it, three metres off
+        out[commit] = (first, agent.path.copy(), agent.plans_refused, agent.replans)
+
+    assert out[False][3] >= 1, "the blockage was never noticed at all"
+    assert not np.array_equal(out[False][0], out[False][1]), "the route should be rebuilt"
+    assert np.array_equal(out[True][0], out[True][1]), "the committed route was abandoned"
+    assert out[True][2] >= 1, "no replan was refused, so nothing was committed to"
+
+
+def test_something_close_ahead_still_changes_the_route():
+    """Commitment is not stubbornness: a wall inside the commit distance is
+    acted on, the same as without it."""
+    world = _open_world(boxes=[(3.2, 4.0, 3.8, 8.0)])
+    agent = MappedPursuitAgent(sensor="camera64", commit=True)
+    assert agent.start_episode(world, np.array([2.0, 6.0, np.pi]))
+    first = agent.path.copy()
+    agent.act(np.array([2.0, 6.0, 0.0]))  # the wall is 1.2 m ahead
+    assert not np.array_equal(first, agent.path), "a wall a metre ahead was ignored"
+    assert (agent.map.clearance(agent._track) >= agent.map.robot_radius - 1e-6).all()
+
+
 def test_an_unknown_sensor_is_refused():
     with pytest.raises(ValueError, match="unknown sensor"):
         make_sensor("sonar")

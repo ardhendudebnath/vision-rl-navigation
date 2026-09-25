@@ -90,7 +90,7 @@ class MappedPursuitAgent(AStarPursuitAgent):
 
     def __init__(self, config: PursuitConfig | None = None, robot: RobotConfig | None = None,
                  sensor: str = "lidar32", noise_std: float = 0.0,
-                 corroborate: bool = False) -> None:
+                 corroborate: bool = False, commit: bool = False) -> None:
         # Replanning is done here, in :meth:`act`, rather than by the
         # baseline's block trigger, because a failed replan must stop the robot
         # instead of restoring the old plan. Everything else is the baseline's
@@ -102,6 +102,25 @@ class MappedPursuitAgent(AStarPursuitAgent):
         #: Passed to the map: weight a hit by how many returns the cell earned.
         #: Off by default, so every published result is unchanged.
         self.corroborate = corroborate
+        #: Stand by the near part of the committed route unless it is actually
+        #: blocked near, or the new one is materially shorter. Off by default,
+        #: for the same reason.
+        #:
+        #: Report §9.7's diagnostic: in clutter the failures do not get stuck,
+        #: they oscillate. 78% of the driving does not move the robot and the
+        #: plan is rebuilt about once every three steps, because the trigger
+        #: fires on a blockage anywhere along the remaining route -- eight
+        #: metres away included -- and a fresh global plan may set off in the
+        #: opposite direction.
+        self.commit = commit
+        #: How far ahead the robot stands by its route, in metres.
+        self.commit_distance = 2.0
+        #: How much shorter a new route must be to be worth turning for.
+        self.commit_hysteresis = 0.15
+        #: Diagnostics: replans offered and refused, and how far the lookahead
+        #: point moved on the ones taken.
+        self.plans_refused = 0
+        self.churn_total = 0.0
         self.map: OccupancyMap | None = None
         self._plan_radius = 0.0
         self._checked_version = -1
@@ -134,6 +153,7 @@ class MappedPursuitAgent(AStarPursuitAgent):
         self._checked_version = self.map.version
         self.failed_plan_steps = []
         self.recovery_steps = 0
+        self.plans_refused = 0
         self._steps = 0
         self._last_replan = 0
         self._pending, self._urgent = False, False
@@ -228,7 +248,10 @@ class MappedPursuitAgent(AStarPursuitAgent):
         elif self._path_ahead_blocked(pose[:2]):
             self.replans += 1
             self._last_replan = self._steps
-            self.reset(self._world, pose)  # leaves no plan if it finds none
+            if self.commit:
+                self._replan_committed(pose)
+            else:
+                self.reset(self._world, pose)  # leaves no plan if it finds none
         if self._track is None:
             # No route: turn on the spot rather than wait. New bearings enter the
             # scan and mistaken evidence decays, which is what lets the next
@@ -238,6 +261,53 @@ class MappedPursuitAgent(AStarPursuitAgent):
             self.recovery_steps += 1
             return np.array([self._speed_to_action(0.0), 0.5], dtype=np.float32)
         return super().act(pose)
+
+    def _replan_committed(self, pose: np.ndarray) -> None:
+        """Rebuild the plan, and keep the old one unless it is worth turning for.
+
+        A route is adopted when the committed one is blocked inside
+        :attr:`commit_distance`, or when the new one is shorter by more than
+        :attr:`commit_hysteresis`. Otherwise the robot stands by what it is
+        driving: the blockage that triggered this is far enough away to decide
+        about later, and deciding now is what sends it back the way it came.
+        """
+        saved = (self.path, self._track, self._cursor, self._plan_radius)
+        near = self._blocked_within(self.commit_distance)
+        position = np.asarray(pose[:2], dtype=np.float64)
+        before = self._lookahead_point(position) if self._track is not None else None
+        remaining = self._track_length(self._track, self._cursor)
+
+        def keep() -> None:
+            self.path, self._track, self._cursor, self._plan_radius = saved
+            self.plans_refused += 1
+            # Decided: do not reconsider until the map says something new.
+            self._pending, self._urgent = False, False
+
+        if not self.reset(self._world, pose):
+            if not near:
+                keep()
+            return
+        if not near and self._track_length(self._track, 0) > (1.0 - self.commit_hysteresis) * remaining:
+            keep()
+            return
+        if before is not None:
+            self.churn_total += float(np.linalg.norm(self._lookahead_point(position) - before))
+
+    def _blocked_within(self, distance: float) -> bool:
+        """Is the committed route blocked inside ``distance`` of the robot?"""
+        if self._track is None:
+            return False
+        n = max(1, int(distance / self.config.track_spacing))
+        ahead = self._track[self._cursor:self._cursor + n]
+        if not len(ahead):
+            return False
+        return bool((self.map.clearance(ahead) < self._plan_radius - 1e-9).any())
+
+    def _track_length(self, track: np.ndarray | None, cursor: int) -> float:
+        """Metres of route left. The track is resampled at a fixed spacing."""
+        if track is None:
+            return 0.0
+        return max(len(track) - cursor - 1, 0) * self.config.track_spacing
 
     # --- the three remaining reads of the world, sent to the map ----------
     def _path_ahead_blocked(self, position: np.ndarray) -> bool:

@@ -1137,6 +1137,56 @@ existing by the end of the episode. The median pose error under noise does not
 improve either (0.217 m to 0.238 m). What improves is how often the planner is
 made to change its mind.
 
+### 9.7 Clutter: not exploring, arguing
+
+After §9.6 the larger half of what this stack still pays at 360 beams is
+clutter, and the dense-map diagnostic had already ruled out the map being wrong:
+in clutter it holds no phantom cells at either beam count and blocks *less*
+floor than the truth, because unexplored space counts as free. The map is
+accurate and unfinished, so
+[`clutter_diagnostic.py`](../scripts/clutter_diagnostic.py) measures the driving
+instead, on the val band, splitting each condition by outcome.
+
+| val, 360 beams, 12 worlds | wandering | driven / shortest | replans | reversals | spread |
+|---|---|---|---|---|---|
+| `dense`, successes | 0.19 | 1.15 | 38 | 1 | 2.11 m |
+| `dense`, failures | 0.78 | 1.91 | 151 | 46 | 1.62 m |
+| `narrow`, successes | 0.05 | 0.99 | 13 | 2 | 2.38 m |
+| `narrow`, failures | 0.79 | 1.68 | 105 | 17 | 2.76 m |
+| `nominal`, all succeed | 0.05 | 0.99 | 16 | 3 | 2.35 m |
+
+*Wandering* is the share of the driving that did not end up moving the robot;
+*reversals* count the steps whose heading is more than 90° from where it pointed
+a second earlier; *spread* is the radius of gyration of the positions visited.
+
+**The failures are not stuck and they are not exploring.** They spend all 500
+steps, drive 1.9 times the geodesic they could have taken, and 78% of that
+driving goes nowhere. They are not in recovery — the rotate-on-the-spot
+behaviour fires zero times, and no plan fails at any radius. What separates them
+from the successes of the same condition is reversal: 46 against 1 on `dense`.
+And they cover *less* ground than the successes while driving nearly twice as
+far, 1.62 m of spread against 2.11. A robot that explores covers ground. This
+one changes its mind: the plan is rebuilt 151 times in 500 steps, about once
+every three, and each rebuild can send it back the way it came.
+
+**A commitment rule was tried, and the val band rejected it.** If the robot
+stands by the near part of its route — adopting a new one only when the
+committed one is blocked within two metres, or the new one is more than 15%
+shorter — then `dense` goes 0.750 to 0.667 and `narrow` does not move. It is not
+carried to the test worlds. The refusal counts say why: of about fifty replans
+an episode it refuses four to six. Almost every rebuild is triggered by
+something blocking the route *within* two metres, not far ahead, so a rule about
+distant blockages almost never binds. The indecision is a near-field argument,
+which the spread figure had already implied — on the two worst `dense` episodes
+the robot never leaves a patch about a metre across while turning around 58
+times and replanning every two and a half steps.
+
+**And one failure in clutter is not planning at all.** On one `narrow` world the
+robot stopped 0.49 m from a goal whose tolerance is 0.35 m, with a final pose
+error of 0.50 m: it believed it had arrived. That is §9.3's failure mode
+surviving into a condition where it is rare, and it is worth separating from the
+rest before attributing the whole clutter gap to one cause.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -1290,15 +1340,15 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **What to do with an incomplete map.** The dense-map diagnostic finds *no*
-   phantoms in clutter at either beam count, and a map that blocks less floor
-   than the truth because unexplored space counts as free. So the clutter gap
-   to Nav2 — 0.14 to 0.18 in §9.5, and the larger half of what is left after
-   §9.6 — is not the map being wrong but what this stack does with a map that
-   is right and unfinished: in dense clutter it replans about fifty times an
-   episode and still times out, where Nav2 reaches 0.820 and 0.810.
-   Exploration order, when to commit to a route through unseen space, and the
-   recoveries are where that lives.
+1. **Stop the near-field argument.** §9.7 measured what the clutter failures
+   do: not explore, but reverse — 46 times against a success's 1, replanning
+   every three steps, covering less ground than the episodes that succeed while
+   driving twice the geodesic. A commitment rule keyed on *distant* blockages
+   was tried and rejected on val, because almost every rebuild is triggered
+   inside two metres. What is left to try is commitment in time rather than
+   distance — a minimum interval between adopting routes, overridden only by an
+   imminent collision — and hysteresis on the choice itself, so that a route
+   the robot is already driving is preferred over an equal one.
 2. **Finish the mapper under noise.** §9.6's rule left the phantom cells
    standing (370 to 309 of about 1100): it delays them rather than refusing
    them, and `noisy_lidar` is still this stack's worst open condition at 360
@@ -1334,7 +1384,7 @@ In order of expected information per GPU-hour:
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 480 tests
+pytest                                        # 482 tests
 python scripts/check_docs.py                  # every doc link resolves
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix
