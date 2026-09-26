@@ -20,7 +20,10 @@ This measures the driving rather than the mapping, per episode:
   reached             how much of the journey was completed before time ran out
 
 Both with the stack as §9.6 left it and with a commitment rule that stands by
-the near part of the route; report §9.7 reports what that was worth.
+the near part of the route; report §9.7 reports what that was worth. The
+``frontier`` arm added afterwards tests the remaining candidate -- planning
+through known free space only -- against the prediction registered in
+``PREDICTION`` below.
 
 What it is measured against is the published Nav2 row: with SLAM at 360 beams
 Nav2 reaches 0.820 on `dense` and 0.810 on `narrow`, where this stack reaches
@@ -49,12 +52,42 @@ from vision_nav.training.env_factory import build_env_config
 CONDITIONS = ("dense", "narrow", "nominal")
 
 
-#: The arms: the stack as §9.6 left it, commitment gated on distance, and
-#: commitment gated on time with a small imminent-blockage override.
+#: The arms: the stack as §9.6 left it, commitment gated on distance,
+#: commitment gated on time with a small imminent-blockage override, and
+#: planning through known free space only (:mod:`vision_nav.planning.frontier`).
 ARMS = {
     "as_published": {},
     "committed": {"commit": True},
     "committed_interval": {"commit": True, "commit_distance": 0.6, "commit_interval": 10},
+    "frontier": {"frontier": True},
+}
+
+#: Registered before the ``frontier`` arm had been run on any seed, val or
+#: otherwise. §9.7 rejected two commitment rules and left the optimism itself as
+#: the thing to change: the planner proposes routes that end at something nobody
+#: has looked at, and the next scan invalidates them. If that diagnosis is
+#: right, refusing to propose such a route should
+#:
+#:   1. raise success on the clutter conditions -- ``dense`` and ``narrow``
+#:      pooled -- by at least ``+0.05``. This is the endpoint; the rest is
+#:      mechanism and cannot rescue a miss here.
+#:   2. cut ``replans`` per episode by at least a quarter on those conditions,
+#:      because a route that crosses only seen floor is not invalidated by what
+#:      the next scan reveals.
+#:   3. cost something on ``nominal``, where the unknown mostly *is* free and
+#:      the optimistic shortcut is mostly right. Registered as a bound rather
+#:      than a direction: success no more than ``0.03`` below ``as_published``,
+#:      this project's null band. A larger drop is a real cost and is to be
+#:      reported as one.
+#:
+#: The obvious way for this to fail: a frontier route advances one cell into the
+#: dark at a time, so the robot may explore tidily and run out of steps --
+#: ``driven_over_shortest`` up, ``wandering`` down, success flat. That pattern
+#: would say the optimism was buying more than §9.7 credited it with.
+PREDICTION = {
+    "clutter_success_gain_at_least": 0.05,
+    "clutter_replan_reduction_at_least": 0.25,
+    "nominal_success_loss_at_most": 0.03,
 }
 
 
@@ -64,7 +97,8 @@ def episode(env, seed: int, cfg, arm: str = "as_published") -> dict:
     agent = LocalisedPursuitAgent(robot=cfg.robot, sensor="lidar360",
                                   noise_std=cfg.lidar.noise_std,
                                   odometry=OdometryConfig(), scan_matching=True,
-                                  corroborate=True, commit=settings.get("commit", False))
+                                  corroborate=True, commit=settings.get("commit", False),
+                                  frontier=settings.get("frontier", False))
     for key in ("commit_distance", "commit_interval"):
         if key in settings:
             setattr(agent, key, settings[key])

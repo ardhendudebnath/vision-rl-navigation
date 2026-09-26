@@ -53,7 +53,8 @@ import numpy as np
 from vision_nav.agents.classical import AStarPursuitAgent, PursuitConfig
 from vision_nav.envs.robot import RobotConfig
 from vision_nav.envs.sensors import Lidar2D, LidarConfig
-from vision_nav.mapping.occupancy import OccupancyMap
+from vision_nav.mapping.occupancy import UNKNOWN, OccupancyMap
+from vision_nav.planning.frontier import plan_through_known
 from vision_nav.planning.grid_astar import astar_grid
 from vision_nav.planning.smoothing import densify_path, simplify_path
 
@@ -85,12 +86,35 @@ def make_sensor(kind: str, noise_std: float = 0.0) -> Lidar2D:
     raise ValueError(f"unknown sensor {kind!r}; expected 'lidar32', 'lidar360' or 'camera64'")
 
 
+class _KnownSpace:
+    """The map's clearance, with unexplored space counted as blocked.
+
+    Handed to the smoother under frontier planning. The smoother shortcuts a
+    route wherever it has line of sight with enough clearance, and the map
+    answers "plenty" for space it has never seen -- so without this the first
+    thing string-pulling would do is put the route straight back through the
+    unknown that the planner had just avoided.
+    """
+
+    def __init__(self, omap: OccupancyMap) -> None:
+        self._map = omap
+
+    def clearance(self, points, **kwargs):
+        points = np.asarray(points, dtype=np.float64)
+        out = np.atleast_1d(self._map.clearance(np.atleast_2d(points), **kwargs))
+        cells = self._map.world_to_grid(np.atleast_2d(points))
+        unseen = self._map.grid[cells[:, 0], cells[:, 1]] == UNKNOWN
+        out = np.where(unseen, -1e3, out)
+        return out if np.ndim(points) > 1 else float(out[0])
+
+
 class MappedPursuitAgent(AStarPursuitAgent):
     """A* and pure pursuit on a map the robot builds itself."""
 
     def __init__(self, config: PursuitConfig | None = None, robot: RobotConfig | None = None,
                  sensor: str = "lidar32", noise_std: float = 0.0,
-                 corroborate: bool = False, commit: bool = False) -> None:
+                 corroborate: bool = False, commit: bool = False,
+                 frontier: bool = False) -> None:
         # Replanning is done here, in :meth:`act`, rather than by the
         # baseline's block trigger, because a failed replan must stop the robot
         # instead of restoring the old plan. Everything else is the baseline's
@@ -129,6 +153,16 @@ class MappedPursuitAgent(AStarPursuitAgent):
         #: blockage close enough to matter now.
         self.commit_interval = 0
         self._last_adopted = -10 ** 6
+        #: Plan through known free space only, and to a frontier when the goal
+        #: cannot be reached that way (:mod:`vision_nav.planning.frontier`).
+        #: Off by default: every published result plans optimistically, with
+        #: unknown space counted as free.
+        self.frontier = frontier
+        #: What the current plan ends at: ``"goal"``, ``"frontier"`` or ``""``.
+        self.plan_kind = ""
+        #: How many plans of each kind were made. Diagnostic.
+        self.goal_plans = 0
+        self.frontier_plans = 0
         #: Diagnostics: replans offered and refused, and how far the lookahead
         #: point moved on the ones taken.
         self.plans_refused = 0
@@ -167,6 +201,9 @@ class MappedPursuitAgent(AStarPursuitAgent):
         self.recovery_steps = 0
         self.plans_refused = 0
         self._last_adopted = -10 ** 6
+        self.plan_kind = ""
+        self.goal_plans = 0
+        self.frontier_plans = 0
         self._steps = 0
         self._last_replan = 0
         self._pending, self._urgent = False, False
@@ -184,24 +221,49 @@ class MappedPursuitAgent(AStarPursuitAgent):
         margin = self.config.safety_margin
         base = self.map.robot_radius
         start = tuple(int(v) for v in self.map.world_to_grid(pose[:2]))
+        goal_cell = tuple(int(v) for v in self.map.world_to_grid(self.map.goal))
         for radius in (base + margin, base + margin * 0.5, base):
             occ = self._clear_footprint(self.map.occupancy_at(radius), pose)
-            goal = self._reachable_goal(occ)
-            if goal is None or occ[start]:
-                continue
-            cells = astar_grid(occ, start, goal)
+            kind, cells, smoother = "goal", None, self.map
+            if self.frontier:
+                # Known free space only, and a frontier when the goal is not
+                # reachable inside it. Falls through to the optimistic plan
+                # below when neither is, which is the first step of an episode.
+                unknown = self.map.grid == UNKNOWN
+                closed = self._clear_footprint(occ | unknown, pose)
+                target = self._reachable_goal(closed)
+                cells, kind = plan_through_known(closed, unknown, start, target)
+                if cells is not None:
+                    smoother = _KnownSpace(self.map)
+                    if kind == "goal" and target != goal_cell:
+                        kind = "relaxed"
             if cells is None:
-                continue
+                kind = "goal"
+                goal = self._reachable_goal(occ)
+                if goal is None or occ[start]:
+                    continue
+                cells = astar_grid(occ, start, goal)
+                if cells is None:
+                    continue
+                if goal != goal_cell:
+                    kind = "relaxed"
             raw = self.map.grid_to_world(np.asarray(cells, dtype=int))
             raw[0] = pose[:2]
-            if goal == tuple(int(v) for v in self.map.world_to_grid(self.map.goal)):
+            if kind == "goal":
                 raw[-1] = self.map.goal
             # The smoother is handed the map, not the world: its line-of-sight
-            # check only ever calls ``clearance``.
-            self.path = simplify_path(self.map, raw, radius)
+            # check only ever calls ``clearance``. Under frontier planning it is
+            # handed a view in which unknown space is blocked, so shortcutting
+            # cannot quietly put the route back through the unexplored.
+            self.path = simplify_path(smoother, raw, radius)
             self._track = densify_path(self.path, self.config.track_spacing)
             self._plan_radius = radius
             self._pending, self._urgent = False, False
+            self.plan_kind = kind
+            if kind == "frontier":
+                self.frontier_plans += 1
+            else:
+                self.goal_plans += 1
             return True
         self.failed_plan_steps.append(self._steps)
         return False
@@ -339,6 +401,10 @@ class MappedPursuitAgent(AStarPursuitAgent):
         """
         if self._track is None:
             return False
+        if self.plan_kind == "frontier" and self._track_length(self._track, self._cursor) < 0.5:
+            # Arrived at the frontier it was sent to. The map has grown on the
+            # way here, so decide again rather than sit at the edge of it.
+            return True
         if self.map.version != self._checked_version:
             self._checked_version = self.map.version
         elif not self._pending:
