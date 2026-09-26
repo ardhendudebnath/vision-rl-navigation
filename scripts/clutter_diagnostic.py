@@ -193,7 +193,13 @@ def main(argv=None) -> int:
             entry = {"success": float(np.mean([r["success"] for r in rows])),
                      "all": summarise(rows, keys),
                      "successes": summarise(won, keys) if won else None,
-                     "failures": summarise(lost, keys) if lost else None}
+                     "failures": summarise(lost, keys) if lost else None,
+                     # Per-episode outcomes, seed by seed, so two arms can be
+                     # compared on the worlds they both ran rather than on their
+                     # means. An exact McNemar test needs the pairs.
+                     "seeds": seeds,
+                     "episodes": [{k: r[k] for k in ("success", "collision", *keys)}
+                                  for r in rows]}
             report["conditions"][cond][name] = entry
             a = entry["all"]
             print(f"{cond:8s} {name:19s} SR {entry['success']:.2f}  "

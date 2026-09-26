@@ -2962,6 +2962,67 @@ instead, on the val band. Full treatment in report §9.7.
 The code stays, off by default and tested, so the val comparison is
 reproducible; `commit=True` is not used by any scored run.
 
+## Phase 6k — Frontier planning: the lever §9.7 named, tested and rejected
+
+§9.7 ended by naming the cause: unknown space counts as free, so the planner
+proposes routes ending at something nobody has looked at. `src/vision_nav/planning/frontier.py`
+plans through known free space only, and to an unseen cell chosen by how much
+closer to the goal it is when the goal cannot be reached that way. Registered in
+`clutter_diagnostic.PREDICTION` and committed before the arm had run on any seed.
+Full treatment in report §9.8.
+
+| val, 360 beams, 25 worlds each | as published | frontier | Δ | McNemar *p* | 95% CI |
+|---|---|---|---|---|---|
+| `dense` | 0.68 | 0.64 | −0.040 | 1.000 (0 won / 1 lost) | [−0.12, +0.00] |
+| `narrow` | 0.60 | 0.60 | +0.000 | 1.000 (1 won / 1 lost) | [−0.12, +0.12] |
+| clutter pooled, 50 worlds | 0.64 | 0.62 | −0.020 | 1.000 (1 / 2) | [−0.08, +0.04] |
+| `nominal` | 0.96 | 0.96 | +0.000 | 1.000 (0 / 0) | [+0.00, +0.00] |
+
+- **Rejected on val.** Over fifty clutter worlds the arms disagree on three
+  episodes, one won and two lost. The treatment is unambiguously in force -- 64
+  of 72 plans in `dense` go to a frontier -- and the outcome does not move.
+- On the episodes both arms solve, the mechanism moves as registered and buys
+  nothing: replans 23 to 18 pooled (a 21.9% cut, CI [−1.8%, +40.2%], a quarter
+  registered), route ahead 4.34 m to 3.21 m on `dense`.
+- **The second endpoint was badly posed and the report says so.** `replans` does
+  not mean the same thing in both arms: a frontier route ends one cell into the
+  unseen and is rebuilt when the robot consumes it. Restricting to episodes both
+  arms solve is a repair made after the fact and labelled as one.
+- All 39 failures in the run spend the full 500 steps with **no collisions**. In
+  clutter they reach 0.40 to 0.46 of the way on average and 0.96 at best. The
+  step budget has never been varied in this comparison.
+- **A bug, found on val and recorded rather than quietly fixed.** The first
+  reading was `dense` 0.25 against 0.75 with replans up. The agent passed the
+  *reachable* goal, which is `None` whenever the floor at the goal is unseen, so
+  the frontier score lost its goal term and the arm was undirected
+  nearest-frontier exploration -- a different algorithm from the registered one.
+  `goal` (always) and `target` (routable) are now separate parameters.
+- Nothing was run on the test worlds: the endpoint failed on val, which is what
+  val is for.
+
+### Calibration
+
+Three predictions, registered together before the data existed.
+
+34. **Clutter success up by at least +0.05** — **failed**: −0.020 pooled over
+    fifty worlds, p = 1.000. The third rejected repair for the same failure, and
+    the first to disconfirm §9.7's stated diagnosis rather than its symptom.
+35. **Replans down by at least a quarter** — **partial**: 21.9% pooled with a CI
+    that includes no change, and on a metric the treatment redefines. The
+    direction was right and the threshold was not; the pre-registration should
+    not have put a threshold on this quantity.
+36. **No more than 0.03 of success given up on `nominal`** — **held**, at exactly
+    0.000, with identical outcomes on all twenty-five worlds. Registered as a
+    bound rather than a direction, which is the easiest form of prediction to
+    satisfy; §10 counts it as held and says so.
+
+Running total: thirty-six predictions, five held, fifteen failed outright,
+sixteen part right.
+
+The code stays, off by default, with an identity control pinning that it
+reproduces A\* where nothing is unknown; `frontier=True` is not used by any
+scored run.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

@@ -1200,13 +1200,105 @@ lever is what the planner does with unexplored space, not how often it is
 allowed to change its mind. Both rules stay in the code, off by default and
 tested, so the comparison is reproducible;
 [`clutter_commitment_val40.json`](../results/clutter_commitment_val40.json)
-holds the forty-world run.
+holds the forty-world run. **§9.8 tests that lever and it does not hold either.**
 
 **And one failure in clutter is not planning at all.** On one `narrow` world the
 robot stopped 0.49 m from a goal whose tolerance is 0.35 m, with a final pose
 error of 0.50 m: it believed it had arrived. That is §9.3's failure mode
 surviving into a condition where it is rare, and it is worth separating from the
 rest before attributing the whole clutter gap to one cause.
+
+### 9.8 The optimism was not the lever either
+
+§9.7 ended by naming what was left: unknown space counts as free, so the planner
+proposes routes that end at something nobody has looked at. That is a testable
+claim about the cause, so it was tested.
+[`src/vision_nav/planning/frontier.py`](../src/vision_nav/planning/frontier.py) plans through
+**known free space only**. One Dijkstra sweep answers both questions at once —
+whether the goal can be reached without entering the unknown, and what every
+opening costs to reach. When it cannot, the route goes to an unseen cell chosen
+by how much closer to the goal it is, with the cost of reaching it counting for a
+quarter as much. Drive there, the map grows, decide again. The prediction was
+registered in [`clutter_diagnostic.py`](../scripts/clutter_diagnostic.py) and
+committed before the arm had been run on any seed: clutter success up by at
+least +0.05, replans down by at least a quarter, and no more than 0.03 of success
+given up on `nominal`, where the unknown mostly *is* free and the optimistic
+shortcut is mostly right.
+
+| val, 360 beams, 25 worlds each | as published | frontier | Δ | McNemar *p* | 95% CI |
+|---|---|---|---|---|---|
+| `dense` | 0.68 | 0.64 | −0.040 | 1.000 (0 won / 1 lost) | [−0.12, +0.00] |
+| `narrow` | 0.60 | 0.60 | +0.000 | 1.000 (1 won / 1 lost) | [−0.12, +0.12] |
+| **clutter pooled, 50 worlds** | **0.64** | **0.62** | **−0.020** | **1.000 (1 / 2)** | **[−0.08, +0.04]** |
+| `nominal` | 0.96 | 0.96 | +0.000 | 1.000 (0 won / 0 lost) | [+0.00, +0.00] |
+
+**The registered endpoint failed, and it failed by not happening at all.** Across
+fifty clutter worlds the two arms disagree on three episodes — one won, two lost.
+That is not a small effect measured precisely; it is a treatment that changes the
+route the robot drives and leaves the outcome where it was. The pooled CI,
+[−0.08, +0.04], is too wide to call a bounded null by this report's own rule, so
+the honest verdict is inconclusive on magnitude and clear on the endpoint: no.
+`nominal` is the one cell that is properly inert — identical outcomes on all
+twenty-five worlds, CI [0.00, 0.00] — so the cost registered as a bound was the
+one prediction of the three that held, and it held at exactly zero.
+
+**The mechanism moved as predicted, and it bought nothing.** On the episodes both
+arms solve, where both are doing the same job, the robot rebuilds its plan
+noticeably less and steers by a shorter stretch of route ahead of it:
+
+| val, episodes both arms solve | replans | driven / shortest | reversals | route ahead |
+|---|---|---|---|---|
+| `dense`, 16 worlds | 25 → 21 | 1.09 → 1.07 | 2.4 → 2.2 | 4.34 → 3.21 m |
+| `narrow`, 14 worlds | 20 → 14 | 0.98 → 0.99 | 2.0 → 1.9 | 4.36 → 3.45 m |
+| `nominal`, 24 worlds | 22 → 20 | 1.03 → 1.04 | 1.8 → 1.9 | 4.44 → 3.38 m |
+
+Pooled over clutter the replan cut is 21.9%, CI [−1.8%, +40.2%] — the direction
+registered, the quarter missed, and an interval that includes no change. So the
+second endpoint failed too, and it deserved to: **`replans` does not mean the same
+thing in the two arms**, because a frontier route ends one cell into the unseen
+and is rebuilt each time the robot consumes one. Registering a threshold on a
+metric that the treatment itself redefines was a mistake in the pre-registration,
+and the restriction to episodes both arms solve is the repair, stated here rather
+than presented as the original plan.
+
+**And not one of these failures is a crash.** Every failing episode in this run —
+39 of them, across both arms and all three conditions — spends the entire
+500-step budget without a single collision. In clutter they complete 0.40 to 0.46
+of the journey on average and as much as 0.96 in individual worlds. Whatever is stopping
+these episodes, it stops a robot that is still driving and still upright, and
+sometimes almost arrived. That makes the step budget a variable in its own right,
+and it is the one quantity in this comparison that has never been varied.
+
+**What this rules out.** Three repairs have now been tried on the same failure
+and all three were rejected on val: commitment in distance, commitment in time,
+and refusing to plan through the unknown. The first two suppressed the symptom
+§9.7 identified without changing the outcome; the third changes what the planner
+proposes — on `dense`, 64 of 72 plans go to a frontier rather than a goal, so the
+treatment is unambiguously in force — and also does not change the outcome. The
+reading in §9.7's last paragraph, that the map's optimism is what proposes routes
+that do not work, is not supported by the test of it. Something else is keeping
+these episodes from arriving, and nothing measured so far identifies it.
+
+**A bug worth recording, because the first reading of this arm was wrong.** On
+four val worlds the arm scored 0.25 against 0.75, with replans up rather than
+down. The instrumentation added to find out why said it in one field: 91 of 92
+plans went to a frontier and 1 to the goal. The agent was handing the planner the
+*reachable* goal — the goal cell as seen through a grid where unknown counts as
+blocked — which is `None` precisely whenever the floor at the goal has not been
+looked at, which in clutter is nearly every plan. With no goal to score against,
+the frontier choice fell back to its cost term alone: nearest unseen cell wins.
+The arm was undirected exploration, not goal-directed planning, and it was
+measuring a different algorithm from the one registered. One parameter had been
+doing two jobs — where to route, and which way to bias the choice of opening —
+and they are now separate. The planner's own tests all passed throughout, because
+every one of them passes a goal explicitly; the regression test for this lives at
+the agent level, and reverting the one-line call makes it fail, with the chosen
+frontier closing an 8 m gap to the goal by 0.55 m.
+
+The code stays, off by default, with an identity control pinning that it
+reproduces A\* where nothing is unknown: no scored run plans this way.
+[`frontier_analysis.py`](../scripts/frontier_analysis.py) holds the test and
+[`frontier_diagnostic.json`](../results/frontier_diagnostic.json) the run.
 
 ## 10. Discussion
 
@@ -1256,11 +1348,15 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of thirty-three predictions made in advance, four derived from
-a *measurement* held — two to within 0.021 and 0.001, one on both magnitude and
-mechanism, and one whose magnitude came from measuring the estimator it was
-about; fourteen from extrapolation, intuition, arithmetic or a post hoc
-description failed outright; fifteen got part right and part wrong. Confidence
+**Calibration.** Of thirty-six predictions made in advance, five held. Four were
+derived from a *measurement* — two to within 0.021 and 0.001, one on both
+magnitude and mechanism, and one whose magnitude came from measuring the
+estimator it was about. The fifth is weaker in kind and is counted as held
+anyway: §9.8 registered a *bound* on what its treatment would cost rather than a
+direction, and the cost came in at exactly zero. A bound is the easiest form of
+prediction to satisfy, which is worth saying plainly in a tally that otherwise
+counts point forecasts. Fifteen from extrapolation, intuition, arithmetic or a
+post hoc description failed outright; sixteen got part right and part wrong. Confidence
 of expression was identical throughout. Three rules came out of them; the
 record of each prediction is in [`project_plan.md`](project_plan.md). The
 fifteenth also broke this report's own stated practice: its null was registered
@@ -1361,15 +1457,22 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Plan for what has not been seen.** §9.7 measured the clutter failures:
-   they reverse, 46 times against a success's 1, and replan every three steps.
-   Two commitment rules were tried and both rejected on val — gated on distance
-   (`dense` 0.750 to 0.667) and on time (0.725 to 0.650 over forty worlds) —
-   which says the reversals are a symptom. What is left is the optimism itself:
-   unknown space is free, so the planner proposes routes that end at something
-   nobody has looked at. Costing unknown cells above free ones, or planning to
-   the nearest frontier that could reveal the goal rather than to the goal
-   through the unknown, changes what is proposed rather than how often.
+1. **Find out what the clutter failures are, because three candidates are
+   spent.** Rejected on val: commitment gated on distance (`dense` 0.750 to
+   0.667), commitment gated on time (0.725 to 0.650 over forty worlds), and
+   refusing to plan through unseen space at all (−0.020 over fifty worlds, with
+   three episodes of fifty changing outcome — §9.8). The first two suppressed
+   §9.7's symptom and the third changed what the planner proposes, in force on
+   64 of 72 plans, and neither made the robot arrive. The next step is therefore
+   not a fourth repair but a forensic: replay a few failing worlds step by step
+   against their geodesic and find where the robot's progress actually stops,
+   rather than continuing to test fixes against a cause that has not been
+   established. Two things stay worth trying afterwards, both cheap: costing
+   unknown cells *above* free ones rather than refusing them outright, which is
+   the graded middle between the two arms already measured, and varying the step
+   budget, since all 39 failures in that run spend the full 500 steps with no
+   collision at all, some of them 0.96 of the way to the goal — a limit this
+   comparison has never varied.
 2. **Finish the mapper under noise.** §9.6's rule left the phantom cells
    standing (370 to 309 of about 1100): it delays them rather than refusing
    them, and `noisy_lidar` is still this stack's worst open condition at 360
@@ -1405,7 +1508,7 @@ In order of expected information per GPU-hour:
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 490 tests
+pytest                                        # 491 tests
 python scripts/check_docs.py                  # every doc link resolves
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix

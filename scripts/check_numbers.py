@@ -838,6 +838,87 @@ def claims():
                 [kj[c]["committed"]["all"]["replans"] for c in ("dense", "narrow")]) / 10) * 10),
         ]
 
+    # --- frontier planning, the Phase 6k test of §9.7's diagnosis ----------
+    fp = "results/frontier_analysis.json"
+    if os.path.exists(fp):
+        fj = load(fp)
+        fc = fj["conditions"]
+        # The §9.8 headline table: success before and after, and the contrast.
+        for cond, before, after, gain, won, lost in (
+                ("dense", 0.68, 0.64, -0.040, 0, 1),
+                ("narrow", 0.60, 0.60, 0.000, 1, 1),
+                ("nominal", 0.96, 0.96, 0.000, 0, 0)):
+            e = fc[cond]
+            out += [
+                (f"frontier {cond} as published", before, round(e["success"][0], 2)),
+                (f"frontier {cond} arm", after, round(e["success"][1], 2)),
+                (f"frontier {cond} gain", gain, round(e["gain"], 3)),
+                (f"frontier {cond} mcnemar", 1.000, round(e["mcnemar_p"], 3)),
+                (f"frontier {cond} won", won, e["won"]),
+                (f"frontier {cond} lost", lost, e["lost"]),
+            ]
+        pooled = fj["clutter_pooled"]
+        out += [
+            ("frontier clutter as published", 0.64, round(pooled["success"][0], 2)),
+            ("frontier clutter arm", 0.62, round(pooled["success"][1], 2)),
+            ("frontier clutter gain", -0.020, round(pooled["gain"], 3)),
+            ("frontier clutter mcnemar", 1.000, round(pooled["mcnemar_p"], 3)),
+            ("frontier clutter won", 1, pooled["won"]),
+            ("frontier clutter lost", 2, pooled["lost"]),
+            ("frontier clutter ci low", -0.08, round(pooled["ci"][0], 2)),
+            ("frontier clutter ci high", 0.04, round(pooled["ci"][1], 2)),
+            # The endpoint failed, and the report says so in those words.
+            ("frontier endpoint held", 0, int(pooled["registered_held"])),
+            ("frontier nominal bound held", 1, int(fc["nominal"]["registered_held"])),
+        ]
+        # Mechanism, on the episodes both arms solve.
+        for cond, both, ra, rb, da, db, va, vb, aa, ab in (
+                ("dense", 16, 25, 21, 1.09, 1.07, 2.4, 2.2, 4.34, 3.21),
+                ("narrow", 14, 20, 14, 0.98, 0.99, 2.0, 1.9, 4.36, 3.45),
+                ("nominal", 24, 22, 20, 1.03, 1.04, 1.8, 1.9, 4.44, 3.38)):
+            e = fc[cond]
+            out += [
+                (f"frontier {cond} both solve", both, e["both"]),
+                (f"frontier {cond} replans before", ra, round(e["replans"][0])),
+                (f"frontier {cond} replans after", rb, round(e["replans"][1])),
+                (f"frontier {cond} driven before", da,
+                 round(e["driven_over_shortest"][0], 2)),
+                (f"frontier {cond} driven after", db,
+                 round(e["driven_over_shortest"][1], 2)),
+                (f"frontier {cond} reversals before", va, round(e["reversals"][0], 1)),
+                (f"frontier {cond} reversals after", vb, round(e["reversals"][1], 1)),
+                (f"frontier {cond} ahead before", aa, round(e["plan_ahead"][0], 2)),
+                (f"frontier {cond} ahead after", ab, round(e["plan_ahead"][1], 2)),
+            ]
+        rep = fj["clutter_replans"]
+        out += [
+            ("frontier replans pooled before", 23, round(rep["mean"][0])),
+            ("frontier replans pooled after", 18, round(rep["mean"][1])),
+            ("frontier replan cut", 21.9, round(100 * rep["reduction"], 1)),
+            ("frontier replan cut ci low", -1.8, round(100 * rep["ci"][0], 1)),
+            ("frontier replan cut ci high", 40.2, round(100 * rep["ci"][1], 1)),
+            ("frontier both solve pooled", 30, rep["n"]),
+            # In force: the treatment changes what nearly every plan targets.
+            ("frontier dense frontier plans", 64, round(fc["dense"]["frontier_plans"])),
+            ("frontier dense plans total", 72,
+             round(fc["dense"]["frontier_plans"] + fc["dense"]["goal_plans"])),
+        ]
+
+    # Every failure in that run is a timeout, not a crash -- §9.8 and §12.
+    fd = "results/frontier_diagnostic.json"
+    if os.path.exists(fd):
+        eps = [e for cond in load(fd)["conditions"].values() for arm in cond.values()
+               for e in arm["episodes"] if not e["success"]]
+        clutter = [e for cond, c in load(fd)["conditions"].items() if cond != "nominal"
+                   for arm in c.values() for e in arm["episodes"] if not e["success"]]
+        out += [
+            ("frontier failures", 39, len(eps)),
+            ("frontier failure collisions", 0, sum(int(e["collision"]) for e in eps)),
+            ("frontier failures all timeout", 500, min(e["steps"] for e in eps)),
+            ("frontier failure reached best", 0.96,
+             round(max(e["reached"] for e in clutter), 2)),
+        ]
+
     # --- commitment gated on time, rejected on forty val worlds ------------
     c40 = "results/clutter_commitment_val40.json"
     if os.path.exists(c40):

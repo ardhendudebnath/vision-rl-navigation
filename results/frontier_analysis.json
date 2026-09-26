@@ -1,0 +1,179 @@
+{
+  "split": "val",
+  "episodes": 25,
+  "registered": {
+    "clutter_success_gain_at_least": 0.05,
+    "clutter_replan_reduction_at_least": 0.25,
+    "nominal_success_loss_at_most": 0.03
+  },
+  "conditions": {
+    "dense": {
+      "success": [
+        0.68,
+        0.64
+      ],
+      "gain": -0.040000000000000036,
+      "mcnemar_p": 1.0,
+      "won": 0,
+      "lost": 1,
+      "ci": [
+        -0.12,
+        0.0
+      ],
+      "verdict": "inconclusive",
+      "both": 16,
+      "replans": [
+        25.1875,
+        20.8125
+      ],
+      "driven_over_shortest": [
+        1.088745721339115,
+        1.0684240213213365
+      ],
+      "wandering": [
+        0.13991206178072202,
+        0.11938236666289304
+      ],
+      "reversals": [
+        2.4375,
+        2.1875
+      ],
+      "plan_ahead": [
+        4.341698466983856,
+        3.2087408485500815
+      ],
+      "known": [
+        0.5594140625,
+        0.5571788194444445
+      ],
+      "steps": [
+        195.875,
+        188.1875
+      ],
+      "frontier_plans": 64.0,
+      "goal_plans": 8.4
+    },
+    "narrow": {
+      "success": [
+        0.6,
+        0.6
+      ],
+      "gain": 0.0,
+      "mcnemar_p": 1.0,
+      "won": 1,
+      "lost": 1,
+      "ci": [
+        -0.12,
+        0.12
+      ],
+      "verdict": "inconclusive",
+      "both": 14,
+      "replans": [
+        19.785714285714285,
+        14.142857142857142
+      ],
+      "driven_over_shortest": [
+        0.9833909974101845,
+        0.9927147736841008
+      ],
+      "wandering": [
+        0.07680806463640812,
+        0.08365382382332043
+      ],
+      "reversals": [
+        2.0,
+        1.8571428571428572
+      ],
+      "plan_ahead": [
+        4.360987214416508,
+        3.4534302165807604
+      ],
+      "known": [
+        0.49862599206349206,
+        0.4992857142857142
+      ],
+      "steps": [
+        176.92857142857142,
+        174.14285714285714
+      ],
+      "frontier_plans": 51.4,
+      "goal_plans": 5.84
+    },
+    "nominal": {
+      "success": [
+        0.96,
+        0.96
+      ],
+      "gain": 0.0,
+      "mcnemar_p": 1.0,
+      "won": 0,
+      "lost": 0,
+      "ci": [
+        0.0,
+        0.0
+      ],
+      "verdict": "INERT (bounded)",
+      "both": 24,
+      "replans": [
+        21.958333333333332,
+        19.833333333333332
+      ],
+      "driven_over_shortest": [
+        1.0276068338725013,
+        1.0379569340866566
+      ],
+      "wandering": [
+        0.08033392265791356,
+        0.08788892807166963
+      ],
+      "reversals": [
+        1.75,
+        1.875
+      ],
+      "plan_ahead": [
+        4.440031139928622,
+        3.380101260455008
+      ],
+      "known": [
+        0.6902662037037036,
+        0.6960821759259259
+      ],
+      "steps": [
+        181.79166666666666,
+        181.45833333333334
+      ],
+      "frontier_plans": 11.96,
+      "goal_plans": 9.88,
+      "registered_held": true
+    }
+  },
+  "clutter_pooled": {
+    "success": [
+      0.64,
+      0.62
+    ],
+    "gain": -0.020000000000000018,
+    "mcnemar_p": 1.0,
+    "won": 1,
+    "lost": 2,
+    "ci": [
+      -0.08000000000000007,
+      0.040000000000000036
+    ],
+    "verdict": "inconclusive",
+    "registered_held": false
+  },
+  "clutter_replans": {
+    "mean": [
+      22.666666666666668,
+      17.7
+    ],
+    "reduction": 0.21911764705882364,
+    "ci": [
+      -0.017635162194633684,
+      0.4018156685097594
+    ],
+    "registered_held": false,
+    "n": 30
+  }
+}

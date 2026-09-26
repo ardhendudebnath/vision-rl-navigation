@@ -10,11 +10,13 @@ answers "plenty of room" for everything it has never seen.
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from vision_nav.agents.mapped import MappedPursuitAgent
 from vision_nav.envs.world import World, WorldConfig
 from vision_nav.mapping.occupancy import UNKNOWN
 from vision_nav.planning.frontier import plan_through_known
+from vision_nav.planning.grid_astar import astar_grid
 
 
 def _half_known(rows: int = 20, cols: int = 20, edge: int = 10):
@@ -83,6 +85,30 @@ def test_the_goal_steers_the_exploration_though_it_has_never_been_seen():
     start_gap = float(np.linalg.norm(world.goal - world.start[:2]))
     end_gap = float(np.linalg.norm(world.goal - agent._track[-1]))
     assert end_gap < start_gap - 1.0, (start_gap, end_gap)
+
+
+def test_with_nothing_unknown_it_is_the_optimistic_planner():
+    """The identity control. Unknown space is what this planner treats
+    differently; where there is none, it must return what A* returns on the
+    same grid, or the arm differs from the baseline for reasons that have
+    nothing to do with the hypothesis being tested."""
+    rng = np.random.default_rng(3)
+    blocked = rng.random((30, 30)) < 0.2
+    blocked[0, 0] = blocked[29, 29] = False
+    unknown = np.zeros((30, 30), dtype=bool)
+    cells, kind = plan_through_known(blocked, unknown, (0, 0), (29, 29))
+    reference = astar_grid(blocked, (0, 0), (29, 29))
+    assert kind == "goal"
+    assert reference is not None
+    # Equal cost, not an identical cell list: A* and Dijkstra may break ties
+    # between equal-length routes differently, and that is not a difference in
+    # what gets driven.
+    assert _cost(cells) == pytest.approx(_cost([tuple(c) for c in reference]))
+
+
+def _cost(cells) -> float:
+    p = np.asarray(cells, dtype=float)
+    return float(np.linalg.norm(np.diff(p, axis=0), axis=1).sum())
 
 
 def test_nothing_reachable_reports_none():

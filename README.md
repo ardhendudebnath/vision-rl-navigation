@@ -36,7 +36,7 @@ decision below follows from wanting that comparison to be trustworthy.
 
 | Stage | State |
 |---|---|
-| Task, metrics, splits, 490-test suite | Done |
+| Task, metrics, splits, 491-test suite | Done |
 | Classical baseline (A* + pure pursuit, full map) | Done |
 | Privileged RL, robustness suite, distribution shifts | Done |
 | Four explanations for the gap, each tested and rejected | Done |
@@ -68,7 +68,7 @@ decision below follows from wanting that comparison to be trustworthy.
 | And what its features lack: the clearance ahead is there, the width of the gap past it is not | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Forty-nine experiments, each pre-registered where it tests a hypothesis. The
+Fifty experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).
