@@ -61,6 +61,30 @@ def test_where_an_opening_leads_counts_for_more_than_what_it_costs():
     assert len(cells) > 5, "a route that goes nowhere is not a route"
 
 
+def test_the_goal_steers_the_exploration_though_it_has_never_been_seen():
+    """The wiring bug this test exists to prevent, caught on the val band.
+
+    The planner was handed the *reachable* goal -- the goal cell as seen through
+    a grid where unknown counts as blocked -- which is ``None`` precisely
+    whenever the floor at the goal has not been seen yet, which in clutter is
+    nearly every plan. With no goal to score against, every frontier choice fell
+    back to "nearest unseen cell", and the arm measured undirected exploration
+    rather than the goal-directed planning it was supposed to be.
+
+    The robot is told where the goal is when the episode starts. Not having
+    looked at it is no reason to stop steering towards it.
+    """
+    world = World(config=WorldConfig(), circles=np.zeros((0, 3)),
+                  boxes=np.array([[5.0, 4.5, 5.6, 7.5]]),
+                  start=np.array([2.0, 6.0, 0.0]), goal=np.array([10.0, 6.0]))
+    agent = MappedPursuitAgent(sensor="lidar32", frontier=True)
+    assert agent.start_episode(world, world.start)
+    assert agent.plan_kind == "frontier", "the goal is 8 m off and cannot be seen yet"
+    start_gap = float(np.linalg.norm(world.goal - world.start[:2]))
+    end_gap = float(np.linalg.norm(world.goal - agent._track[-1]))
+    assert end_gap < start_gap - 1.0, (start_gap, end_gap)
+
+
 def test_nothing_reachable_reports_none():
     blocked = np.ones((10, 10), dtype=bool)
     blocked[5, 5] = False              # the robot's cell, walled in

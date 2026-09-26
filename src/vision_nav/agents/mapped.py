@@ -232,7 +232,11 @@ class MappedPursuitAgent(AStarPursuitAgent):
                 unknown = self.map.grid == UNKNOWN
                 closed = self._clear_footprint(occ | unknown, pose)
                 target = self._reachable_goal(closed)
-                cells, kind = plan_through_known(closed, unknown, start, target)
+                # The goal cell goes in whether or not the map has seen it: it
+                # is what makes the exploration goal-directed. Only the routing
+                # target depends on having seen the floor there.
+                cells, kind = plan_through_known(closed, unknown, start,
+                                                 goal_cell, target)
                 if cells is not None:
                     smoother = _KnownSpace(self.map)
                     if kind == "goal" and target != goal_cell:

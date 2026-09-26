@@ -107,9 +107,15 @@ def episode(env, seed: int, cfg, arm: str = "as_published") -> dict:
     previous = start.copy()
     driven, slow, steps = 0.0, 0, 0
     visited, headings, goal_distance = [], [], []
+    ahead: list[float] = []
     info: dict = {}
     for _ in range(cfg.max_episode_steps):
         action = agent.act(env.robot.pose, env.robot.velocity)
+        # How far the route the robot is steering by extends past it. Pure
+        # pursuit needs something to aim at: a route that stops a cell ahead
+        # gives it nothing, which is one way frontier planning could hurt
+        # without the planner itself being wrong.
+        ahead.append(agent._track_length(agent._track, agent._cursor))
         _, _, terminated, truncated, info = env.step(action)
         here = env.robot.pose[:2].copy()
         driven += float(np.linalg.norm(here - previous))
@@ -144,6 +150,9 @@ def episode(env, seed: int, cfg, arm: str = "as_published") -> dict:
         "replans": int(agent.replans), "recovery_steps": int(agent.recovery_steps),
         "failed_plans": len(agent.failed_plan_steps),
         "plans_refused": int(agent.plans_refused),
+        "frontier_plans": int(agent.frontier_plans),
+        "goal_plans": int(agent.goal_plans),
+        "plan_ahead": float(np.mean(ahead)) if ahead else 0.0,
         "slow_fraction": slow / max(steps, 1),
         "known": float(agent.map.known_fraction),
     }
@@ -165,6 +174,7 @@ def main(argv=None) -> int:
 
     keys = ("steps", "driven", "driven_over_shortest", "wandering", "reached",
             "replans", "recovery_steps", "failed_plans", "plans_refused",
+            "frontier_plans", "goal_plans", "plan_ahead",
             "slow_fraction", "known", "gyration", "reversals", "closest_to_goal",
             "pose_error")
     report: dict = {"episodes": args.episodes, "split": "val", "arms": args.arms,
@@ -190,6 +200,8 @@ def main(argv=None) -> int:
                   f"driven/shortest {a['driven_over_shortest']:.2f}  "
                   f"wandering {a['wandering']:.2f}  replans {a['replans']:.0f}  "
                   f"refused {a['plans_refused']:.0f}  "
+                  f"frontier {a['frontier_plans']:.0f}/{a['goal_plans']:.0f}  "
+                  f"ahead {a['plan_ahead']:.2f}m  "
                   f"slow {a['slow_fraction']:.2f}  known {a['known']:.2f}", flush=True)
             for label in ("successes", "failures"):
                 e = entry[label]

@@ -52,6 +52,7 @@ def plan_through_known(
     unknown: np.ndarray,
     start: tuple[int, int],
     goal: tuple[int, int] | None,
+    target: tuple[int, int] | None = None,
 ) -> tuple[list[tuple[int, int]] | None, str]:
     """A route through known free space, to the goal or to a frontier.
 
@@ -66,13 +67,21 @@ def plan_through_known(
     start:
         ``(row, col)`` of the robot.
     goal:
-        ``(row, col)`` of the goal, or ``None`` when the goal is not somewhere
-        the robot could stand in the map as it stands.
+        ``(row, col)`` of the goal, whether or not the map has seen it. This is
+        what makes the exploration goal-directed, and it is separate from
+        ``target`` on purpose: the robot is told where the goal is at the start
+        of the episode, and not having seen the floor there is no reason to
+        stop steering towards it. Passing ``None`` here asks for undirected
+        nearest-frontier exploration, which is a different algorithm.
+    target:
+        The cell to route to when the goal can be reached through known free
+        space, or ``None`` when it cannot -- in which case this plans to a
+        frontier. Defaults to ``goal``.
 
     Returns
     -------
     (cells, kind)
-        ``kind`` is ``"goal"`` when the route ends at ``goal``, ``"frontier"``
+        ``kind`` is ``"goal"`` when the route ends at ``target``, ``"frontier"``
         when it ends at a frontier, and ``"none"`` when neither is reachable --
         which is when the caller should fall back to planning optimistically.
     """
@@ -92,7 +101,12 @@ def plan_through_known(
     start_idx = sr * cols + sc
     dist[start_idx] = 0.0
     heap: list[tuple[float, int]] = [(0.0, start_idx)]
-    goal_idx = None if goal is None else int(goal[0]) * cols + int(goal[1])
+    if target is None:
+        target_cell = goal
+    else:
+        target_cell = target
+    goal_idx = (None if target_cell is None
+                else int(target_cell[0]) * cols + int(target_cell[1]))
     if goal_idx is not None and flat_blocked[goal_idx]:
         goal_idx = None
 
