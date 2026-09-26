@@ -1181,6 +1181,27 @@ which the spread figure had already implied — on the two worst `dense` episode
 the robot never leaves a patch about a metre across while turning around 58
 times and replanning every two and a half steps.
 
+**Commitment in time was tried next, and rejected too.** If the gate is time
+rather than distance — no new route within a second of the last one unless the
+committed route is blocked within 0.6 m, the distance at which a blockage
+matters now — then it binds as intended, refusing 34 to 49 of the rebuilds in an
+episode. On forty val worlds per condition it does not help: `dense` goes 0.725
+to 0.650 and `narrow` does not move from 0.600, while the symptom barely
+changes (wandering 0.27 to 0.28 on `dense`, 0.34 to 0.33 on `narrow`). Twelve
+worlds had made both rules look like a coin flip in either direction; forty say
+one is neutral and the other costs.
+
+**So the reversals are a symptom, not the cause.** They separate failures from
+successes cleanly — 46 against 1 — and suppressing them changes nothing about
+arriving. What that leaves is the map's optimism: unknown space is free, so the
+planner keeps proposing routes that end at something not yet seen, and a robot
+made to stand by such a route only discovers later that it does not work. The
+lever is what the planner does with unexplored space, not how often it is
+allowed to change its mind. Both rules stay in the code, off by default and
+tested, so the comparison is reproducible;
+[`clutter_commitment_val40.json`](../results/clutter_commitment_val40.json)
+holds the forty-world run.
+
 **And one failure in clutter is not planning at all.** On one `narrow` world the
 robot stopped 0.49 m from a goal whose tolerance is 0.35 m, with a final pose
 error of 0.50 m: it believed it had arrived. That is §9.3's failure mode
@@ -1340,15 +1361,15 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Stop the near-field argument.** §9.7 measured what the clutter failures
-   do: not explore, but reverse — 46 times against a success's 1, replanning
-   every three steps, covering less ground than the episodes that succeed while
-   driving twice the geodesic. A commitment rule keyed on *distant* blockages
-   was tried and rejected on val, because almost every rebuild is triggered
-   inside two metres. What is left to try is commitment in time rather than
-   distance — a minimum interval between adopting routes, overridden only by an
-   imminent collision — and hysteresis on the choice itself, so that a route
-   the robot is already driving is preferred over an equal one.
+1. **Plan for what has not been seen.** §9.7 measured the clutter failures:
+   they reverse, 46 times against a success's 1, and replan every three steps.
+   Two commitment rules were tried and both rejected on val — gated on distance
+   (`dense` 0.750 to 0.667) and on time (0.725 to 0.650 over forty worlds) —
+   which says the reversals are a symptom. What is left is the optimism itself:
+   unknown space is free, so the planner proposes routes that end at something
+   nobody has looked at. Costing unknown cells above free ones, or planning to
+   the nearest frontier that could reveal the goal rather than to the goal
+   through the unknown, changes what is proposed rather than how often.
 2. **Finish the mapper under noise.** §9.6's rule left the phantom cells
    standing (370 to 309 of about 1100): it delays them rather than refusing
    them, and `noisy_lidar` is still this stack's worst open condition at 360
@@ -1384,7 +1405,7 @@ In order of expected information per GPU-hour:
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 482 tests
+pytest                                        # 483 tests
 python scripts/check_docs.py                  # every doc link resolves
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix

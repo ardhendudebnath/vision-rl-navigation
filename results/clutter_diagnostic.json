@@ -110,6 +110,60 @@
           "closest_to_goal": 4.240108563639433,
           "pose_error": 0.04678653446376484
         }
+      },
+      "committed_interval": {
+        "success": 0.6666666666666666,
+        "all": {
+          "steps": 289.9166666666667,
+          "driven": 10.398969997161453,
+          "driven_over_shortest": 1.3996001879828832,
+          "wandering": 0.3049321673881755,
+          "reached": 0.7642846662695798,
+          "replans": 104.16666666666667,
+          "recovery_steps": 0.0,
+          "failed_plans": 0.0,
+          "plans_refused": 35.416666666666664,
+          "slow_fraction": 0.25072589862816796,
+          "known": 0.5359490740740741,
+          "gyration": 1.9475655941636407,
+          "reversals": 10.166666666666666,
+          "closest_to_goal": 1.4354896985377155,
+          "pose_error": 0.07496051132302088
+        },
+        "successes": {
+          "steps": 184.875,
+          "driven": 7.37553311351873,
+          "driven_over_shortest": 1.0225122247282061,
+          "wandering": 0.11437716858785058,
+          "reached": 0.9510102784317281,
+          "replans": 50.125,
+          "recovery_steps": 0.0,
+          "failed_plans": 0.0,
+          "plans_refused": 22.0,
+          "slow_fraction": 0.1873388479422519,
+          "known": 0.5034027777777778,
+          "gyration": 1.993712832284531,
+          "reversals": 1.625,
+          "closest_to_goal": 0.3380947437441543,
+          "pose_error": 0.08794537447522795
+        },
+        "failures": {
+          "steps": 500.0,
+          "driven": 16.445843764446895,
+          "driven_over_shortest": 2.1537761144922376,
+          "wandering": 0.6860421649888253,
+          "reached": 0.39083344194528347,
+          "replans": 212.25,
+          "recovery_steps": 0.0,
+          "failed_plans": 0.0,
+          "plans_refused": 62.25,
+          "slow_fraction": 0.3775,
+          "known": 0.6010416666666667,
+          "gyration": 1.85527111792186,
+          "reversals": 27.25,
+          "closest_to_goal": 3.6302796081248383,
+          "pose_error": 0.048990785018606736
+        }
       }
     },
     "narrow": {
@@ -220,6 +274,60 @@
           "closest_to_goal": 5.1043585231191715,
           "pose_error": 0.1479600798610552
         }
+      },
+      "committed_interval": {
+        "success": 0.75,
+        "all": {
+          "steps": 273.8333333333333,
+          "driven": 10.88756558658801,
+          "driven_over_shortest": 1.197763528673444,
+          "wandering": 0.258512893290064,
+          "reached": 0.7866451456153688,
+          "replans": 79.91666666666667,
+          "recovery_steps": 0.0,
+          "failed_plans": 0.0,
+          "plans_refused": 35.416666666666664,
+          "slow_fraction": 0.17211786833822387,
+          "known": 0.5095601851851852,
+          "gyration": 2.4658382023911134,
+          "reversals": 7.583333333333333,
+          "closest_to_goal": 1.9333549854026415,
+          "pose_error": 0.08229384535868386
+        },
+        "successes": {
+          "steps": 198.44444444444446,
+          "driven": 8.773946756672684,
+          "driven_over_shortest": 1.1203965024933635,
+          "wandering": 0.11666505459660284,
+          "reached": 0.9557585344665773,
+          "replans": 37.44444444444444,
+          "recovery_steps": 0.0,
+          "failed_plans": 0.0,
+          "plans_refused": 24.77777777777778,
+          "slow_fraction": 0.10549049111763188,
+          "known": 0.5149382716049382,
+          "gyration": 2.3839940778067774,
+          "reversals": 1.8888888888888888,
+          "closest_to_goal": 0.34004486884588747,
+          "pose_error": 0.09036309071220233
+        },
+        "failures": {
+          "steps": 500.0,
+          "driven": 17.228422076333988,
+          "driven_over_shortest": 1.4298646072136851,
+          "wandering": 0.6840564093704473,
+          "reached": 0.2793049790617436,
+          "replans": 207.33333333333334,
+          "recovery_steps": 0.0,
+          "failed_plans": 0.0,
+          "plans_refused": 67.33333333333333,
+          "slow_fraction": 0.37200000000000005,
+          "known": 0.49342592592592593,
+          "gyration": 2.7113705761441227,
+          "reversals": 24.666666666666668,
+          "closest_to_goal": 6.713285335072904,
+          "pose_error": 0.05808610929812844
+        }
       }
     },
     "nominal": {
@@ -296,6 +404,44 @@
           "reversals": 2.8333333333333335,
           "closest_to_goal": 0.3368296220833704,
           "pose_error": 0.10503699139633223
+        },
+        "failures": null
+      },
+      "committed_interval": {
+        "success": 1.0,
+        "all": {
+          "steps": 183.08333333333334,
+          "driven": 8.110728015899964,
+          "driven_over_shortest": 0.9895794987542965,
+          "wandering": 0.052716610843178364,
+          "reached": 0.957181132036654,
+          "replans": 30.166666666666668,
+          "recovery_steps": 0.0,
+          "failed_plans": 0.0,
+          "plans_refused": 17.0,
+          "slow_fraction": 0.1090942169369707,
+          "known": 0.6759085648148148,
+          "gyration": 2.3472387995195096,
+          "reversals": 2.8333333333333335,
+          "closest_to_goal": 0.33775347406380707,
+          "pose_error": 0.10551872722231825
+        },
+        "successes": {
+          "steps": 183.08333333333334,
+          "driven": 8.110728015899964,
+          "driven_over_shortest": 0.9895794987542965,
+          "wandering": 0.052716610843178364,
+          "reached": 0.957181132036654,
+          "replans": 30.166666666666668,
+          "recovery_steps": 0.0,
+          "failed_plans": 0.0,
+          "plans_refused": 17.0,
+          "slow_fraction": 0.1090942169369707,
+          "known": 0.6759085648148148,
+          "gyration": 2.3472387995195096,
+          "reversals": 2.8333333333333335,
+          "closest_to_goal": 0.33775347406380707,
+          "pose_error": 0.10551872722231825
         },
         "failures": null
       }

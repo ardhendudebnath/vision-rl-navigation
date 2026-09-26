@@ -49,12 +49,25 @@ from vision_nav.training.env_factory import build_env_config
 CONDITIONS = ("dense", "narrow", "nominal")
 
 
-def episode(env, seed: int, cfg, commit: bool = False) -> dict:
+#: The arms: the stack as §9.6 left it, commitment gated on distance, and
+#: commitment gated on time with a small imminent-blockage override.
+ARMS = {
+    "as_published": {},
+    "committed": {"commit": True},
+    "committed_interval": {"commit": True, "commit_distance": 0.6, "commit_interval": 10},
+}
+
+
+def episode(env, seed: int, cfg, arm: str = "as_published") -> dict:
     env.reset(options={"world_seed": seed})
+    settings = ARMS[arm]
     agent = LocalisedPursuitAgent(robot=cfg.robot, sensor="lidar360",
                                   noise_std=cfg.lidar.noise_std,
                                   odometry=OdometryConfig(), scan_matching=True,
-                                  corroborate=True, commit=commit)
+                                  corroborate=True, commit=settings.get("commit", False))
+    for key in ("commit_distance", "commit_interval"):
+        if key in settings:
+            setattr(agent, key, settings[key])
     agent.start_episode(env.world, env.robot.pose)
     start = env.robot.pose[:2].copy()
     previous = start.copy()
@@ -109,6 +122,10 @@ def summarise(rows: list[dict], keys) -> dict:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--episodes", type=int, default=12)
+    p.add_argument("--conditions", nargs="+", default=list(CONDITIONS), choices=list(CONDITIONS))
+    p.add_argument("--arms", nargs="+", default=list(ARMS), choices=list(ARMS),
+                   help="Which arms to run; a narrower comparison on more worlds "
+                        "is how a candidate that looks like a wash gets decided.")
     p.add_argument("--out", default="results/clutter_diagnostic.json")
     args = p.parse_args(argv)
 
@@ -116,27 +133,26 @@ def main(argv=None) -> int:
             "replans", "recovery_steps", "failed_plans", "plans_refused",
             "slow_fraction", "known", "gyration", "reversals", "closest_to_goal",
             "pose_error")
-    report: dict = {"episodes": args.episodes, "split": "val", "conditions": {}}
-    for cond in CONDITIONS:
+    report: dict = {"episodes": args.episodes, "split": "val", "arms": args.arms,
+                    "conditions": {}}
+    for cond in args.conditions:
         _, shift, noise = BENCHMARK_CONDITIONS[cond]
         cfg = build_env_config({"lidar": {"noise_std": noise}} if noise else {},
                                split="val", shift=shift, n_worlds=args.episodes)
         env = ProceduralNavEnv(cfg)
         seeds = [int(s) for s in list(cfg.world_seeds)[:args.episodes]]
         report["conditions"][cond] = {}
-        # Without commitment -- the stack as §9.6 left it -- and with it.
-        for commit in (False, True):
-            rows = [episode(env, s, cfg, commit) for s in seeds]
+        for name in args.arms:
+            rows = [episode(env, s, cfg, name) for s in seeds]
             won = [r for r in rows if r["success"]]
             lost = [r for r in rows if not r["success"]]
             entry = {"success": float(np.mean([r["success"] for r in rows])),
                      "all": summarise(rows, keys),
                      "successes": summarise(won, keys) if won else None,
                      "failures": summarise(lost, keys) if lost else None}
-            name = "committed" if commit else "as_published"
             report["conditions"][cond][name] = entry
             a = entry["all"]
-            print(f"{cond:8s} {name:13s} SR {entry['success']:.2f}  "
+            print(f"{cond:8s} {name:19s} SR {entry['success']:.2f}  "
                   f"driven/shortest {a['driven_over_shortest']:.2f}  "
                   f"wandering {a['wandering']:.2f}  replans {a['replans']:.0f}  "
                   f"refused {a['plans_refused']:.0f}  "

@@ -113,10 +113,22 @@ class MappedPursuitAgent(AStarPursuitAgent):
         #: metres away included -- and a fresh global plan may set off in the
         #: opposite direction.
         self.commit = commit
-        #: How far ahead the robot stands by its route, in metres.
+        #: How far ahead a blockage overrides commitment, in metres.
         self.commit_distance = 2.0
         #: How much shorter a new route must be to be worth turning for.
         self.commit_hysteresis = 0.15
+        #: Steps that must pass between adopting routes. ``0`` leaves the
+        #: distance rule alone, which is what §9.7's val comparison measured.
+        #:
+        #: The distance rule failed there because it almost never bound: of
+        #: about fifty replans an episode it refused four to six, since nearly
+        #: every rebuild is triggered inside two metres. §9.7's diagnosis is
+        #: that the argument is near-field and fast -- a rebuild every two and
+        #: a half steps, 46 reversals in a failing episode -- so the gate that
+        #: can bind is time, with a small distance left as the override for a
+        #: blockage close enough to matter now.
+        self.commit_interval = 0
+        self._last_adopted = -10 ** 6
         #: Diagnostics: replans offered and refused, and how far the lookahead
         #: point moved on the ones taken.
         self.plans_refused = 0
@@ -154,6 +166,7 @@ class MappedPursuitAgent(AStarPursuitAgent):
         self.failed_plan_steps = []
         self.recovery_steps = 0
         self.plans_refused = 0
+        self._last_adopted = -10 ** 6
         self._steps = 0
         self._last_replan = 0
         self._pending, self._urgent = False, False
@@ -273,6 +286,7 @@ class MappedPursuitAgent(AStarPursuitAgent):
         """
         saved = (self.path, self._track, self._cursor, self._plan_radius)
         near = self._blocked_within(self.commit_distance)
+        due = self._steps - self._last_adopted >= self.commit_interval
         position = np.asarray(pose[:2], dtype=np.float64)
         before = self._lookahead_point(position) if self._track is not None else None
         remaining = self._track_length(self._track, self._cursor)
@@ -283,6 +297,11 @@ class MappedPursuitAgent(AStarPursuitAgent):
             # Decided: do not reconsider until the map says something new.
             self._pending, self._urgent = False, False
 
+        if not near and not due:
+            # Too soon to change its mind, and nothing close enough to force it.
+            self.plans_refused += 1
+            self._pending, self._urgent = False, False
+            return
         if not self.reset(self._world, pose):
             if not near:
                 keep()
@@ -290,6 +309,7 @@ class MappedPursuitAgent(AStarPursuitAgent):
         if not near and self._track_length(self._track, 0) > (1.0 - self.commit_hysteresis) * remaining:
             keep()
             return
+        self._last_adopted = self._steps
         if before is not None:
             self.churn_total += float(np.linalg.norm(self._lookahead_point(position) - before))
 

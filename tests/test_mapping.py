@@ -282,6 +282,45 @@ def test_a_blockage_far_ahead_no_longer_turns_the_robot_around():
     assert out[True][2] >= 1, "no replan was refused, so nothing was committed to"
 
 
+def test_the_interval_gate_refuses_a_rebuild_that_comes_too_soon():
+    """§9.7's diagnosis is that the argument in clutter is near-field and fast:
+    a rebuild every two and a half steps. Gating on time is the only gate that
+    can bind, and it must stop a second rebuild arriving immediately after the
+    first while leaving one that waits."""
+    world = _open_world(boxes=[(5.0, 4.5, 5.6, 7.5)])
+    agent = MappedPursuitAgent(sensor="lidar360", commit=True)
+    agent.commit_distance, agent.commit_interval = 0.6, 10
+    pose = np.array([2.0, 6.0, 0.0])
+    assert agent.start_episode(world, pose)
+    for _ in range(3):
+        agent.act(pose)
+
+    # Count the plans actually searched for, which is what the gate stops.
+    # Refusals alone cannot tell the two cases apart: once the interval passes,
+    # a route rebuilt from the same pose and the same map comes out identical
+    # and is then refused by the hysteresis instead.
+    searched = []
+    real_reset = agent.reset
+
+    def spy(*args, **kwargs):
+        searched.append(1)
+        return real_reset(*args, **kwargs)
+
+    agent.reset = spy
+    committed = agent.path.copy()
+    agent._last_adopted = agent._steps  # it has just settled on this route
+    refused = agent.plans_refused
+    agent._replan_committed(pose)
+    assert searched == [], "it searched for a new route straight away"
+    assert np.array_equal(committed, agent.path), "it changed its mind immediately"
+    assert agent.plans_refused == refused + 1
+
+    # Once the interval has passed the rebuild is considered again.
+    agent._last_adopted = agent._steps - agent.commit_interval
+    agent._replan_committed(pose)
+    assert len(searched) == 1, "the interval never released the gate"
+
+
 def test_something_close_ahead_still_changes_the_route():
     """Commitment is not stubbornness: a wall inside the commit distance is
     acted on, the same as without it."""

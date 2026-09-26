@@ -183,7 +183,7 @@ committee can tell the difference.
 > ROS 2 / Nav2): a thirty-nine-experiment controlled study of learned versus
 > classical navigation under distribution shift, with seed-level significance
 > testing, pre-registered predictions, a real Nav2 baseline over a ROS 2
-> bridge, and a 482-test suite. Includes a documented false positive I caught
+> bridge, and a 483-test suite. Includes a documented false positive I caught
 > in my own results.
 
 **One line, for a subject line or an introduction.**

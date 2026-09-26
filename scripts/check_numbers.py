@@ -838,6 +838,32 @@ def claims():
                 [kj[c]["committed"]["all"]["replans"] for c in ("dense", "narrow")]) / 10) * 10),
         ]
 
+    # --- commitment gated on time, rejected on forty val worlds ------------
+    c40 = "results/clutter_commitment_val40.json"
+    if os.path.exists(c40):
+        fj = load(c40)
+        f = fj["conditions"]
+        out += [
+            ("commitment40 episodes", 40, fj["episodes"]),
+            ("commitment40 dense as published", 0.725, f["dense"]["as_published"]["success"]),
+            ("commitment40 dense committed", 0.650, f["dense"]["committed_interval"]["success"]),
+            ("commitment40 narrow as published", 0.600, f["narrow"]["as_published"]["success"]),
+            ("commitment40 narrow committed", 0.600, f["narrow"]["committed_interval"]["success"]),
+            # The gate binds: refusals an episode, and the symptom that does not move.
+            ("commitment40 refusals low", 34,
+             round(min(f[c]["committed_interval"]["all"]["plans_refused"] for c in f))),
+            ("commitment40 refusals high", 49,
+             round(max(f[c]["committed_interval"]["all"]["plans_refused"] for c in f))),
+            ("commitment40 dense wandering before", 0.27,
+             round(f["dense"]["as_published"]["all"]["wandering"], 2)),
+            ("commitment40 dense wandering after", 0.28,
+             round(f["dense"]["committed_interval"]["all"]["wandering"], 2)),
+            ("commitment40 narrow wandering before", 0.34,
+             round(f["narrow"]["as_published"]["all"]["wandering"], 2)),
+            ("commitment40 narrow wandering after", 0.33,
+             round(f["narrow"]["committed_interval"]["all"]["wandering"], 2)),
+        ]
+
     # --- the corroboration rule, Phase 6i ----------------------------------
     cp = "results/corroboration_experiment.json"
     if os.path.exists(cp):
