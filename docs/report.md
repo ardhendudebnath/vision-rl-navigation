@@ -1385,6 +1385,60 @@ when progress has stalled and see whether those eleven episodes are recovered,
 registered before it is run. That is now item 1 of §12, and the seven failures
 on margin-safe worlds are not covered by any of this.
 
+### 9.10 The margin was blocking them, and removing it does not help
+
+§9.9 named its own confound: a world with no margin-safe route is also just a
+tight world. [`clearance_experiment.py`](../scripts/clearance_experiment.py)
+separates them. The rule gives up the safety margin when the robot has stopped getting
+closer to the goal for 50 steps and plans at the bare radius for the rest of the
+episode. The signal is the robot's own — the distance from the pose it steers by
+to the goal in its own map frame — so the geodesic §9.9 measured with never
+reaches the control path. The threshold comes from the forensic rather than from
+tuning: episodes that arrive spend 3% of their steps not improving, those that
+fail spend 52–58%. All four endpoints were committed before the arm ran on any
+seed.
+
+| val, 25 worlds each | as published | relaxed | Δ | rule fired | collisions |
+|---|---|---|---|---|---|
+| `dense` | 0.68 | 0.64 | −0.040 | 10 of 25 | 0 → 8 |
+| `narrow` | 0.60 | 0.64 | +0.040 | 12 of 25 | 0 → 3 |
+| `nominal` | 0.96 | 0.92 | −0.040 | 3 of 25 | 0 → 1 |
+
+**The endpoint failed at zero. Not one of the eleven worlds was recovered**,
+against the four registered. The one `narrow` world the rule wins is cancelled by
+the one `dense` world it loses, and every McNemar *p* is 1.000.
+
+**But the clearance really was blocking them.** On those same eleven worlds the
+robot stopped **6.29 m short before the rule and 4.80 m short after, closing more
+than half a metre on 8 of 11** — one went from 5.64 m short to 0.54 m, against a
+0.35 m tolerance. So the margin was holding those episodes back, exactly as §9.9
+read it, and removing it still converts none of them into arrivals. Both halves
+of that sentence are the result.
+
+**What it cost is the stack's best property.** Across 75 published episodes in
+this comparison the robot does not collide once. With the rule it collides 12
+times — 8 on `dense`, 3 on `narrow`, 1 on `nominal` — against a registered bound
+of 2. It also breaks worlds that worked: one `nominal` world that arrived within
+0.34 m now crashes 4.09 m out, and the rule fired there at all only because the
+robot paused near the goal. A 0.22 m robot threading a gap under 0.40 m wide has
+no room for the 0.07–0.22 m of pose error §9.5 measured, and this is what that
+looks like in outcomes.
+
+Of the four registered claims, one held: success on the 39 margin-safe worlds is
+unchanged at 0.821, so the rule is inert where it should be inert — though that
+net hides one world lost and one won. The other three failed, including the
+registered bound on collisions and the `nominal` control.
+
+**Four repairs, four rejections, and the diagnosis is now narrower.** Commitment
+in distance, commitment in time, refusing to plan through the unknown, and now
+relaxing the clearance. The last one is the informative failure: it moves the
+robot substantially closer on the worlds §9.9 identified and still cannot finish,
+which says the binding constraint in a tight gap is not what the planner is
+willing to propose but **whether this robot can drive a 0.18 m corridor of error
+at the accuracy it localises to**. That is a question about the estimator and the
+controller, not about the plan, and it is where §12 now points. The seven clutter
+failures on worlds that had a margin-safe route all along are still unexplained.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -1433,14 +1487,14 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of thirty-six predictions made in advance, five held. Four were
+**Calibration.** Of forty predictions made in advance, six held. Four were
 derived from a *measurement* — two to within 0.021 and 0.001, one on both
 magnitude and mechanism, and one whose magnitude came from measuring the
-estimator it was about. The fifth is weaker in kind and is counted as held
-anyway: §9.8 registered a *bound* on what its treatment would cost rather than a
-direction, and the cost came in at exactly zero. A bound is the easiest form of
+estimator it was about. The other two are weaker in kind and are counted as held
+anyway: §9.8 and §9.10 each registered a *bound* on what a treatment would cost
+rather than a direction, and both came in at zero. A bound is the easiest form of
 prediction to satisfy, which is worth saying plainly in a tally that otherwise
-counts point forecasts. Fifteen from extrapolation, intuition, arithmetic or a
+counts point forecasts. Eighteen from extrapolation, intuition, arithmetic or a
 post hoc description failed outright; sixteen got part right and part wrong. Confidence
 of expression was identical throughout. Three rules came out of them; the
 record of each prediction is in [`project_plan.md`](project_plan.md). The
@@ -1542,25 +1596,27 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Relax the margin when progress has stalled, and register it first.** The
-   forensic (§9.9) found that 11 of 50 val clutter worlds admit no route at the
-   0.40 m clearance the planner insists on, that every one of them admits a
-   route at the bare 0.22 m radius, and that not one of the eleven is ever
-   solved — 61% of the clutter failures on 22% of the worlds, Fisher
-   *p* < 0.001. The agent's three-radius ladder does not rescue them: it plans
-   at the full margin for 79% of its steps and averages 0.35 m at its lowest,
-   because the ladder only engages when planning *fails*, and an optimistic map
-   keeps producing routes that fail on contact instead. The experiment is to
-   drop the clearance when the robot has stopped closing on the goal rather than
-   when planning fails, and the registered endpoint should be those eleven
-   episodes, because the confound is that a world with no margin-safe route is
-   also just a tight world. Two smaller things stay worth trying: costing
-   unknown cells *above* free ones rather than refusing them outright, the
-   graded middle between the two arms §9.8 measured, and varying the step
-   budget, since all 39 failures there spend the full 500 steps with no
-   collision at all, some of them 0.96 of the way to the goal — a limit this
-   comparison has never varied. Neither touches the seven failures that happen
-   on worlds where a margin-safe route did exist.
+1. **Make the robot able to drive a tight gap, not merely willing to plan
+   one.** Four repairs have been rejected on val — commitment in distance, in
+   time, refusing to plan through the unknown, and relaxing the clearance —
+   and the last is the one that says where to go next. It moved the robot from
+   6.29 m short to 4.80 m short on the eleven worlds §9.9 identified, closing
+   more than half a metre on 8 of 11, and converted none of them into
+   arrivals while collapsing the stack's zero-collision record to 12 crashes
+   (§9.10). Clearance was genuinely blocking those worlds and is not
+   sufficient to pass them: a 0.22 m robot in a gap under 0.40 m has no room
+   for the 0.07–0.22 m of pose error §9.5 measured. So the work is on the
+   estimator and the controller — a back end for the pose (item 3), and
+   measuring cross-track error against gap width directly, which is a
+   diagnostic this project has never run and which would say whether the
+   robot misses the gap because it does not know where it is or because it
+   cannot hold a line. Two cheaper things remain open: costing unknown cells
+   *above* free ones rather than refusing them outright, the graded middle
+   between the arms §9.8 measured, and varying the step budget, since all 39
+   failures there spend the full 500 steps with no collision at all, some of
+   them 0.96 of the way to the goal — a limit this comparison has never
+   varied. None of this touches the seven clutter failures on worlds that had
+   a margin-safe route all along, which remain unexplained.
 2. **Finish the mapper under noise.** §9.6's rule left the phantom cells
    standing (370 to 309 of about 1100): it delays them rather than refusing
    them, and `noisy_lidar` is still this stack's worst open condition at 360

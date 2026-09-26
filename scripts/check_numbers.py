@@ -1001,6 +1001,53 @@ def claims():
              round(oj["failure_groups"]["tight"]["replans"])),
         ]
 
+    # --- the clearance rule, Phase 6m: §9.9's confound, separated ---------
+    # Not to be confused with `margin_experiment.json` above, which is Phase
+    # 5q's *temporal* margin. These are different experiments.
+    xp = "results/clearance_experiment.json"
+    if os.path.exists(xp):
+        xj = load(xp)
+        out.append(("margin stall steps", 50, xj["stall_steps"]))
+        for cond, before, after, gain, fired, colls in (
+                ("dense", 0.68, 0.64, -0.040, 10, 8),
+                ("narrow", 0.60, 0.64, 0.040, 12, 3),
+                ("nominal", 0.96, 0.92, -0.040, 3, 1)):
+            e = xj["conditions"][cond]
+            out += [
+                (f"margin {cond} as published", before, round(e["success"][0], 2)),
+                (f"margin {cond} relaxed", after, round(e["success"][1], 2)),
+                (f"margin {cond} gain", gain, round(e["gain"], 3)),
+                (f"margin {cond} mcnemar", 1.000, round(e["mcnemar_p"], 3)),
+                (f"margin {cond} fired", fired, e["fired"]),
+                (f"margin {cond} collisions before", 0, e["collisions"][0]),
+                (f"margin {cond} collisions after", colls, e["collisions"][1]),
+            ]
+        ep = xj["endpoints"]
+        out += [
+            # The endpoint, and the nuance that keeps it from being "no effect".
+            ("margin recovered", 0, ep["recovered"]),
+            ("margin tight worlds", 11, ep["of"]),
+            ("margin endpoint held", 0, int(ep["held"])),
+            ("margin tight gap before", 6.29, round(ep["tight_gap"][0], 2)),
+            ("margin tight gap after", 4.80, round(ep["tight_gap"][1], 2)),
+            ("margin tight gap closed", 8, ep["tight_gap_closed"]),
+            # The one that held, and the two costs that did not.
+            ("margin safe success before", 0.821,
+             round(ep["margin_safe_success"][0], 3)),
+            ("margin safe success after", 0.821,
+             round(ep["margin_safe_success"][1], 3)),
+            ("margin safe loss", 0.000, round(ep["margin_safe_loss"], 3)),
+            ("margin safe held", 1, int(ep["margin_safe_held"])),
+            ("margin clutter collisions", 11, ep["clutter_collisions"]),
+            ("margin collisions held", 0, int(ep["collisions_held"])),
+            ("margin nominal held", 0, int(ep["nominal_held"])),
+            # 12 collisions across all three conditions, against 0 as published.
+            ("margin all collisions", 12,
+             sum(c["collisions"][1] for c in xj["conditions"].values())),
+            ("margin all collisions before", 0,
+             sum(c["collisions"][0] for c in xj["conditions"].values())),
+        ]
+
     # Every failure in that run is a timeout, not a crash -- §9.8 and §12.
     fd = "results/frontier_diagnostic.json"
     if os.path.exists(fd):

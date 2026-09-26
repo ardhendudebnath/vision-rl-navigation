@@ -128,9 +128,9 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of thirty-six advance predictions, five held — four
-derived from *measurements*, and one registered as a bound, which is the easiest
-kind to satisfy; fifteen failed outright and sixteen got part right and part
+pre-registered endpoints. Of forty advance predictions, six held — four
+derived from *measurements*, and two registered as bounds, which are the easiest
+kind to satisfy; eighteen failed outright and sixteen got part right and part
 wrong, with identical confidence of expression
 throughout. The three failures that reasoned from a real measurement all
 carried it into a regime nothing had been measured in — and the one that

@@ -3069,6 +3069,54 @@ unchanged at thirty-six. The confound is stated: a world with no margin-safe
 route is also just a tight world. Separating them is an experiment to register,
 not a conclusion to draw here.
 
+## Phase 6m — The margin rule: it was blocking them, and removing it does not help
+
+§9.9 named its own confound -- a world with no margin-safe route is also just a
+tight world -- and `scripts/clearance_experiment.py` separates them (named for
+clearance because `margin_experiment.py` is Phase 5q's *temporal* margin). Give up the safety
+margin when the robot has stopped closing on the goal for 50 steps, on the
+robot's own reckoning, and plan at the bare radius thereafter. All four endpoints
+registered before the arm ran on any seed. Full treatment in report §9.10.
+
+| val, 25 worlds each | as published | relaxed | Δ | rule fired | collisions |
+|---|---|---|---|---|---|
+| `dense` | 0.68 | 0.64 | −0.040 | 10 of 25 | 0 → 8 |
+| `narrow` | 0.60 | 0.64 | +0.040 | 12 of 25 | 0 → 3 |
+| `nominal` | 0.96 | 0.92 | −0.040 | 3 of 25 | 0 → 1 |
+
+- **Zero of the eleven recovered**, against four registered. Every McNemar
+  p = 1.000; the one `narrow` world won is cancelled by the one `dense` lost.
+- **And the clearance really was blocking them**: on those eleven the robot
+  stopped 6.29 m short before and 4.80 m short after, closing more than half a
+  metre on 8 of 11, one of them from 5.64 m to 0.54 m against a 0.35 m
+  tolerance. Both halves of that are the result.
+- **12 collisions against a registered bound of 2**, where the published stack
+  does not collide once in 75 episodes here. It also breaks a `nominal` world
+  that had arrived within 0.34 m.
+- The diagnosis narrows: a 0.22 m robot in a sub-0.40 m gap has no room for the
+  0.07-0.22 m of pose error §9.5 measured. The constraint is the estimator and
+  the controller, not what the planner is willing to propose.
+- Nothing ran on the test worlds. Four repairs, four val rejections.
+
+### Calibration
+
+Four predictions, registered together before the data existed.
+
+37. **At least 4 of the 11 recovered** -- **failed** at zero. The reasoning that
+    a route existing at the bare radius made it drivable was wrong.
+38. **No more than 0.03 given up on the 39 margin-safe worlds** -- **held**, at
+    0.000. A bound rather than a direction, and §10 says so.
+39. **Collisions at or below 2 across the 50 clutter worlds** -- **failed**, 11.
+    Registered as a bound on the cost and the cost was five times it.
+40. **`nominal` unchanged at 0.96, rule firing in at most 1 world** -- **failed**
+    on both clauses: 0.92, fired in 3.
+
+Running total: forty predictions, six held, eighteen failed outright, sixteen
+part right. Two of the six held are bounds rather than directions.
+
+The rule stays, off by default, with an identity control driving both arms and
+pinning that the actions match; `relax_on_stall` is not used by any scored run.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**
