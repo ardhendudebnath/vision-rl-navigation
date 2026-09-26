@@ -60,6 +60,11 @@ from vision_nav.planning.smoothing import densify_path, simplify_path
 
 __all__ = ["MappedPursuitAgent", "make_sensor"]
 
+#: How much closer to the goal counts as getting closer, in metres. Matches the
+#: forensic's ``PROGRESS_EPS``, so "stopped closing" means the same thing in the
+#: measurement that motivated the rule and in the rule itself.
+STALL_EPS = 0.05
+
 
 def make_sensor(kind: str, noise_std: float = 0.0) -> Lidar2D:
     """The sensor the map is built from.
@@ -114,7 +119,7 @@ class MappedPursuitAgent(AStarPursuitAgent):
     def __init__(self, config: PursuitConfig | None = None, robot: RobotConfig | None = None,
                  sensor: str = "lidar32", noise_std: float = 0.0,
                  corroborate: bool = False, commit: bool = False,
-                 frontier: bool = False) -> None:
+                 frontier: bool = False, relax_on_stall: int = 0) -> None:
         # Replanning is done here, in :meth:`act`, rather than by the
         # baseline's block trigger, because a failed replan must stop the robot
         # instead of restoring the old plan. Everything else is the baseline's
@@ -158,6 +163,27 @@ class MappedPursuitAgent(AStarPursuitAgent):
         #: Off by default: every published result plans optimistically, with
         #: unknown space counted as free.
         self.frontier = frontier
+        #: Steps without closing on the goal after which the planner gives up
+        #: its safety margin and plans at the bare robot radius. ``0`` leaves
+        #: the published three-radius ladder alone.
+        #:
+        #: §9.9's forensic: 11 of 50 val clutter worlds admit no route at all
+        #: at ``robot_radius + safety_margin``, every one of them admits a route
+        #: at the bare radius, and not one of the eleven is ever solved. The
+        #: existing ladder does not rescue them because it drops a rung only
+        #: when planning *fails*, and an optimistic map keeps producing routes
+        #: that succeed on paper and fail on contact. This drops the clearance
+        #: on the other signal -- the robot has stopped getting closer -- and
+        #: keeps it down for the rest of the episode, because a world that has
+        #: proved too tight once will be too tight again.
+        self.relax_on_stall = relax_on_stall
+        #: The closest the robot has been to the goal, by its own reckoning,
+        #: and how long since that improved. Never privileged: this is the
+        #: estimate the robot steers by, not the truth.
+        self._best_gap = float("inf")
+        self._since_gain = 0
+        #: The step the margin was given up at, or ``-1``. Diagnostic.
+        self.relaxed_at = -1
         #: What the current plan ends at: ``"goal"``, ``"frontier"`` or ``""``.
         self.plan_kind = ""
         #: How many plans of each kind were made. Diagnostic.
@@ -204,6 +230,9 @@ class MappedPursuitAgent(AStarPursuitAgent):
         self.plan_kind = ""
         self.goal_plans = 0
         self.frontier_plans = 0
+        self._best_gap = float("inf")
+        self._since_gain = 0
+        self.relaxed_at = -1
         self._steps = 0
         self._last_replan = 0
         self._pending, self._urgent = False, False
@@ -222,7 +251,11 @@ class MappedPursuitAgent(AStarPursuitAgent):
         base = self.map.robot_radius
         start = tuple(int(v) for v in self.map.world_to_grid(pose[:2]))
         goal_cell = tuple(int(v) for v in self.map.world_to_grid(self.map.goal))
-        for radius in (base + margin, base + margin * 0.5, base):
+        # Once the margin has been given up, the ladder is one rung: there is
+        # no point offering a clearance the episode has already shown to fail.
+        ladder = (base,) if self.relaxed_at >= 0 else (base + margin,
+                                                       base + margin * 0.5, base)
+        for radius in ladder:
             occ = self._clear_footprint(self.map.occupancy_at(radius), pose)
             kind, cells, smoother = "goal", None, self.map
             if self.frontier:
@@ -321,6 +354,20 @@ class MappedPursuitAgent(AStarPursuitAgent):
         Split from :meth:`act` for the subclass that has to sense and localise
         before it knows which pose to drive from; everything below is shared.
         """
+        if self.relax_on_stall and self.relaxed_at < 0:
+            # Measured against the goal in the frame the robot plans in, using
+            # the pose it steers by. Under :class:`LocalisedPursuitAgent` that
+            # is the estimate, so a robot whose belief has drifted can believe
+            # it is still closing when it is not -- which is a property of the
+            # signal, not a leak of the truth into it.
+            gap = float(np.linalg.norm(pose[:2] - self.map.goal))
+            if gap < self._best_gap - STALL_EPS:
+                self._best_gap, self._since_gain = gap, 0
+            else:
+                self._since_gain += 1
+            if self._since_gain >= self.relax_on_stall:
+                self.relaxed_at = self._steps
+                self._track = None  # replan now, at the clearance it can drive
         if self._track is None:
             # Stopped after a failed plan: try again on what the new scan adds.
             self.reset(self._world, pose)

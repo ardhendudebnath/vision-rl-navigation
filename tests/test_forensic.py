@@ -94,6 +94,66 @@ def test_the_audit_relaxes_the_goal_the_way_the_agent_does():
     assert relax_goal(world, np.ones_like(occ), world.goal) is None
 
 
+def test_the_margin_rule_is_off_by_default_and_reproduces_the_published_ladder():
+    """The identity control for the §9.9 repair: with the rule off, nothing
+    about the agent may differ from the arm every published number came from."""
+    from vision_nav.agents.mapped import MappedPursuitAgent
+
+    world = _world([[5.0, 4.5, 5.6, 7.5]])
+    plain = MappedPursuitAgent(sensor="lidar32")
+    armed = MappedPursuitAgent(sensor="lidar32", relax_on_stall=0)
+    assert plain.relax_on_stall == 0
+    for agent in (plain, armed):
+        assert agent.start_episode(world, world.start)
+    pose = world.start.copy()
+    for _ in range(30):
+        a = plain.act(pose)
+        b = armed.act(pose)
+        assert np.allclose(a, b)
+    assert plain.relaxed_at == -1 and armed.relaxed_at == -1
+
+
+def test_the_margin_is_given_up_only_after_the_robot_stops_closing():
+    """The trigger fires on the robot's own reckoning, and not before its
+    window has passed. Driven from a fixed pose, so the gap never improves."""
+    from vision_nav.agents.mapped import MappedPursuitAgent
+
+    world = _world([[5.0, 4.5, 5.6, 7.5]])
+    agent = MappedPursuitAgent(sensor="lidar32", relax_on_stall=10)
+    assert agent.start_episode(world, world.start)
+    pose = world.start.copy()
+    for _ in range(9):
+        agent.act(pose)
+    assert agent.relaxed_at == -1, "fired before the window had passed"
+    for _ in range(3):
+        agent.act(pose)
+    assert agent.relaxed_at > 0, "never fired although the robot never closed"
+    # And once given up, the ladder is the bare radius alone.
+    assert agent._plan_radius == pytest.approx(agent.map.robot_radius)
+
+
+def test_the_trigger_reads_the_estimate_and_never_the_truth():
+    """Under the localised agent the rule must run on the pose the robot
+    believes, which is what it steers by. A rule fed the true pose would be
+    privileged information entering the control path through the back door."""
+    from vision_nav.agents.localised import LocalisedPursuitAgent
+    from vision_nav.mapping.localisation import OdometryConfig
+
+    world = _world()
+    agent = LocalisedPursuitAgent(sensor="lidar32", odometry=OdometryConfig(),
+                                  relax_on_stall=10)
+    assert agent.start_episode(world, world.start)
+    truth = world.start.copy()
+    velocity = np.array([0.0, 0.0])
+    for _ in range(12):
+        agent.act(truth, velocity)
+    # The robot has not moved, so by any reckoning it stopped closing, and the
+    # gap it measured is the one from its own estimate.
+    assert agent.relaxed_at > 0
+    assert agent._best_gap == pytest.approx(
+        float(np.linalg.norm(agent.pose[:2] - agent.map.goal)), abs=0.3)
+
+
 def test_the_blockage_control_uses_the_same_inflation_on_both_sides():
     """The measurement §9.9 rests on: at one inflation the world blocks what it
     blocks, and a map that matches the world must not look worse than it for
