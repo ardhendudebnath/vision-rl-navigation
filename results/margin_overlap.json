@@ -1,0 +1,89 @@
+{
+  "split": "val",
+  "conditions": {
+    "dense": {
+      "margin_safe": {
+        "n": 19,
+        "success": 0.8947368421052632
+      },
+      "no_margin_safe": {
+        "n": 6,
+        "success": 0.0
+      },
+      "table": [
+        17,
+        2,
+        0,
+        6
+      ],
+      "fisher_p": 0.00015810276679841898
+    },
+    "narrow": {
+      "margin_safe": {
+        "n": 20,
+        "success": 0.75
+      },
+      "no_margin_safe": {
+        "n": 5,
+        "success": 0.0
+      },
+      "table": [
+        15,
+        5,
+        0,
+        5
+      ],
+      "fisher_p": 0.0047430830039525695
+    }
+  },
+  "pooled": {
+    "margin_safe": {
+      "n": 39,
+      "success": 0.8205128205128205
+    },
+    "no_margin_safe": {
+      "n": 11,
+      "success": 0.0
+    },
+    "table": [
+      32,
+      7,
+      0,
+      11
+    ],
+    "fisher_p": 8.519629098011468e-07
+  },
+  "share_of_failures_tight": 0.6111111111111112,
+  "failure_groups": {
+    "tight": {
+      "stall_fraction": 0.5527272727272727,
+      "given_back": 2.4253994476303613,
+      "best_remaining": 6.38308342755364,
+      "final_remaining": 8.808482875184,
+      "progress_steps": 75.9090909090909,
+      "backward_steps": 49.45454545454545,
+      "replans": 144.72727272727272,
+      "phantom_route": 8.727272727272727,
+      "goal_plans_after": 1.0,
+      "full_margin_steps": 0.7925454545454546,
+      "min_plan_radius": 0.3509090909090909,
+      "still_closing": 0.2727272727272727,
+      "n": 11
+    },
+    "roomy": {
+      "stall_fraction": 0.5362857142857144,
+      "given_back": 3.4472665409300194,
+      "best_remaining": 4.163582764126175,
+      "final_remaining": 7.610849305056194,
+      "progress_steps": 75.28571428571429,
+      "backward_steps": 56.142857142857146,
+      "replans": 128.0,
+      "phantom_route": 9.0,
+      "goal_plans_after": 1.0,
+      "full_margin_steps": 0.9585714285714285,
+      "min_plan_radius": 0.38714285714285707,
+      "still_closing": 0.14285714285714285,
+      "n": 7
+    }
+  }
+}

@@ -1300,6 +1300,91 @@ reproduces A\* where nothing is unknown: no scored run plans this way.
 [`frontier_analysis.py`](../scripts/frontier_analysis.py) holds the test and
 [`frontier_diagnostic.json`](../results/frontier_diagnostic.json) the run.
 
+### 9.9 The forensic: the margin the planner insists on
+
+Three repairs rejected is enough to stop proposing them, so
+[`clutter_forensic.py`](../scripts/clutter_forensic.py) measures the failure
+instead. The instrument is the **true geodesic** from the robot's cell to the
+goal, computed once per world on the grid the environment scores against and
+read off every step. It is privileged information used for measurement only: it
+never reaches the agent.
+
+| val, 360 beams, 25 worlds each | best approach | final | gave back | stalled for | route held |
+|---|---|---|---|---|---|
+| `dense`, arrive | 0.09 m | 0.09 m | 0.00 m | 3% | — |
+| `dense`, fail | 5.89 m | 7.68 m | 1.79 m | 58% | 100% |
+| `narrow`, arrive | 0.10 m | 0.10 m | 0.00 m | 3% | — |
+| `narrow`, fail | 5.22 m | 8.87 m | 3.65 m | 52% | 100% |
+
+**The failures do not run out of time on the way in; they lose ground.** They
+reach their closest approach around halfway through, then end 1.8 m (`dense`) to
+3.7 m (`narrow`) further from the goal than they had already been, and spend
+more than half the episode never beating that mark. Throughout, **every plan in
+every failing episode is a complete route to the goal** — not a relaxed goal, not
+a planning failure, 100% of the steps after the closest approach.
+
+**It is not the map.** Counting the cells of the true remaining route that the
+agent's own map blocks gives 23.8 on `dense` — until the same count is taken on
+the *truth* at the same inflation, which gives 29.9. The agent plans at
+`robot_radius + safety_margin` while the world's grid is inflated by the radius
+alone, so the naive version of this measurement charges the planner's safety
+margin to its mapping. Controlled, the map blocks *less* of the way home than
+the world does (26.3 against 42.1 on `narrow`), which is §9.6's finding again
+from a different direction. Genuine phantoms exist and are small: 8.8 cells on
+`dense`, 8.9 on `narrow`.
+
+**What the worlds themselves demand.** [`margin_audit.py`](../scripts/margin_audit.py)
+asks a question with no agent in it — is the route this benchmark scores against
+drivable at the clearance the planner insists on?
+
+| val, 25 worlds each | no route at the full margin | none at half margin | none at the bare radius | margin detour |
+|---|---|---|---|---|
+| `nominal` | 0 | 0 | 0 | 1.03× |
+| `dense` | **6** | 1 | 0 | 1.09× (worst 1.79×) |
+| `narrow` | **5** | 3 | 0 | 1.17× (worst 1.95×) |
+
+With a robot radius of 0.22 m and a safety margin of 0.18 m, **11 of 50 clutter
+worlds admit no route at all at 0.40 m of clearance, and every one of them admits
+a route at 0.22 m.** In the open this never happens once.
+
+**Those are the worlds that fail.** Joining the two by seed
+([`margin_overlap.py`](../scripts/margin_overlap.py), two-sided Fisher exact,
+between worlds rather than between arms, nothing paired):
+
+| val, clutter | margin-safe worlds | no margin-safe route | Fisher *p* |
+|---|---|---|---|
+| `dense` | 17 of 19 arrive (0.89) | **0 of 6** (0.00) | 0.00016 |
+| `narrow` | 15 of 20 arrive (0.75) | **0 of 5** (0.00) | 0.0047 |
+| pooled | 32 of 39 arrive (0.82) | **0 of 11** (0.00) | 8.5 × 10⁻⁷ |
+
+Not one of the eleven is ever solved, and they account for 11 of the 18 failures
+— 61% of them, on 22% of the worlds. The two groups then fail in the *same way*:
+stalled for 55% against 54% of the episode, ground given back 2.43 m against
+3.45 m, a complete route held 100% of the time in both. What differs is not the
+mode but the rate.
+
+**And the fallback does not rescue them.** The agent already tries three radii
+and drops to a smaller one when planning fails at a larger. On the eleven it
+plans at the full margin for 79% of its steps, and the smallest radius it ever
+reaches averages 0.35 m — never the 0.22 m at which every one of those worlds is
+solvable. The ladder rarely engages because planning rarely *fails*: the map is
+optimistic about what it has not seen, so a route at full clearance keeps
+appearing, is invalidated on contact, and is replanned 145 times an episode.
+That is §9.7's indecision with a cause attached, and it explains why §9.8's
+repair could not help — refusing to plan through the unknown does not lower the
+clearance the planner asks for, so on these worlds it swaps one unreachable
+proposal for another.
+
+**Stated as a lead, not a result.** This was found by looking at val data, not
+registered in advance, and the association it rests on has an obvious confound:
+a world with no margin-safe route is by construction a world with a tight gap,
+and tight gaps are harder to thread for reasons that have nothing to do with the
+planner's margin — tracking error and pose error among them. The measurement
+cannot separate those. What separates them is an experiment: relax the margin
+when progress has stalled and see whether those eleven episodes are recovered,
+registered before it is run. That is now item 1 of §12, and the seven failures
+on margin-safe worlds are not covered by any of this.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -1457,22 +1542,25 @@ enough.**
 
 In order of expected information per GPU-hour:
 
-1. **Find out what the clutter failures are, because three candidates are
-   spent.** Rejected on val: commitment gated on distance (`dense` 0.750 to
-   0.667), commitment gated on time (0.725 to 0.650 over forty worlds), and
-   refusing to plan through unseen space at all (−0.020 over fifty worlds, with
-   three episodes of fifty changing outcome — §9.8). The first two suppressed
-   §9.7's symptom and the third changed what the planner proposes, in force on
-   64 of 72 plans, and neither made the robot arrive. The next step is therefore
-   not a fourth repair but a forensic: replay a few failing worlds step by step
-   against their geodesic and find where the robot's progress actually stops,
-   rather than continuing to test fixes against a cause that has not been
-   established. Two things stay worth trying afterwards, both cheap: costing
-   unknown cells *above* free ones rather than refusing them outright, which is
-   the graded middle between the two arms already measured, and varying the step
-   budget, since all 39 failures in that run spend the full 500 steps with no
+1. **Relax the margin when progress has stalled, and register it first.** The
+   forensic (§9.9) found that 11 of 50 val clutter worlds admit no route at the
+   0.40 m clearance the planner insists on, that every one of them admits a
+   route at the bare 0.22 m radius, and that not one of the eleven is ever
+   solved — 61% of the clutter failures on 22% of the worlds, Fisher
+   *p* < 0.001. The agent's three-radius ladder does not rescue them: it plans
+   at the full margin for 79% of its steps and averages 0.35 m at its lowest,
+   because the ladder only engages when planning *fails*, and an optimistic map
+   keeps producing routes that fail on contact instead. The experiment is to
+   drop the clearance when the robot has stopped closing on the goal rather than
+   when planning fails, and the registered endpoint should be those eleven
+   episodes, because the confound is that a world with no margin-safe route is
+   also just a tight world. Two smaller things stay worth trying: costing
+   unknown cells *above* free ones rather than refusing them outright, the
+   graded middle between the two arms §9.8 measured, and varying the step
+   budget, since all 39 failures there spend the full 500 steps with no
    collision at all, some of them 0.96 of the way to the goal — a limit this
-   comparison has never varied.
+   comparison has never varied. Neither touches the seven failures that happen
+   on worlds where a margin-safe route did exist.
 2. **Finish the mapper under noise.** §9.6's rule left the phantom cells
    standing (370 to 309 of about 1100): it delays them rather than refusing
    them, and `noisy_lidar` is still this stack's worst open condition at 360
@@ -1508,7 +1596,7 @@ In order of expected information per GPU-hour:
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 491 tests
+pytest                                        # 498 tests
 python scripts/check_docs.py                  # every doc link resolves
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix

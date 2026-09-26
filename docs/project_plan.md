@@ -3023,6 +3023,52 @@ The code stays, off by default, with an identity control pinning that it
 reproduces A\* where nothing is unknown; `frontier=True` is not used by any
 scored run.
 
+## Phase 6l — The forensic: what the clutter failures actually are
+
+Three rejected repairs is enough. `clutter_forensic.py` stops proposing fixes
+and measures the failure, against the true geodesic to the goal read off every
+step (privileged, measurement only, never reaches the agent). Full treatment in
+report §9.9.
+
+| val, 360 beams, 25 worlds each | best approach | final | gave back | stalled | route held |
+|---|---|---|---|---|---|
+| `dense`, arrive | 0.09 m | 0.09 m | 0.00 m | 3% | — |
+| `dense`, fail | 5.89 m | 7.68 m | 1.79 m | 58% | 100% |
+| `narrow`, arrive | 0.10 m | 0.10 m | 0.00 m | 3% | — |
+| `narrow`, fail | 5.22 m | 8.87 m | 3.65 m | 52% | 100% |
+
+- The failures **lose ground**: closest approach halfway through, then 1.8 m
+  (`dense`) to 3.7 m (`narrow`) given back. They are not running out of clock
+  on the way in.
+- Every plan in every failing episode is a **complete route to the goal**, 100%
+  of the steps after the closest approach. Planning never fails.
+- **Not the map.** The agent's map blocks 23.8 cells of the true remaining route
+  on `dense` -- against 29.9 for the *truth at the same inflation*. Controlled,
+  the map is more permissive than the world, as §9.6 found. Phantoms are 8.8
+  cells (`dense`) and 8.9 (`narrow`). The uncontrolled version of this count
+  charges the planner's 0.18 m safety margin to its mapping.
+- `margin_audit.py`, no agent in it: with radius 0.22 m and margin 0.18 m,
+  **11 of 50 val clutter worlds admit no route at 0.40 m clearance** (6 `dense`,
+  5 `narrow`), every one admits a route at 0.22 m, and `nominal` never does this
+  once. Where both exist the margin-safe route is 1.09x (`dense`) and 1.17x
+  (`narrow`) the scored one.
+- `margin_overlap.py` joins the two by seed, two-sided Fisher exact:
+  **0 of 11 margin-blocked worlds are ever solved** against 32 of 39 (0.82)
+  elsewhere, p = 8.5e-07 pooled. 61% of the failures on 22% of the worlds.
+- Both kinds of failure look the same -- stalled 55% vs 54%, full route held
+  100% in both -- so the margin changes the *rate*, not the mode.
+- The three-radius ladder does not rescue them: full margin for 79% of steps,
+  lowest radius averaging 0.35 m, never the 0.22 m that would work. It engages
+  only when planning fails, and the optimistic map keeps planning succeeding.
+- This explains why §9.8 could not help: refusing to plan through the unknown
+  does not lower the clearance asked for.
+
+**Exploratory, and labelled as such in the report.** Nothing was registered
+before this run, so no prediction is scored from it and the calibration tally is
+unchanged at thirty-six. The confound is stated: a world with no margin-safe
+route is also just a tight world. Separating them is an experiment to register,
+not a conclusion to draw here.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

@@ -904,6 +904,103 @@ def claims():
              round(fc["dense"]["frontier_plans"] + fc["dense"]["goal_plans"])),
         ]
 
+    # --- the forensic, Phase 6l: what the clutter failures are -------------
+    cp = "results/clutter_forensic.json"
+    if os.path.exists(cp):
+        cj = load(cp)["conditions"]
+        # §9.9's first table: how close it got, where it ended, what it gave
+        # back, and how much of the episode it spent not improving.
+        for cond, group, best, final, back, stall in (
+                ("dense", "arrive", 0.09, 0.09, 0.00, 0.03),
+                ("dense", "fail", 5.89, 7.68, 1.79, 0.58),
+                ("narrow", "arrive", 0.10, 0.10, 0.00, 0.03),
+                ("narrow", "fail", 5.22, 8.87, 3.65, 0.52)):
+            e = cj[cond][group]
+            out += [
+                (f"forensic {cond} {group} best", best, round(e["best_remaining"], 2)),
+                (f"forensic {cond} {group} final", final, round(e["final_remaining"], 2)),
+                (f"forensic {cond} {group} given back", back, round(e["given_back"], 2)),
+                (f"forensic {cond} {group} stall", stall, round(e["stall_fraction"], 2)),
+            ]
+        # A complete route to the goal, held in every failing episode.
+        out += [(f"forensic {c} fail route held", 1.0,
+                 round(cj[c]["fail"]["goal_plans_after"], 3)) for c in ("dense", "narrow")]
+        # The blockage counts, each with the control that makes it readable.
+        for cond, blocked, truth, phantom in (("dense", 23.8, 29.9, 8.8),
+                                              ("narrow", 26.3, 42.1, 8.9)):
+            e = cj[cond]["fail"]
+            out += [
+                (f"forensic {cond} map blocks", blocked, round(e["blocked_margin"], 1)),
+                (f"forensic {cond} truth blocks", truth,
+                 round(e["truth_blocked_margin"], 1)),
+                (f"forensic {cond} phantoms", phantom, round(e["phantom_route"], 1)),
+            ]
+
+    # --- the worlds themselves: is the scored route drivable at the margin?
+    mp = "results/margin_audit.json"
+    if os.path.exists(mp):
+        mj = load(mp)
+        out.append(("audit safety margin", 0.18, round(mj["safety_margin"], 2)))
+        for cond, full, half, base, detour, worst in (
+                ("nominal", 0, 0, 0, 1.03, 1.24),
+                ("dense", 6, 1, 0, 1.09, 1.79),
+                ("narrow", 5, 3, 0, 1.17, 1.95)):
+            e = mj["conditions"][cond]
+            out += [
+                (f"audit {cond} no margin route", full, e["no_route_at_full"]),
+                (f"audit {cond} no half route", half, e["no_route_at_half"]),
+                (f"audit {cond} no base route", base, e["no_route_at_base"]),
+                (f"audit {cond} detour", detour, round(e["detour_ratio"], 2)),
+                (f"audit {cond} detour worst", worst, round(e["detour_max"], 2)),
+            ]
+
+    # --- and the join: those are the worlds that fail ----------------------
+    op = "results/margin_overlap.json"
+    if os.path.exists(op):
+        oj = load(op)
+        for cond, safe_n, safe_sr, tight_n, pv, dp in (
+                ("dense", 19, 0.89, 6, 0.00016, 5),
+                ("narrow", 20, 0.75, 5, 0.0047, 4)):
+            e = oj["conditions"][cond]
+            out += [
+                (f"overlap {cond} safe worlds", safe_n, e["margin_safe"]["n"]),
+                (f"overlap {cond} safe success", safe_sr,
+                 round(e["margin_safe"]["success"], 2)),
+                (f"overlap {cond} tight worlds", tight_n, e["no_margin_safe"]["n"]),
+                (f"overlap {cond} tight success", 0.0,
+                 round(e["no_margin_safe"]["success"], 2)),
+                (f"overlap {cond} fisher", pv, round(e["fisher_p"], dp)),
+            ]
+        po = oj["pooled"]
+        out += [
+            ("overlap pooled safe arrive", 32, po["table"][0]),
+            ("overlap pooled safe worlds", 39, po["margin_safe"]["n"]),
+            ("overlap pooled safe success", 0.82, round(po["margin_safe"]["success"], 2)),
+            ("overlap pooled tight worlds", 11, po["no_margin_safe"]["n"]),
+            ("overlap pooled tight arrive", 0, po["table"][2]),
+            # Quoted in §9.9 as 8.5e-07, so pinned at that resolution.
+            ("overlap pooled fisher", 8.5, round(po["fisher_p"] * 1e7, 1)),
+            ("overlap share of failures", 0.61, round(oj["share_of_failures_tight"], 2)),
+            # The two kinds of failure differ in rate, not in mode.
+            ("overlap tight stall", 0.55,
+             round(oj["failure_groups"]["tight"]["stall_fraction"], 2)),
+            ("overlap roomy stall", 0.54,
+             round(oj["failure_groups"]["roomy"]["stall_fraction"], 2)),
+            ("overlap tight given back", 2.43,
+             round(oj["failure_groups"]["tight"]["given_back"], 2)),
+            ("overlap roomy given back", 3.45,
+             round(oj["failure_groups"]["roomy"]["given_back"], 2)),
+            ("overlap tight failures", 11, oj["failure_groups"]["tight"]["n"]),
+            ("overlap roomy failures", 7, oj["failure_groups"]["roomy"]["n"]),
+            # The fallback ladder does not reach the radius that would work.
+            ("overlap tight full margin", 0.79,
+             round(oj["failure_groups"]["tight"]["full_margin_steps"], 2)),
+            ("overlap tight lowest radius", 0.35,
+             round(oj["failure_groups"]["tight"]["min_plan_radius"], 2)),
+            ("overlap tight replans", 145,
+             round(oj["failure_groups"]["tight"]["replans"])),
+        ]
+
     # Every failure in that run is a timeout, not a crash -- §9.8 and §12.
     fd = "results/frontier_diagnostic.json"
     if os.path.exists(fd):
