@@ -226,6 +226,17 @@ class ScanMatcher:
         self.corrections = self.skipped = 0
         self.total_shift = self.last_shift = 0.0
 
+    def invalidate(self) -> None:
+        """Drop the cached likelihood field because the map under it changed.
+
+        The cache is keyed on the map's version counter, which is enough while
+        there is one map that only grows. A back end that rebuilds the map from
+        a corrected trajectory hands over a *different* map whose counter starts
+        again, so the key can collide and the matcher would then score a new map
+        with the old map's field. Rebuilding is rare and this is cheap.
+        """
+        self._field, self._field_version = None, -1
+
     # ------------------------------------------------------------------
     def likelihood_field(self, omap) -> np.ndarray:
         """Mapped surfaces, blurred. Cached against the map's version."""

@@ -23,13 +23,21 @@ from __future__ import annotations
 import numpy as np
 
 from vision_nav.agents.classical import PursuitConfig
-from vision_nav.agents.mapped import MappedPursuitAgent
+from vision_nav.agents.mapped import MappedPursuitAgent, make_sensor
 from vision_nav.envs.robot import RobotConfig, wrap_angle
 from vision_nav.mapping.localisation import (
     DeadReckoning,
     OdometryConfig,
     ScanMatchConfig,
     ScanMatcher,
+)
+from vision_nav.mapping.occupancy import OccupancyMap
+from vision_nav.mapping.posegraph import (
+    PoseGraph,
+    PoseGraphConfig,
+    compose_pose,
+    relative_pose,
+    scan_points,
 )
 
 __all__ = ["LocalisedPursuitAgent"]
@@ -50,11 +58,24 @@ class LocalisedPursuitAgent(MappedPursuitAgent):
                  odometry: OdometryConfig | None = None, scan_matching: bool = False,
                  match_config: ScanMatchConfig | None = None,
                  corroborate: bool = False, commit: bool = False,
-                 frontier: bool = False, relax_on_stall: int = 0) -> None:
+                 frontier: bool = False, relax_on_stall: int = 0,
+                 pose_graph: bool = False,
+                 graph_config: PoseGraphConfig | None = None) -> None:
         super().__init__(config, robot, sensor, noise_std, corroborate, commit,
                          frontier, relax_on_stall)
         self.odometry = odometry
         self.matcher = ScanMatcher(match_config) if scan_matching else None
+        #: The SLAM back end (:mod:`vision_nav.mapping.posegraph`). Off by
+        #: default: every published result runs the front end alone, which is
+        #: what §9.5's 0.1 m and §9.11's error budget were measured on.
+        self.graph = PoseGraph(graph_config) if pose_graph else None
+        #: Every scan of the episode, as ``(keyframe, pose relative to it,
+        #: ranges)``. Kept only with a back end, and only so the map can be
+        #: rebuilt from a corrected trajectory rather than patched.
+        self._history: list[tuple[int, np.ndarray, np.ndarray]] = []
+        self._start_pose: np.ndarray | None = None
+        #: Diagnostic: how many times the map was rebuilt.
+        self.map_rebuilds = 0
         self._odom: DeadReckoning | None = None
         #: Per-step distance and heading between the estimate and the truth.
         #: Diagnostic: computed after the control action has been decided.
@@ -71,6 +92,11 @@ class LocalisedPursuitAgent(MappedPursuitAgent):
         self._odom.reset(pose)
         if self.matcher is not None:
             self.matcher.reset()
+        if self.graph is not None:
+            self.graph.reset()
+        self._history = []
+        self._start_pose = pose.copy()
+        self.map_rebuilds = 0
         self.pose_errors, self.heading_errors = [], []
         # The robot starts where it starts: a real stack defines the map frame
         # by the pose it began at, so the first scan and the first plan are the
@@ -92,11 +118,71 @@ class LocalisedPursuitAgent(MappedPursuitAgent):
         if self.matcher is not None:
             estimate = self.matcher.correct(estimate, ranges, self.map)
             self._odom.pose = estimate.copy()
+        if self.graph is not None:
+            estimate = self._update_graph(estimate, ranges)
         self.map.integrate(estimate, ranges=ranges)
+        if self.graph is not None and self.graph.poses:
+            # Held against the keyframe it was taken near, so an optimisation
+            # that moves that keyframe moves this scan with it.
+            k = len(self.graph.poses) - 1
+            self._history.append((k, relative_pose(self.graph.poses[k], estimate),
+                                  np.asarray(ranges).copy()))
 
         self.pose_errors.append(float(np.linalg.norm(estimate[:2] - truth[:2])))
         self.heading_errors.append(abs(float(wrap_angle(estimate[2] - truth[2]))))
         return self._drive(estimate)
+
+    # ------------------------------------------------------------------
+    def _update_graph(self, estimate: np.ndarray, ranges: np.ndarray) -> np.ndarray:
+        """Keyframe, close a loop, optimise, and carry the estimate across it."""
+        graph = self.graph
+        assert graph is not None and self.map is not None
+        if not graph.due(estimate):
+            return estimate
+        index = graph.add_keyframe(estimate, scan_points(ranges, self.map.sensor))
+        if index >= graph.config.loop_min_gap:
+            graph.find_closure(index)
+        if not graph.due_to_optimise:
+            return estimate
+        # The current estimate is the newest keyframe's pose, so it rides on
+        # that keyframe's correction: take it relative before, put it back after.
+        before = graph.poses[-1].copy()
+        rel = relative_pose(before, estimate)
+        moved = graph.optimise()
+        estimate = compose_pose(graph.poses[-1], rel)
+        self._odom.pose = estimate.copy()
+        if (moved > graph.config.rebuild_threshold
+                and graph.rebuilds < graph.config.max_rebuilds):
+            self._rebuild_map()
+            graph.rebuilds += 1
+        return estimate
+
+    def _rebuild_map(self) -> None:
+        """Re-integrate every stored scan at its corrected pose, into a fresh map.
+
+        The alternative -- move the robot's estimate and keep the map the old
+        poses built -- puts the two in disagreement, and the front end then pulls
+        the pose straight back to the stale map on the next scan. That is how a
+        back end ends up looking inert while fighting itself.
+
+        The rng is seeded exactly as :meth:`MappedPursuitAgent.start_episode`
+        seeds it, and the one scan taken there is the only one re-sampled rather
+        than replayed, so it reproduces bit for bit.
+        """
+        assert self.graph is not None and self._world is not None
+        fresh = OccupancyMap(self._world, make_sensor(self.sensor_kind, self.noise_std),
+                             rng=np.random.default_rng(int(self._world.seed)),
+                             corroborate=self.corroborate)
+        fresh.integrate(self._start_pose)
+        for k, rel, ranges in self._history:
+            fresh.integrate(compose_pose(self.graph.poses[k], rel), ranges=ranges)
+        self.map = fresh
+        if self.matcher is not None:
+            self.matcher.invalidate()
+        self._checked_version = self.map.version
+        # The plan in force was searched on the map that has just been replaced.
+        self._track = None
+        self.map_rebuilds += 1
 
     # ------------------------------------------------------------------
     @property
