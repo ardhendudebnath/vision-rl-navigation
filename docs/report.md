@@ -1439,6 +1439,75 @@ at the accuracy it localises to**. That is a question about the estimator and th
 controller, not about the plan, and it is where §12 now points. The seven clutter
 failures on worlds that had a margin-safe route all along are still unexplained.
 
+### 9.11 The error budget: it holds its line and does not know where the line is
+
+§9.10 offered a reading for why relaxing the clearance recovered nothing: a
+0.22 m robot in a gap under 0.40 m has no room for the pose error §9.5 measured.
+That is a claim about an error budget, so
+[`gap_diagnostic.py`](../scripts/gap_diagnostic.py) measures the three terms in
+the same units, every step:
+
+- **room** — `clearance(true position) − robot_radius`, the lateral error the
+  robot can absorb before touching something;
+- **pose error** — `|estimate − truth|`. The robot steers by the estimate, so
+  wherever that goes, the robot goes;
+- **tracking error** — distance from the *estimate* to the route it is
+  following. This is the controller's own error, measured in the frame the
+  controller works in, so it carries no localisation error at all.
+
+| val, 25 worlds each | n | room at tightest | pose error there | tracking error there | pose > room | tracking > room |
+|---|---|---|---|---|---|---|
+| `dense`, as published, no margin-safe route | 6 | +0.120 m | 0.065 m | 0.039 m | 5.1% | 1.0% |
+| `dense`, relaxed, no margin-safe route | 6 | **+0.017 m** | **0.125 m** | 0.021 m | 28.3% | 3.9% |
+| `dense`, relaxed, collided | 8 | +0.002 m | 0.118 m | 0.011 m | 20.9% | 3.9% |
+| `dense`, relaxed, arrived | 16 | +0.256 m | 0.061 m | 0.026 m | 0.9% | 0.1% |
+| `narrow`, as published, no margin-safe route | 5 | +0.170 m | 0.067 m | 0.003 m | 0.0% | 0.0% |
+| `narrow`, relaxed, no margin-safe route | 5 | **+0.025 m** | **0.065 m** | 0.003 m | 36.0% | 2.0% |
+| `narrow`, relaxed, collided | 3 | +0.003 m | 0.065 m | 0.036 m | 18.8% | 3.7% |
+| `narrow`, relaxed, arrived | 16 | +0.240 m | 0.052 m | 0.016 m | 3.4% | 0.6% |
+
+**The controller is the smaller error in every row of this table** — 0.003 m to
+0.039 m at the tightest moment, always below the pose error beside it, and over
+the whole episode it exceeds the room on 2–4% of steps against the pose error's
+20–36%. In the tight worlds it is not that the controller is comfortable: where
+the room is 0.017 m, a tracking error of 0.021 m does not fit either. It is that
+the two errors differ by a factor of three to ten, so closing the controller's
+would leave the episode failing on the other one. At the collisions the
+controller is within 0.011 m (`dense`) and 0.036 m (`narrow`) of its own route,
+while the route itself sits 0.118 m and 0.065 m from where the robot actually
+was. **The robot was close to its line, and the line was in the wrong place.**
+
+**The pose is the problem, by close to an order of magnitude.** Where the robot
+arrives it has about 0.25 m of room and is wrong about its position by 0.05–0.06
+m, which is comfortable. In the tight worlds with the clearance relaxed the room
+falls to 0.017 m (`dense`) and 0.025 m (`narrow`) while the pose error stays at
+0.065–0.125 m — three to seven times the room it has. Its belief is wrong by more
+than the gap allows on 28% of steps on `dense` and 36% on `narrow`, against 2–4%
+for the controller. No controller, however good, recovers an episode in which the
+robot is somewhere other than it believes by more than the space it has.
+
+**And the published stack simply does not go in.** With the margin intact, the
+tight worlds bottom out at 0.120 m and 0.170 m of room, and the budget is never
+exceeded on `narrow` at all. That is §9.9's finding from the inside: the
+published planner refuses the gap, so the error budget never gets tested, and
+relaxing the clearance is what exposes it.
+
+**One limitation of the comparison, stated rather than buried.** Room is a
+distance to the nearest obstacle and pose error is compared to it as a magnitude,
+but only the component across the corridor can push the robot into a wall. An
+error pointing along the corridor is counted here as though it were lateral, so
+the exceedance shares above are upper bounds. The ordering they establish —
+localisation error an order of magnitude above tracking error, against a room of
+0.02 m — does not depend on that, because the same convention is applied to both
+errors and the controller's is the smaller one either way.
+
+**So the repair is the pose estimator.** §12's item 3 already asks for a back
+end, on the argument that the 360-beam front end localises to about 0.1 m with no
+pose graph at all (§9.5). This is that argument with a target attached: 0.1 m is
+fine in the open, where there is 0.25 m of room, and it is the whole failure in a
+gap that leaves 0.02 m. Nothing here is registered — it is a diagnostic, and the
+calibration tally is unchanged.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -1652,7 +1721,7 @@ In order of expected information per GPU-hour:
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 501 tests
+pytest                                        # 503 tests
 python scripts/check_docs.py                  # every doc link resolves
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix

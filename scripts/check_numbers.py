@@ -1048,6 +1048,62 @@ def claims():
              sum(c["collisions"][0] for c in xj["conditions"].values())),
         ]
 
+    # --- the error budget, Phase 6n: pose against controller in a gap ------
+    gp = "results/gap_diagnostic.json"
+    if os.path.exists(gp):
+        gj = load(gp)["conditions"]
+        # §9.11's table, every row: room at the tightest moment of the episode
+        # and the two errors measured against it.
+        budget = {
+            ("dense", "as_published", "tight"): (6, 0.120, 0.065, 0.039, 5.1, 1.0),
+            ("dense", "relaxed", "tight"): (6, 0.017, 0.125, 0.021, 28.3, 3.9),
+            ("dense", "relaxed", "collide"): (8, 0.002, 0.118, 0.011, 20.9, 3.9),
+            ("dense", "relaxed", "arrive"): (16, 0.256, 0.061, 0.026, 0.9, 0.1),
+            ("narrow", "as_published", "tight"): (5, 0.170, 0.067, 0.003, 0.0, 0.0),
+            ("narrow", "relaxed", "tight"): (5, 0.025, 0.065, 0.003, 36.0, 2.0),
+            ("narrow", "relaxed", "collide"): (3, 0.003, 0.065, 0.036, 18.8, 3.7),
+            ("narrow", "relaxed", "arrive"): (16, 0.240, 0.052, 0.016, 3.4, 0.6),
+        }
+        for (cond, arm, group), (n, room, pe, te, pex, tex) in budget.items():
+            e = gj[cond][arm][group]
+            tag = f"budget {cond} {arm} {group}"
+            out += [
+                (f"{tag} n", n, e["n"]),
+                (f"{tag} room", room, round(e["room_at_tightest"], 3)),
+                (f"{tag} pose err", pe, round(e["pose_err_at_tightest"], 3)),
+                (f"{tag} tracking err", te, round(e["track_err_at_tightest"], 3)),
+                (f"{tag} pose exceeds", pex, round(100 * e["pose_exceeds_room"], 1)),
+                (f"{tag} tracking exceeds", tex,
+                 round(100 * e["track_exceeds_room"], 1)),
+            ]
+        # The claim §9.11 turns on, checked mechanically rather than asserted:
+        # at the tightest moment of every group measured -- all sixteen, not
+        # just the eight printed -- the controller's own error is the smaller
+        # of the two.
+        rows = [gj[c][a][g] for c in ("dense", "narrow")
+                for a in ("as_published", "relaxed")
+                for g in ("tight", "roomy", "arrive", "collide")
+                if gj[c][a].get(g)]
+        out.append(("budget tracking always under pose", 1.0,
+                    float(all(r["track_err_at_tightest"] < r["pose_err_at_tightest"]
+                              for r in rows))))
+        # The exceedance ordering holds on every row §9.11 prints, and there is
+        # exactly one row in the full set where it does not: `narrow` as
+        # published on the margin-safe worlds, where the pose error never
+        # exceeds the room and the controller does on 0.03% of steps. Pinned as
+        # one exception rather than asserted away, because a blanket version of
+        # this claim was written first and this check is what refused it.
+        printed = [gj[c][a][g] for (c, a, g) in budget]
+        out += [
+            ("budget pose exceeds more often in the table", 1.0,
+             float(all(r["track_exceeds_room"] <= r["pose_exceeds_room"]
+                       for r in printed))),
+            ("budget exceedance exceptions", 1,
+             sum(1 for r in rows if r["track_exceeds_room"] > r["pose_exceeds_room"])),
+            ("budget exception tracking share", 0.03,
+             round(100 * gj["narrow"]["as_published"]["roomy"]["track_exceeds_room"], 2)),
+        ]
+
     # Every failure in that run is a timeout, not a crash -- §9.8 and §12.
     fd = "results/frontier_diagnostic.json"
     if os.path.exists(fd):

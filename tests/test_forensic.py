@@ -154,6 +154,37 @@ def test_the_trigger_reads_the_estimate_and_never_the_truth():
         float(np.linalg.norm(agent.pose[:2] - agent.map.goal)), abs=0.3)
 
 
+def test_distance_to_the_route_is_measured_to_the_nearest_point_on_it():
+    from gap_diagnostic import to_track
+
+    track = np.array([[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]])
+    assert to_track(np.array([1.0, 0.5]), track) == pytest.approx(0.5)
+    assert to_track(np.array([1.0, 0.0]), track) == pytest.approx(0.0)
+    assert np.isnan(to_track(np.array([0.0, 0.0]), None))
+    assert np.isnan(to_track(np.array([0.0, 0.0]), np.zeros((0, 2))))
+
+
+def test_room_is_what_is_left_after_the_robot_fills_the_gap():
+    """The budget's denominator. Clearance is signed distance to the nearest
+    obstacle, so subtracting the radius gives the lateral error the robot can
+    absorb, and it must go negative where the robot would be touching."""
+    world = _world([[5.0, 4.5, 5.6, 7.5]])
+    radius = world.config.robot_radius
+    open_floor = float(world.clearance(np.array([2.0, 2.0]),
+                                       include_dynamic=False)) - radius
+    against_wall = float(world.clearance(np.array([5.3, 6.0]),
+                                         include_dynamic=False)) - radius
+    assert open_floor > 0.5
+    assert against_wall < 0.0, "inside the box the robot cannot fit"
+
+
+# The control that makes the decomposition readable -- with perfect encoders
+# the estimate *is* the truth, so a non-zero pose error would be the
+# measurement's own artefact -- is already pinned by
+# ``test_localisation.test_perfect_encoders_reproduce_the_robots_own_pose_exactly``
+# and is not duplicated here.
+
+
 def test_the_blockage_control_uses_the_same_inflation_on_both_sides():
     """The measurement §9.9 rests on: at one inflation the world blocks what it
     blocks, and a map that matches the world must not look worse than it for

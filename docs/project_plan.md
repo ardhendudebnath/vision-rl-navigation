@@ -3117,6 +3117,55 @@ part right. Two of the six held are bounds rather than directions.
 The rule stays, off by default, with an identity control driving both arms and
 pinning that the actions match; `relax_on_stall` is not used by any scored run.
 
+## Phase 6n — The error budget: the pose, not the controller
+
+§9.10 read the failed clearance rule as a budget problem: a 0.22 m robot in a
+sub-0.40 m gap has no room for the pose error §9.5 measured.
+`gap_diagnostic.py` measures the three terms in the same units every step --
+room (`clearance - robot_radius`), pose error (`|estimate - truth|`), and
+tracking error (estimate to its own route, so free of localisation error). Full
+treatment in report §9.11.
+
+| val, 25 worlds each | n | room at tightest | pose err | tracking err | pose > room |
+|---|---|---|---|---|---|
+| `dense`, as published, tight | 6 | +0.120 m | 0.065 m | 0.039 m | 5.1% |
+| `dense`, relaxed, tight | 6 | +0.017 m | 0.125 m | 0.021 m | 28.3% |
+| `dense`, relaxed, collided | 8 | +0.002 m | 0.118 m | 0.011 m | 20.9% |
+| `dense`, relaxed, arrived | 16 | +0.256 m | 0.061 m | 0.026 m | 0.9% |
+| `narrow`, as published, tight | 5 | +0.170 m | 0.067 m | 0.003 m | 0.0% |
+| `narrow`, relaxed, tight | 5 | +0.025 m | 0.065 m | 0.003 m | 36.0% |
+| `narrow`, relaxed, collided | 3 | +0.003 m | 0.065 m | 0.036 m | 18.8% |
+| `narrow`, relaxed, arrived | 16 | +0.240 m | 0.052 m | 0.016 m | 3.4% |
+
+- **The controller is the smaller error in every row**, including the crashes:
+  0.003-0.039 m at the tightest moment, always below the pose error beside it,
+  and exceeding the room on 2-4% of steps against the pose error's 20-36%. Not
+  that it is comfortable -- where the room is 0.017 m a 0.021 m tracking error
+  does not fit either -- but that the two differ by three to ten times, so
+  fixing the controller leaves the episode failing on the other error.
+- One exception in the full set, pinned rather than asserted away: `narrow` as
+  published on margin-safe worlds, where the pose error never exceeds the room
+  and the controller does on 0.03% of steps. A blanket version of the claim was
+  written first and `check_numbers.py` refused it.
+- **The pose is, by close to an order of magnitude.** Room falls to 0.017 m
+  (`dense`) and 0.025 m (`narrow`) while pose error stays at 0.065-0.125 m. The
+  belief is wrong by more than the gap allows on 28% and 36% of steps, against
+  2-4% for the controller.
+- Arrivals have ~0.25 m of room and ~0.05-0.06 m of pose error: comfortable.
+  The budget only binds in the gaps.
+- **The published stack never goes in**: with the margin intact the tight worlds
+  bottom out at 0.120 m and 0.170 m of room and `narrow` never exceeds the
+  budget at all. §9.9's finding from the inside.
+- Limitation stated in the report: room is a distance and pose error is compared
+  as a magnitude, so an error along the corridor is counted as if lateral. The
+  exceedance shares are upper bounds; the ordering does not depend on it, since
+  the same convention is applied to both errors.
+- Target for §12's back end: 0.1 m of pose accuracy is fine where there is
+  0.25 m of room and is the whole failure where there is 0.02 m.
+
+Diagnostic, nothing registered, calibration unchanged at forty. Nothing ran on
+the test worlds.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**
