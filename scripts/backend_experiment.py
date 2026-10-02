@@ -138,6 +138,12 @@ def main(argv=None) -> int:
     p.add_argument("--out", default="results/backend_experiment.json")
     p.add_argument("--from-results", default=None,
                    help="Re-score a finished run instead of driving it again.")
+    p.add_argument("--resume", action="store_true",
+                   help="Keep cells already present in --out and drive only the "
+                        "rest. Episodes are deterministic given a seed, so a "
+                        "resumed run is the same run; this exists because a "
+                        "forty-minute job that writes only at the end loses "
+                        "everything to one interruption.")
     args = p.parse_args(argv)
 
     audit = json.loads(Path(args.audit).read_text(encoding="utf-8"))["conditions"]
@@ -146,11 +152,23 @@ def main(argv=None) -> int:
     finished = (json.loads(Path(args.from_results).read_text(encoding="utf-8"))
                 if args.from_results else None)
     rng = np.random.default_rng(20260927)
+    out = Path(args.out)
     report: dict = {"split": "val", "episodes": args.episodes,
                     "registered": PREDICTION, "cells": {}}
+    done: dict = {}
+    if args.resume and out.exists():
+        done = json.loads(out.read_text(encoding="utf-8")).get("cells", {})
 
     for cond, sensor in CELLS:
         if cond not in args.cells:
+            continue
+        if cond in done:
+            report["cells"][cond] = done[cond]
+            e = done[cond]
+            print(f"{cond:8s} ({e['sensor']})  kept from a previous run: "
+                  f"SR {e['success'][0]:.2f} -> {e['success'][1]:.2f}, "
+                  f"pose p95 {e['pose_err_p95'][0]:.3f} -> "
+                  f"{e['pose_err_p95'][1]:.3f} m", flush=True)
             continue
         if finished is not None:
             arms = {k: finished["cells"][cond][k]["episodes"]
@@ -192,6 +210,10 @@ def main(argv=None) -> int:
                 "pose_err_p95": float(np.mean([rows[s]["pose_err_p95"] for s in marked])),
             }
         report["cells"][cond] = entry
+        # Written after every cell, so an interruption costs one cell and not
+        # the whole run.
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
         print(f"{cond:8s} ({sensor})  SR {a.mean():.2f} -> {b.mean():.2f} "
               f"({b.mean() - a.mean():+.3f})  McNemar p={pv:.3f} "
@@ -247,7 +269,6 @@ def main(argv=None) -> int:
               f"+/-{PREDICTION['nominal_band']}: "
               f"{'HELD' if ep['nominal_held'] else 'FAILED'}")
 
-    out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(f"\nWrote {out}")

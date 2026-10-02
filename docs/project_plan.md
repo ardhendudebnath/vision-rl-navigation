@@ -3166,6 +3166,57 @@ treatment in report §9.11.
 Diagnostic, nothing registered, calibration unchanged at forty. Nothing ran on
 the test worlds.
 
+## Phase 6o — The SLAM back end: helps everywhere, not where it was asked to
+
+`src/vision_nav/mapping/posegraph.py` is the pose graph this stack had been missing: keyframes
+on upstream slam_toolbox's rule and defaults, odometry edges, loop closures
+matched scan against scan (never against the map, which the drift has already
+corrupted), Gauss-Newton on SE(2) with the start pose as the gauge, and a map
+**rebuilt** from the corrected trajectory rather than patched. Four endpoints
+registered before the arm ran on any val seed. Full treatment in report §9.12.
+
+| val, 25 worlds each | success | Δ | McNemar *p* | pose err p95 | closures |
+|---|---|---|---|---|---|
+| `sparse`, 32 beams | 0.44 → 0.44 | +0.000 | 1.000 | 0.637 → 0.636 m | 20.2 |
+| `dense`, 360 | 0.68 → 0.68 | +0.000 | 1.000 | 0.133 → 0.089 m | 13.5 |
+| `narrow`, 360 | 0.60 → 0.68 | +0.080 | 0.500 (2 won / 0 lost) | 0.106 → 0.089 m | 12.2 |
+| `nominal`, 360 | 0.96 → 1.00 | +0.040 | 1.000 (1 won / 0 lost) | 0.119 → 0.101 m | 1.6 |
+
+- **Clutter pose error p95 down 26%** (0.119 → 0.089 m), against 25%
+  registered. Mean error down 30% on `dense`, final error down 37%.
+- **The first change in Phases 6j-6n that costs nothing**: 3 episodes won, 0
+  lost over 100 paired episodes, and zero collisions in either arm, against the
+  clearance rule's twelve.
+- **All three wins are believed-arrival failures** -- `narrow` 10009
+  (0.50 → 0.34 m), `narrow` 10019 (3.05 → 0.32 m), `nominal` 10013
+  (0.58 → 0.35 m), all stopping outside a 0.35 m tolerance thinking they had
+  arrived. §9.3's failure mode, and a better pose is exactly its repair.
+- **The tight gaps are untouched, as registered**: 0 of 11 recovered, pose p95
+  there 0.128 m (`dense`) and 0.082 m (`narrow`) against 0.017-0.025 m of room.
+- **The registered endpoint failed, informatively.** `sparse` at 32 beams is
+  inert to a millimetre while accepting 20.2 closures an episode, solving 12.9
+  times and moving the trajectory 0.252 m in total. The front end there is
+  already 0.472 m lost, so the closures link two badly wrong poses and the
+  constraints are wrong too. A back end redistributes error; it cannot invent
+  information the scans never carried. That is the opposite of what §12 guessed.
+- **One prediction failed by helping**: `nominal` registered inside ±0.03, came
+  in at +0.040 and reached 1.00. Counted as failed because a bound is a bound.
+
+### Calibration
+
+41. **`sparse` at 32 beams improves by at least +0.05** -- **failed**, +0.000.
+42. **Clutter pose p95 falls at least 25%** -- **held**, 26%. Threshold set from
+    a three-world train-band check (0.091 → 0.072) and disclosed as such.
+43. **At most 2 of the 11 tight worlds recovered** -- **held**, 0. The only
+    negative prediction in the project, and it held for its arithmetic.
+44. **`nominal` inside ±0.03** -- **failed** at +0.040, by helping.
+
+Running total: forty-four predictions, eight held, twenty failed outright,
+sixteen part right.
+
+Off by default with an identity control; every published number is still the
+front end alone. Nothing ran on the test worlds.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

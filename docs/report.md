@@ -1508,6 +1508,76 @@ fine in the open, where there is 0.25 m of room, and it is the whole failure in 
 gap that leaves 0.02 m. Nothing here is registered — it is a diagnostic, and the
 calibration tally is unchanged.
 
+### 9.12 The back end: it helps everywhere, and not where it was asked to
+
+Everything above runs a **front end** alone. §12 asked for a back end on two
+grounds — the 32-beam `sparse` cell, where slam_toolbox's back end beat this
+stack 0.690 to 0.570 (§9.4), and §9.11's error budget, where the pose is what
+fails in a tight gap. [`posegraph.py`](../src/vision_nav/mapping/posegraph.py)
+is that back end: keyframes on upstream slam_toolbox's rule and its own default
+thresholds, odometry edges, loop closures matched **scan against scan** rather
+than against the map (the map is what the drift has already corrupted), and
+Gauss-Newton least squares on SE(2) with the start pose as the gauge. When a
+solve moves the poses past a threshold the map is **rebuilt** from the stored
+scans at their corrected poses, because moving the estimate and keeping the old
+map leaves the front end to pull the pose straight back to the stale map. All
+four endpoints were registered in
+[`backend_experiment.py`](../scripts/backend_experiment.py) before the arm ran
+on any val seed.
+
+| val, 25 worlds each | success | Δ | McNemar *p* | pose error p95 | keyframes | closures |
+|---|---|---|---|---|---|---|
+| `sparse`, 32 beams | 0.44 → 0.44 | +0.000 | 1.000 | 0.637 → 0.636 m | 40 | 20.2 |
+| `dense`, 360 | 0.68 → 0.68 | +0.000 | 1.000 | **0.133 → 0.089 m** | 31 | 13.5 |
+| `narrow`, 360 | 0.60 → 0.68 | +0.080 | 0.500 (2 won / 0 lost) | 0.106 → 0.089 m | 30 | 12.2 |
+| `nominal`, 360 | 0.96 → 1.00 | +0.040 | 1.000 (1 won / 0 lost) | 0.119 → 0.101 m | 19 | 1.6 |
+
+**It does what a back end is for.** Pooled over clutter the pose error p95 falls
+26%, from 0.119 m to 0.089 m, which is the registered 25% by a margin of one
+point. Per-episode mean error falls 30% on `dense` and the error at the moment
+the episode ends falls 37%. And it is the first change tried in §9.7–§9.10 that
+never costs anything: across all four cells and 100 paired episodes it wins
+three and loses none, with **zero collisions in either arm** — against the
+clearance rule's twelve.
+
+**The three episodes it wins are all the same failure, and it is the right
+one.** Seeds `narrow` 10009 (0.50 m → 0.34 m from the goal), `narrow` 10019
+(3.05 m → 0.32 m) and `nominal` 10013 (0.58 m → 0.35 m) are all robots that had
+stopped just outside a 0.35 m tolerance **believing they had arrived** — §9.3's
+failure mode, which §9.7 found surviving into clutter. A better pose is exactly
+the repair for it: the robot now knows it has not arrived, and keeps going.
+
+**It does not touch the tight gaps, as registered.** None of the eleven worlds
+with no margin-safe route is recovered. The pose error p95 on those worlds is
+0.128 m (`dense`) and 0.082 m (`narrow`), against the 0.017–0.025 m of room
+§9.11 measured — still four to six times too large. The negative prediction held,
+and it held for the reason it was made: a pose graph redistributes error over a
+trajectory, and 0.089 m is not 0.02 m.
+
+**The registered endpoint failed, and the most interesting number is why.** On
+`sparse` at 32 beams the back end is inert to a millimetre: 0.637 m → 0.636 m,
+success unchanged. It is not idle — it accepts 20.2 closures an episode, solves
+12.9 times, and moves the trajectory a total of 0.252 m. But the front end there
+is already lost, at 0.472 m of mean pose error, so the closures are matched
+between two poses that are both badly wrong and the constraints they contribute
+are wrong with them. **A back end redistributes error; it cannot invent
+information the scans do not carry.** At 32 beams on sparse worlds there is not
+enough geometry in a scan to constrain a pose, and no amount of graph
+optimisation supplies it. That is a sharper statement than §12's guess that the
+sparse cell was where a back end would pay, and it is the opposite of it.
+
+**And one prediction failed by helping.** `nominal` was registered to stay inside
+±0.03 and came in at +0.040, reaching 1.00: the band was broken upward. It is
+counted as a failed prediction because the number fell outside the registered
+interval, which is what a bound means, but it is not a cost and the report says
+so rather than quietly recording a miss.
+
+Two of four registered claims held. The back end stays **off by default** — every
+number elsewhere in this report is the front end alone, with an identity control
+pinning that the arms agree step for step when it is off. Carrying it to the
+test worlds would change the headline numbers of this report, so it needs its own
+registered endpoint rather than a decision taken here; §12 says what that is.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -1556,15 +1626,19 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of forty predictions made in advance, six held. Four were
+**Calibration.** Of forty-four predictions made in advance, eight held. Four were
 derived from a *measurement* — two to within 0.021 and 0.001, one on both
 magnitude and mechanism, and one whose magnitude came from measuring the
-estimator it was about. The other two are weaker in kind and are counted as held
+estimator it was about. Two more are weaker in kind and are counted as held
 anyway: §9.8 and §9.10 each registered a *bound* on what a treatment would cost
 rather than a direction, and both came in at zero. A bound is the easiest form of
 prediction to satisfy, which is worth saying plainly in a tally that otherwise
-counts point forecasts. Eighteen from extrapolation, intuition, arithmetic or a
-post hoc description failed outright; sixteen got part right and part wrong. Confidence
+counts point forecasts. The last two are §9.12's, and one of them is the only
+*negative* prediction in the set — that a back end would not recover the tight
+gaps — which held for the arithmetic it was made from. Twenty from extrapolation,
+intuition, arithmetic or a post hoc description failed outright; sixteen got part
+right and part wrong. One of those twenty failed by helping: §9.12 registered
+`nominal` to stay inside ±0.03 and it improved by 0.040. Confidence
 of expression was identical throughout. Three rules came out of them; the
 record of each prediction is in [`project_plan.md`](project_plan.md). The
 fifteenth also broke this report's own stated practice: its null was registered
@@ -1692,11 +1766,19 @@ In order of expected information per GPU-hour:
    beams (0.890 against Nav2's 1.000). Clearing evidence that scales with how
    often a cell is seen through, rather than one vote per scan, is the next
    thing to try.
-3. **Give it a back end — for a sparse sensor only.** At 360 beams this
-   stack's front end localises to about 0.1 m on noise-free worlds with no
-   pose graph at all (§9.5). The back end is a question for the 32-beam
-   scanner, where slam_toolbox's did better on `sparse` (0.690 against 0.570)
-   and worse in tight corridors, so it is not the whole answer there either.
+3. **Run the back end on the test worlds, with its own registered endpoint.**
+   It exists now (§9.12) and it is the only change in §9.7–§9.12 that costs
+   nothing: on val it wins three episodes of 100, loses none, collides never,
+   and cuts the clutter pose error p95 by 26%. Everything published here is
+   still the front end alone, so carrying it across would move the headline
+   numbers of this report, and that needs registering before it is run rather
+   than deciding after. Note what it did *not* do, because it redirects the
+   guess this item used to make: at 32 beams on `sparse` it is inert to a
+   millimetre, since the front end there is already 0.472 m lost and a graph
+   can only redistribute error, not invent information the scans never carried.
+   A sparse-sensor back end is therefore not the answer for a sparse sensor;
+   a better *front* end is, which means more geometry per scan rather than more
+   inference over poses.
 4. **An encoder that can measure a gap.** The RGB features carry the
    clearance ahead as well as a depth vector does and the *width* of the gap
    past it not at all (§8.5). The first convolution strides 4 across a

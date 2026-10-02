@@ -1104,6 +1104,74 @@ def claims():
              round(100 * gj["narrow"]["as_published"]["roomy"]["track_exceeds_room"], 2)),
         ]
 
+    # --- the SLAM back end, Phase 6o -------------------------------------
+    bp = "results/backend_experiment.json"
+    if os.path.exists(bp):
+        bj = load(bp)
+        bc = bj["cells"]
+        for cond, sensor, before, after, gain, p95a, p95b, closures in (
+                ("sparse", "lidar32", 0.44, 0.44, 0.000, 0.637, 0.636, 20.2),
+                ("dense", "lidar360", 0.68, 0.68, 0.000, 0.133, 0.089, 13.5),
+                ("narrow", "lidar360", 0.60, 0.68, 0.080, 0.106, 0.089, 12.2),
+                ("nominal", "lidar360", 0.96, 1.00, 0.040, 0.119, 0.101, 1.6)):
+            e = bc[cond]
+            out += [
+                (f"backend {cond} sensor", 1.0, float(e["sensor"] == sensor)),
+                (f"backend {cond} front end", before, round(e["success"][0], 2)),
+                (f"backend {cond} back end", after, round(e["success"][1], 2)),
+                (f"backend {cond} gain", gain, round(e["gain"], 3)),
+                (f"backend {cond} p95 before", p95a, round(e["pose_err_p95"][0], 3)),
+                (f"backend {cond} p95 after", p95b, round(e["pose_err_p95"][1], 3)),
+                (f"backend {cond} closures", closures, round(e["closures"], 1)),
+            ]
+        # McNemar and the won/lost counts §9.12 prints.
+        out += [
+            ("backend narrow mcnemar", 0.500, round(bc["narrow"]["mcnemar_p"], 3)),
+            ("backend narrow won", 2, bc["narrow"]["won"]),
+            ("backend narrow lost", 0, bc["narrow"]["lost"]),
+            ("backend nominal won", 1, bc["nominal"]["won"]),
+            ("backend nominal lost", 0, bc["nominal"]["lost"]),
+        ]
+        ep = bj["endpoints"]
+        out += [
+            ("backend clutter p95 before", 0.119, round(ep["clutter_pose_p95"][0], 3)),
+            ("backend clutter p95 after", 0.089, round(ep["clutter_pose_p95"][1], 3)),
+            ("backend clutter reduction", 26,
+             round(100 * ep["clutter_pose_reduction"])),
+            ("backend tight recovered", 0, ep["tight_recovered"]),
+            ("backend tight of", 11, ep["tight_total"]),
+            # Two held, two failed, and which.
+            ("backend sparse endpoint held", 0, int(ep["sparse_held"])),
+            ("backend pose endpoint held", 1, int(ep["pose_held"])),
+            ("backend tight endpoint held", 1, int(ep["tight_held"])),
+            ("backend nominal endpoint held", 0, int(ep["nominal_held"])),
+        ]
+        # The claim that it never costs anything: no arm of any cell collides,
+        # and no episode is lost anywhere.
+        cells = list(bc.values())
+        out += [
+            ("backend collisions", 0,
+             sum(int(r["collision"]) for c in cells for k in ("front_end", "back_end")
+                 for r in c[k]["episodes"])),
+            ("backend episodes lost", 0, sum(c["lost"] for c in cells)),
+            ("backend episodes won", 3, sum(c["won"] for c in cells)),
+            ("backend arrived front end", 67,
+             sum(int(r["success"]) for c in cells for r in c["front_end"]["episodes"])),
+            ("backend arrived back end", 70,
+             sum(int(r["success"]) for c in cells for r in c["back_end"]["episodes"])),
+            # Sparse is not idle, it is misinformed: solves and total correction.
+            ("backend sparse correction", 0.252,
+             round(st.mean(r["correction"] for r in
+                           bc["sparse"]["back_end"]["episodes"]), 3)),
+            ("backend sparse front end error", 0.472,
+             round(st.mean(r["pose_err_mean"] for r in
+                           bc["sparse"]["front_end"]["episodes"]), 3)),
+            ("backend tight p95 dense", 0.128,
+             round(bc["dense"]["tight"]["pose_err_p95"], 3)),
+            ("backend tight p95 narrow", 0.082,
+             round(bc["narrow"]["tight"]["pose_err_p95"], 3)),
+        ]
+
     # Every failure in that run is a timeout, not a crash -- §9.8 and §12.
     fd = "results/frontier_diagnostic.json"
     if os.path.exists(fd):
