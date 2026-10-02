@@ -39,9 +39,12 @@ from vision_nav.training.env_factory import build_env_config
 
 #: ``(condition, sensor)``. The sparse cell is at 32 beams because that is where
 #: §12's question lives; the rest are at 360, which is where §9.11 measured the
-#: error budget.
+#: error budget. ``large`` and ``noisy_lidar`` are driven only on the test band,
+#: where the comparison is against the published Result 1 row rather than
+#: against a val diagnostic.
 CELLS = (("sparse", "lidar32"), ("dense", "lidar360"),
-         ("narrow", "lidar360"), ("nominal", "lidar360"))
+         ("narrow", "lidar360"), ("nominal", "lidar360"),
+         ("large", "lidar360"), ("noisy_lidar", "lidar360"))
 CLUTTER = ("dense", "narrow")
 
 #: Registered before the arm had been run on any val seed. Four claims, chosen
@@ -75,6 +78,41 @@ PREDICTION = {
     "clutter_pose_p95_reduction_at_least": 0.25,
     "tight_recovered_at_most": 2,
     "nominal_band": 0.03,
+}
+
+#: Registered before the back end was run on a single **test** seed, after the
+#: val result above and at the user's instruction to carry it across. This moves
+#: the headline numbers of the report, so it is registered rather than decided
+#: afterwards.
+#:
+#: Every forecast here is derived from the val measurement of the same
+#: conditions with the same sensor, which is the one kind of extrapolation §10
+#: found reliable: the four measurement-derived predictions in this project held,
+#: and the ones that failed carried a measurement across a regime boundary.
+#: Nothing here crosses one except the seed band itself.
+#:
+#:   1. **Pooled success over the six cells changes by between 0.00 and +0.05.**
+#:      Val won 3 episodes of 100 and lost none, so the claim is that it helps a
+#:      little and harms nothing. The endpoint, and the first clause matters as
+#:      much as the second: a *fall* fails this.
+#:   2. **Clutter pose error p95 falls by 20% to 32%.** Val gave 26% on the same
+#:      two conditions at the same beam count.
+#:   3. **At most 2 collisions across all cells, with the back end.** Val had
+#:      zero in 200 episodes, and the front end has never collided in any
+#:      measurement in this report.
+#:   4. **`sparse` at 32 beams stays inside ±0.03.** Val gave +0.000, and §9.12's
+#:      mechanism says why -- a front end 0.472 m lost gives a graph nothing to
+#:      work with -- so this should replicate rather than merely repeat.
+#:
+#: The way this fails: 100 worlds per condition is four times val's 25, so an
+#: effect that was three episodes out of a hundred may simply not be there. A
+#: pooled gain of exactly 0.000 would satisfy claim 1's letter while saying the
+#: val result was noise, and the report is to say so if that is what happens.
+TEST_PREDICTION = {
+    "pooled_gain_between": [0.00, 0.05],
+    "clutter_pose_p95_reduction_between": [0.20, 0.32],
+    "collisions_at_most": 2,
+    "sparse_band": 0.03,
 }
 
 
@@ -130,12 +168,121 @@ def episode(env, seed: int, cfg, sensor: str, back_end: bool) -> dict:
     }
 
 
+def reproduces_published(report: dict,
+                         path: str = "results/corroboration_experiment.json") -> dict:
+    """The control: the front-end arm must be the published arm, per episode.
+
+    Phase 6i's ``matched_corroborated`` is exactly this stack at 360 beams --
+    scan matching, corroboration, the same odometry -- on the same held-out
+    bands, and it saved every episode's outcome. If the front end here does not
+    reproduce it episode for episode, the back end is being compared against
+    something other than the numbers the report publishes, and nothing below
+    means what it says. ``sparse`` is excluded: it runs at 32 beams here, and
+    Phase 6i ran it at 360.
+    """
+    published = json.loads(Path(path).read_text(encoding="utf-8"))["conditions"]
+    out = {}
+    for cond, cell in report["cells"].items():
+        if cell["sensor"] != "lidar360" or cond not in published:
+            continue
+        theirs = published[cond]["success_per_episode"]["matched_corroborated"]
+        mine = [int(r["success"]) for r in cell["front_end"]["episodes"]]
+        n = min(len(mine), len(theirs))
+        out[cond] = {"matched": int(sum(a == b for a, b in zip(mine[:n], theirs[:n],
+                                                                  strict=True))),
+                     "of": n}
+    return out
+
+
+def score_test(report: dict, rng) -> dict:
+    """The four claims registered in ``TEST_PREDICTION``, scored."""
+    reg = TEST_PREDICTION
+    cells = report["cells"]
+    ep: dict = {}
+    ep["reproduction"] = reproduces_published(report)
+    ep["reproduces"] = bool(ep["reproduction"]) and all(
+        v["matched"] == v["of"] for v in ep["reproduction"].values())
+
+    # 1. Pooled over every cell, paired episode by episode.
+    a = np.concatenate([[r["success"] for r in c["front_end"]["episodes"]]
+                        for c in cells.values()]).astype(bool)
+    b = np.concatenate([[r["success"] for r in c["back_end"]["episodes"]]
+                        for c in cells.values()]).astype(bool)
+    pv, lost, won = mcnemar_p(a, b)
+    gain = float(b.mean() - a.mean())
+    lo, hi = reg["pooled_gain_between"]
+    ep.update({"pooled_success": [float(a.mean()), float(b.mean())],
+               "pooled_gain": gain, "pooled_mcnemar_p": pv,
+               "pooled_won": won, "pooled_lost": lost, "pooled_n": int(len(a)),
+               "pooled_ci": paired_ci(a.astype(float), b.astype(float), rng),
+               "pooled_held": bool(lo <= gain <= hi)})
+
+    # 2. Pose error p95 on the clutter pair.
+    clutter = [cells[c] for c in CLUTTER if c in cells]
+    if clutter:
+        before = float(np.mean([c["pose_err_p95"][0] for c in clutter]))
+        after = float(np.mean([c["pose_err_p95"][1] for c in clutter]))
+        red = 1.0 - after / before if before else float("nan")
+        lo, hi = reg["clutter_pose_p95_reduction_between"]
+        ep.update({"clutter_pose_p95": [before, after],
+                   "clutter_pose_reduction": red,
+                   "pose_held": bool(lo <= red <= hi)})
+
+    # 3. Collisions with the back end, anywhere.
+    colls = sum(int(r["collision"]) for c in cells.values()
+                for r in c["back_end"]["episodes"])
+    colls_before = sum(int(r["collision"]) for c in cells.values()
+                       for r in c["front_end"]["episodes"])
+    ep.update({"collisions": [colls_before, colls],
+               "collisions_held": bool(colls <= reg["collisions_at_most"])})
+
+    # 4. Sparse at 32 beams, inert.
+    if "sparse" in cells:
+        g = cells["sparse"]["gain"]
+        ep.update({"sparse_gain": g,
+                   "sparse_held": bool(abs(g) <= reg["sparse_band"])})
+
+    print()
+    for cond, v in ep["reproduction"].items():
+        print(f"control   -- {cond:11s} front end reproduces Phase 6i "
+              f"{v['matched']}/{v['of']} episodes")
+    print(f"control   -- {'REPRODUCES' if ep['reproduces'] else 'DOES NOT REPRODUCE'}"
+          f" the published front end")
+    lo, hi = reg["pooled_gain_between"]
+    print(f"endpoint 1 -- pooled over {ep['pooled_n']} paired episodes "
+          f"{ep['pooled_success'][0]:.3f} -> {ep['pooled_success'][1]:.3f} "
+          f"({gain:+.3f}), McNemar p={pv:.3f} ({won} won / {lost} lost), "
+          f"registered [{lo:+.2f}, {hi:+.2f}]: "
+          f"{'HELD' if ep['pooled_held'] else 'FAILED'}")
+    if "pose_held" in ep:
+        lo, hi = reg["clutter_pose_p95_reduction_between"]
+        print(f"endpoint 2 -- clutter pose p95 {ep['clutter_pose_p95'][0]:.3f} -> "
+              f"{ep['clutter_pose_p95'][1]:.3f} m "
+              f"({100 * ep['clutter_pose_reduction']:.0f}%), registered "
+              f"{100 * lo:.0f}-{100 * hi:.0f}%: "
+              f"{'HELD' if ep['pose_held'] else 'FAILED'}")
+    print(f"endpoint 3 -- collisions {colls_before} -> {colls}, bound "
+          f"{reg['collisions_at_most']}: "
+          f"{'HELD' if ep['collisions_held'] else 'FAILED'}")
+    if "sparse_held" in ep:
+        print(f"endpoint 4 -- sparse at 32 beams {ep['sparse_gain']:+.3f} inside "
+              f"+/-{reg['sparse_band']}: "
+              f"{'HELD' if ep['sparse_held'] else 'FAILED'}")
+    return ep
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--split", choices=("val", "test"), default="val")
     p.add_argument("--episodes", type=int, default=25)
-    p.add_argument("--cells", nargs="+", default=[c for c, _ in CELLS])
-    p.add_argument("--audit", default="results/margin_audit.json")
-    p.add_argument("--out", default="results/backend_experiment.json")
+    p.add_argument("--cells", nargs="+", default=None,
+                   help="Defaults to the four cells registered for val, or all six "
+                        "on test, so the val run stays exactly the run registered.")
+    p.add_argument("--audit", default="results/margin_audit.json",
+                   help="Which val worlds have no margin-safe route. Val only: "
+                        "the audit was never run on test, so on test there is "
+                        "no tight-world endpoint to score.")
+    p.add_argument("--out", default=None)
     p.add_argument("--from-results", default=None,
                    help="Re-score a finished run instead of driving it again.")
     p.add_argument("--resume", action="store_true",
@@ -145,16 +292,26 @@ def main(argv=None) -> int:
                         "forty-minute job that writes only at the end loses "
                         "everything to one interruption.")
     args = p.parse_args(argv)
+    test = args.split == "test"
+    if args.cells is None:
+        args.cells = ([c for c, _ in CELLS] if test
+                      else ["sparse", "dense", "narrow", "nominal"])
+    if args.out is None:
+        args.out = ("results/backend_test.json" if test
+                    else "results/backend_experiment.json")
 
-    audit = json.loads(Path(args.audit).read_text(encoding="utf-8"))["conditions"]
-    tight = {c: {r["seed"] for r in audit[c]["worlds"] if r["l_full"] is None}
-             for c in audit}
+    tight: dict = {}
+    if not test:
+        audit = json.loads(Path(args.audit).read_text(encoding="utf-8"))["conditions"]
+        tight = {c: {r["seed"] for r in audit[c]["worlds"] if r["l_full"] is None}
+                 for c in audit}
     finished = (json.loads(Path(args.from_results).read_text(encoding="utf-8"))
                 if args.from_results else None)
     rng = np.random.default_rng(20260927)
     out = Path(args.out)
-    report: dict = {"split": "val", "episodes": args.episodes,
-                    "registered": PREDICTION, "cells": {}}
+    report: dict = {"split": args.split, "episodes": args.episodes,
+                    "registered": TEST_PREDICTION if test else PREDICTION,
+                    "cells": {}}
     done: dict = {}
     if args.resume and out.exists():
         done = json.loads(out.read_text(encoding="utf-8")).get("cells", {})
@@ -174,9 +331,15 @@ def main(argv=None) -> int:
             arms = {k: finished["cells"][cond][k]["episodes"]
                     for k in ("front_end", "back_end")}
         else:
-            _, shift, noise = BENCHMARK_CONDITIONS[cond]
+            own_split, shift, noise = BENCHMARK_CONDITIONS[cond]
+            # On the held-out side each condition has its own band: `nominal`
+            # and `noisy_lidar` are scored on `test`, the four shifted ones on
+            # `test_ood`. A blanket "test" would drive four of the six cells on
+            # worlds no published number was ever measured on.
+            band = own_split if test else args.split
             cfg = build_env_config({"lidar": {"noise_std": noise}} if noise else {},
-                                   split="val", shift=shift, n_worlds=args.episodes)
+                                   split=band, shift=shift,
+                                   n_worlds=args.episodes)
             env = ProceduralNavEnv(cfg)
             seeds = [int(s) for s in list(cfg.world_seeds)[:args.episodes]]
             arms = {"front_end": [episode(env, s, cfg, sensor, False) for s in seeds],
@@ -223,6 +386,13 @@ def main(argv=None) -> int:
               f"keyframes {entry['keyframes']:.0f}  closures {entry['closures']:.1f} "
               f"(rejected {entry['rejected']:.1f})  rebuilds {entry['rebuilds']:.1f}",
               flush=True)
+
+    if test:
+        report["endpoints"] = score_test(report, rng)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(report, indent=2), encoding="utf-8")
+        print(f"\nWrote {out}")
+        return 0
 
     # ---- the registered endpoints ----
     ep: dict = {}
