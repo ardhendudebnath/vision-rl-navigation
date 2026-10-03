@@ -119,7 +119,8 @@ class MappedPursuitAgent(AStarPursuitAgent):
     def __init__(self, config: PursuitConfig | None = None, robot: RobotConfig | None = None,
                  sensor: str = "lidar32", noise_std: float = 0.0,
                  corroborate: bool = False, commit: bool = False,
-                 frontier: bool = False, relax_on_stall: int = 0) -> None:
+                 frontier: bool = False, relax_on_stall: int = 0,
+                 noise_margin: float = 0.0) -> None:
         # Replanning is done here, in :meth:`act`, rather than by the
         # baseline's block trigger, because a failed replan must stop the robot
         # instead of restoring the old plan. Everything else is the baseline's
@@ -131,6 +132,11 @@ class MappedPursuitAgent(AStarPursuitAgent):
         #: Passed to the map: weight a hit by how many returns the cell earned.
         #: Off by default, so every published result is unchanged.
         self.corroborate = corroborate
+        #: Passed to the map: readings within this many standard deviations of
+        #: the sensor's range noise of its maximum range never mark a surface
+        #: (:attr:`OccupancyMap.noise_margin`). Off by default, and inert on any
+        #: noise-free sensor whatever it is set to.
+        self.noise_margin = noise_margin
         #: Stand by the near part of the committed route unless it is actually
         #: blocked near, or the new one is materially shorter. Off by default,
         #: for the same reason.
@@ -220,7 +226,8 @@ class MappedPursuitAgent(AStarPursuitAgent):
         # same way every time it is run.
         self.map = OccupancyMap(world, make_sensor(self.sensor_kind, self.noise_std),
                                 rng=np.random.default_rng(int(world.seed)),
-                                corroborate=self.corroborate)
+                                corroborate=self.corroborate,
+                                noise_margin=self.noise_margin)
         self.map.integrate(pose)
         self._checked_version = self.map.version
         self.failed_plan_steps = []

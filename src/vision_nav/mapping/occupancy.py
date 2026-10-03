@@ -56,7 +56,8 @@ class OccupancyMap:
     """A grid the robot fills in from its own range sensor."""
 
     def __init__(self, world, sensor, rng: np.random.Generator | None = None,
-                 corroborate: bool = False) -> None:
+                 corroborate: bool = False, beam_votes: bool = False,
+                 noise_margin: float = 0.0) -> None:
         #: Used only for grid metadata and to be handed to the sensor, which
         #: returns ranges. See the module docstring.
         self._world = world
@@ -67,6 +68,36 @@ class OccupancyMap:
         #: the behaviour every published result was measured under; see
         #: :meth:`integrate`.
         self.corroborate = corroborate
+        #: Count a miss once per *beam* that passes through a cell, rather than
+        #: once per cell per scan. Off by default, which is the behaviour every
+        #: published result was measured under.
+        #:
+        #: The comment on the miss vote below says its purpose is to stop the
+        #: several samples of *one* beam from voting several times. The
+        #: implementation also stops several *beams* from voting several
+        #: times, which a textbook inverse sensor model does not do, and which
+        #: matters only where beams are finer than cells: at 32 beams a cell is
+        #: rarely crossed by more than one, so this is inert there. §9.6 left the
+        #: phantom cells standing under noise -- the corroboration rule weights a
+        #: hit by the returns it earned, while a cell six beams pass straight
+        #: through still loses only one vote's worth of evidence.
+        self.beam_votes = beam_votes
+        #: How many standard deviations of the sensor's range noise short of its
+        #: maximum range a reading must fall before it counts as a surface.
+        #: ``0`` is the behaviour every published result was measured under.
+        #:
+        #: The sensor adds its noise *after* clipping to maximum range and then
+        #: clips again (:meth:`Lidar2D.scan`), so a beam that hit nothing reads
+        #: the maximum plus noise, and half of those come back a little under it.
+        #: Counted as returns, they plant a ring of phantom cells at the edge of
+        #: the sensor's reach in open floor, where corroboration cannot help --
+        #: a real surface at 6 m also returns one beam per cell -- and where
+        #: almost no later beam passes to clear them. Nav2 sets
+        #: ``obstacle_max_range`` below the sensor's maximum for this reason.
+        #: Readings past the line still clear the space they cross; they just
+        #: never mark a surface. With a noise-free sensor the line sits at the
+        #: maximum itself, so the rule is inert there by construction.
+        self.noise_margin = noise_margin
         self.resolution = float(world.config.grid_resolution)
         # Extent from the arena's dimensions, not from ``world.occupancy``:
         # that property computes the true obstacle grid, and reading even its
@@ -128,11 +159,16 @@ class OccupancyMap:
         passed = np.zeros(self.shape, dtype=bool)
         rows, cols = self._cells(pts[keep])
         passed[rows, cols] = True
+        # With beam votes, how many distinct beams crossed each cell. Samples of
+        # one beam are still deduplicated, which is what the line above was for.
+        crossings = (self._beam_crossings(keep, rows, cols) if self.beam_votes
+                     else None)
 
-        # Returns short of max range hit something.
+        # Returns short of max range hit something -- or, under a noise margin,
+        # short of the obstacle range, which sits that many noise deviations in.
         landed = np.zeros(self.shape, dtype=bool)
         weight = np.ones(self.shape, dtype=np.float32)
-        hit = ranges < max_range - 1e-6
+        hit = ranges < self.obstacle_range - 1e-6
         if hit.any():
             ends = pose[None, :2] + dirs[hit] * ranges[hit, None]
             rows, cols = self._cells(ends)
@@ -142,7 +178,10 @@ class OccupancyMap:
         passed &= ~landed  # a cell a return landed in is evidence for, not against
 
         before = self.grid == OCCUPIED
-        self.evidence[passed] += MISS
+        if crossings is None:
+            self.evidence[passed] += MISS
+        else:
+            self.evidence[passed] += MISS * crossings[passed]
         self.evidence[landed] += HIT * weight[landed]
         np.clip(self.evidence, *CLAMP, out=self.evidence)
         seen = passed | landed
@@ -160,6 +199,34 @@ class OccupancyMap:
         self._occupied_pts = (np.stack([(occ[:, 1] + 0.5) * res, (occ[:, 0] + 0.5) * res],
                                        axis=-1) if len(occ) else np.zeros((0, 2)))
         return bool(newly.any())
+
+    @property
+    def obstacle_range(self) -> float:
+        """The farthest reading that can mark a surface.
+
+        The sensor's maximum, brought in by ``noise_margin`` standard deviations
+        of its own specified range noise -- a datasheet figure the robot has for
+        its own sensor, as a Nav2 user has when setting ``obstacle_max_range``.
+        """
+        max_range = float(self.sensor.config.max_range)
+        sigma = float(getattr(self.sensor.config, "noise_std", 0.0))
+        return max_range - self.noise_margin * sigma
+
+    def _beam_crossings(self, keep: np.ndarray, rows: np.ndarray,
+                        cols: np.ndarray) -> np.ndarray:
+        """Distinct beams through each cell in this scan.
+
+        ``keep`` is ``(beams, samples)``; ``rows`` and ``cols`` are the cells of
+        the kept samples in the same row-major order, so the beam each sample
+        belongs to is recovered from ``keep`` itself. A (beam, cell) pair is
+        counted once however many of that beam's samples fall in the cell.
+        """
+        beams = np.broadcast_to(np.arange(keep.shape[0])[:, None], keep.shape)[keep]
+        size = self.shape[0] * self.shape[1]
+        flat = rows.astype(np.int64) * self.shape[1] + cols
+        pairs = np.unique(beams.astype(np.int64) * size + flat)
+        counts = np.bincount(pairs % size, minlength=size)
+        return counts.reshape(self.shape).astype(np.float32)
 
     def _corroboration(self, landed, rows, cols, pose) -> np.ndarray:
         """How much of a hit each cell earned, in [0, 1].

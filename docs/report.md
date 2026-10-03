@@ -1803,7 +1803,7 @@ In order of expected information per GPU-hour:
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 514 tests
+pytest                                        # 523 tests
 python scripts/check_docs.py                  # every doc link resolves
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix

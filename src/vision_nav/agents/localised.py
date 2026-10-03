@@ -60,9 +60,10 @@ class LocalisedPursuitAgent(MappedPursuitAgent):
                  corroborate: bool = False, commit: bool = False,
                  frontier: bool = False, relax_on_stall: int = 0,
                  pose_graph: bool = False,
-                 graph_config: PoseGraphConfig | None = None) -> None:
+                 graph_config: PoseGraphConfig | None = None,
+                 noise_margin: float = 0.0) -> None:
         super().__init__(config, robot, sensor, noise_std, corroborate, commit,
-                         frontier, relax_on_stall)
+                         frontier, relax_on_stall, noise_margin)
         self.odometry = odometry
         self.matcher = ScanMatcher(match_config) if scan_matching else None
         #: The SLAM back end (:mod:`vision_nav.mapping.posegraph`). Off by
@@ -172,7 +173,8 @@ class LocalisedPursuitAgent(MappedPursuitAgent):
         assert self.graph is not None and self._world is not None
         fresh = OccupancyMap(self._world, make_sensor(self.sensor_kind, self.noise_std),
                              rng=np.random.default_rng(int(self._world.seed)),
-                             corroborate=self.corroborate)
+                             corroborate=self.corroborate,
+                             noise_margin=self.noise_margin)
         fresh.integrate(self._start_pose)
         for k, rel, ranges in self._history:
             fresh.integrate(compose_pose(self.graph.poses[k], rel), ranges=ranges)

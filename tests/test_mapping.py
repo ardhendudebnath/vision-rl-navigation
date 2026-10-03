@@ -259,6 +259,161 @@ def test_a_dense_scan_still_maps_real_walls():
     assert (world.clearance(occupied, include_dynamic=False) <= m.half_diagonal + 1e-9).all()
 
 
+def test_beam_votes_count_beams_and_not_samples():
+    """A beam is sampled every half cell, so it lands two or three samples in
+    each cell it crosses. Those must still be one vote; separate beams through
+    the same cell must be separate votes."""
+    m = OccupancyMap(_NoGeometry(), _FakeSensor([0.0], [6.0]), beam_votes=True)
+    pose = np.array([1.0, 1.05, 0.0])
+    angles = np.asarray(m.sensor._angles) + pose[2]
+    dirs = np.stack([np.cos(angles), np.sin(angles)], axis=-1)
+    step = m.resolution * 0.5
+    ts = (np.arange(int(np.ceil(6.0 / step))) + 0.5) * step
+    keep = ts[None, :] < 5.95
+    pts = pose[None, None, :2] + dirs[:, None, :] * ts[None, :, None]
+    rows, cols = m._cells(pts[keep])
+    one_beam = m._beam_crossings(keep, rows, cols)
+    assert one_beam.max() == 1.0, "one beam's samples voted more than once in a cell"
+
+    # 360 beams: a cell close to the robot is crossed by many, one far away by few.
+    angles = -np.pi + np.arange(360) * (2 * np.pi / 360)
+    m = OccupancyMap(_NoGeometry(), _FakeSensor(angles, np.full(360, 6.0)),
+                     beam_votes=True)
+    dirs = np.stack([np.cos(angles), np.sin(angles)], axis=-1)
+    keep = np.broadcast_to(ts[None, :] < 5.95, (360, len(ts)))
+    pts = np.array([3.0, 6.05])[None, None, :] + dirs[:, None, :] * ts[None, :, None]
+    rows, cols = m._cells(pts[keep])
+    crossings = m._beam_crossings(keep, rows, cols)
+    r = int(6.05 / m.resolution)
+    near = crossings[r, int(3.45 / m.resolution)]    # 0.45 m ahead
+    far = crossings[r, int(8.0 / m.resolution)]      # 5 m ahead
+    assert near > 5 * far >= 5, (near, far)
+
+
+def test_beam_votes_are_off_by_default():
+    assert OccupancyMap(_NoGeometry(), _FakeSensor([0.0], [2.0])).beam_votes is False
+
+
+def test_beam_votes_clear_a_phantom_that_one_vote_leaves_standing():
+    """The mechanism the rule is for, in two scans. A lone return marks a cell a
+    metre away (corroboration off, so it earns a full hit). Then a scan in which
+    every beam reaches far past it: one vote per scan takes 0.9 to 0.6, still
+    occupied, while the six beams that actually crossed it take it negative."""
+    angles = -np.pi + np.arange(360) * (2 * np.pi / 360)
+    pose = np.array([3.0, 6.05, 0.0])
+    lone = np.full(360, 6.0)
+    lone[180] = 1.0
+    clear = np.full(360, 6.0)
+    r, c = int(6.05 / 0.1), int(4.0 / 0.1)
+    result = {}
+    for votes in (False, True):
+        m = OccupancyMap(_NoGeometry(), _FakeSensor(angles, lone), beam_votes=votes)
+        m.integrate(pose)
+        assert m.grid[r, c] == OCCUPIED, "the lone return should mark its cell first"
+        m.sensor = _FakeSensor(angles, clear)
+        m.integrate(pose)
+        result[votes] = m.grid[r, c]
+    assert result[False] == OCCUPIED, "one vote per scan should leave the phantom standing"
+    assert result[True] == FREE, "six crossing beams should have cleared it"
+
+
+def test_a_wall_survives_beam_votes_even_at_grazing_incidence():
+    """The cost side. Stronger clearing could erase a real surface that beams
+    graze on their way to somewhere else. Drive alongside a wall as well as
+    facing it, and every mapped cell must still be a real surface while the
+    wall is still mapped."""
+    world = _open_world(boxes=[(5.0, 4.5, 5.6, 7.5)])
+    m = OccupancyMap(world, make_sensor("lidar360"), corroborate=True, beam_votes=True)
+    # Facing it, then sliding along it at a shallow angle.
+    poses = [(3.5, 6.0, 0.0), (4.4, 4.0, 1.4), (4.4, 5.0, 1.5), (4.4, 6.0, 1.5),
+             (4.4, 7.0, 1.6), (4.4, 8.0, 1.7), (3.5, 6.0, 0.3)]
+    for x, y, h in poses:
+        m.integrate(np.array([x, y, h]))
+    occupied = m.grid_to_world(np.argwhere(m.grid == OCCUPIED))
+    assert len(occupied) > 10, "the wall was erased"
+    assert (world.clearance(occupied, include_dynamic=False) <= m.half_diagonal + 1e-9).all()
+    # And the face the robot slid along is still there along its length.
+    face = np.stack([np.full(20, 5.0), np.linspace(4.7, 7.3, 20)], axis=-1)
+    rows, cols = m._cells(face)
+    assert (m.grid[rows, cols] == OCCUPIED).mean() > 0.6
+
+
+def test_beam_votes_at_32_beams_change_only_cells_beside_the_robot():
+    """Measured rather than assumed. At 32 beams the beams are coarser than the
+    cells beyond about half a metre, so per-beam votes can only differ from one
+    vote per scan in the cells right beside the robot -- which are free either
+    way, since the robot is standing in them. The occupied set must not move."""
+    world = _open_world(boxes=[(5.0, 4.5, 5.6, 7.5), (7.5, 2.0, 8.1, 5.5)])
+    grids = []
+    for votes in (False, True):
+        m = OccupancyMap(world, make_sensor("lidar32"), corroborate=True, beam_votes=votes)
+        for x, y in ((3.0, 6.0), (4.0, 6.5), (6.5, 6.0), (6.5, 3.0)):
+            for heading in np.linspace(0, 2 * np.pi, 6, endpoint=False):
+                m.integrate(np.array([x, y, heading]))
+        grids.append(m.grid.copy())
+    assert (grids[0] == OCCUPIED).sum() > 20, "the scans mapped nothing; the check is empty"
+    assert np.array_equal(grids[0] == OCCUPIED, grids[1] == OCCUPIED)
+
+
+class _NoisySensor(_FakeSensor):
+    """A fake sensor whose configuration declares a range-noise figure."""
+
+    def __init__(self, angles, ranges, noise_std, max_range=6.0):
+        super().__init__(angles, ranges, max_range)
+        self.config = type("C", (), {"max_range": max_range, "noise_std": noise_std})()
+
+
+def test_the_noise_margin_is_off_by_default_and_inert_without_noise():
+    m = OccupancyMap(_NoGeometry(), _NoisySensor([0.0], [2.0], noise_std=0.1))
+    assert m.noise_margin == 0.0 and m.obstacle_range == 6.0
+    # On, but the sensor has no noise: the line is the maximum itself.
+    m = OccupancyMap(_NoGeometry(), _NoisySensor([0.0], [2.0], noise_std=0.0),
+                     noise_margin=3.0)
+    assert m.obstacle_range == 6.0
+
+
+def test_a_max_range_beam_pushed_under_by_noise_is_not_a_surface():
+    """The mechanism. A beam that hit nothing reads the maximum plus noise,
+    clipped, so half the time it reads a little short. Without a margin that is
+    a surface at the edge of the sensor's reach, in open floor; with one it is
+    not -- and the space it crossed is still cleared."""
+    pose = np.array([1.0, 1.05, 0.0])
+    r = int(1.05 / 0.1)
+    edge, middle = int((1.0 + 5.93) / 0.1), int(4.0 / 0.1)
+    marked = {}
+    for margin in (0.0, 3.0):
+        m = OccupancyMap(_NoGeometry(), _NoisySensor([0.0], [5.93], noise_std=0.1),
+                         noise_margin=margin)
+        m.integrate(pose)
+        marked[margin] = m.grid[r, edge]
+        assert m.grid[r, middle] == FREE, "the beam must still clear what it crossed"
+    assert marked[0.0] == OCCUPIED, "without a margin the noise is believed"
+    assert marked[3.0] != OCCUPIED, "a reading inside the noise band was taken as a surface"
+
+
+def test_a_real_surface_inside_the_obstacle_range_is_still_mapped():
+    m = OccupancyMap(_NoGeometry(), _NoisySensor([0.0], [3.0], noise_std=0.1),
+                     noise_margin=3.0)
+    m.integrate(np.array([1.0, 1.05, 0.0]))
+    assert m.grid[int(1.05 / 0.1), int(4.0 / 0.1)] == OCCUPIED
+
+
+def test_the_noise_margin_leaves_a_noise_free_map_identical():
+    """Every noise-free condition in the report must come out exactly as it
+    was, which the property above guarantees and this checks on real scans."""
+    world = _open_world(boxes=[(5.0, 4.5, 5.6, 7.5), (7.5, 2.0, 8.1, 5.5)])
+    grids = []
+    for margin in (0.0, 3.0):
+        m = OccupancyMap(world, make_sensor("lidar360"), corroborate=True,
+                         noise_margin=margin)
+        for x, y in ((3.0, 6.0), (4.0, 6.5), (6.5, 6.0), (6.5, 3.0)):
+            for heading in np.linspace(0, 2 * np.pi, 6, endpoint=False):
+                m.integrate(np.array([x, y, heading]))
+        grids.append(m.grid.copy())
+    assert (grids[0] == OCCUPIED).sum() > 20
+    assert np.array_equal(grids[0], grids[1])
+
+
 def test_a_blockage_far_ahead_no_longer_turns_the_robot_around():
     """Commitment. A box three metres along the route is beyond the two metres
     the robot stands by, and the way round it is no shorter, so the committed

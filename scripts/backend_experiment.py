@@ -168,6 +168,24 @@ def episode(env, seed: int, cfg, sensor: str, back_end: bool) -> dict:
     }
 
 
+def checkpointed(env, seed: int, cfg, sensor: str, back_end: bool, cell: str,
+                 arm: str, ckpt: Path, kept: dict) -> dict:
+    """One episode, reused from the checkpoint if it already ran.
+
+    Skipping an episode cannot change the ones after it: each resets the
+    environment to its own world seed and builds a fresh agent seeded from that
+    world, which is why resumed runs here have reproduced exactly.
+    """
+    key = (cell, arm, seed)
+    if key in kept:
+        return kept[key]
+    row = episode(env, seed, cfg, sensor, back_end)
+    with ckpt.open("a", encoding="utf-8") as f:
+        f.write(json.dumps({"cell": cell, "arm": arm, "row": row}) + "\n")
+    kept[key] = row
+    return row
+
+
 def reproduces_published(report: dict,
                          path: str = "results/corroboration_experiment.json") -> dict:
     """The control: the front-end arm must be the published arm, per episode.
@@ -312,6 +330,17 @@ def main(argv=None) -> int:
     report: dict = {"split": args.split, "episodes": args.episodes,
                     "registered": TEST_PREDICTION if test else PREDICTION,
                     "cells": {}}
+    # Every finished episode is appended here as it completes, so a run that is
+    # killed loses the episode in flight and nothing else. A cell is 200
+    # episodes and about fifty minutes; per-cell saving lost two cells in a row
+    # to processes being stopped partway.
+    ckpt = out.with_suffix(".episodes.jsonl")
+    kept: dict = {}
+    if args.resume and ckpt.exists():
+        for line in ckpt.read_text(encoding="utf-8").splitlines():
+            rec = json.loads(line)
+            kept[(rec["cell"], rec["arm"], rec["row"]["seed"])] = rec["row"]
+        print(f"resuming with {len(kept)} episodes already checkpointed", flush=True)
     done: dict = {}
     if args.resume and out.exists():
         done = json.loads(out.read_text(encoding="utf-8")).get("cells", {})
@@ -342,8 +371,9 @@ def main(argv=None) -> int:
                                    n_worlds=args.episodes)
             env = ProceduralNavEnv(cfg)
             seeds = [int(s) for s in list(cfg.world_seeds)[:args.episodes]]
-            arms = {"front_end": [episode(env, s, cfg, sensor, False) for s in seeds],
-                    "back_end": [episode(env, s, cfg, sensor, True) for s in seeds]}
+            arms = {arm: [checkpointed(env, s, cfg, sensor, on, cond, arm, ckpt, kept)
+                          for s in seeds]
+                    for arm, on in (("front_end", False), ("back_end", True))}
 
         a = np.array([r["success"] for r in arms["front_end"]], dtype=bool)
         b = np.array([r["success"] for r in arms["back_end"]], dtype=bool)
