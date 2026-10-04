@@ -1626,15 +1626,16 @@ avoids one collision each and causes one each elsewhere; on `noisy_lidar` both
 arms collide in the same two worlds. The net is zero, and a bound built on a
 false premise about this report's own numbers was the wrong instrument for it.
 
-**It does nothing under noise, and that connects to §9.14.** On `noisy_lidar`
-success is unchanged and the pose error p95 moves 2%. The graph barely engages:
-of 5.5 closure attempts an episode it rejects 2.5, against about one in ten on
-`dense` and `narrow` and one in five in the open cells, because noisy scans of
-noisy maps rarely clear the score gate. That is
-§9.12's lesson — a back end redistributes error, it cannot invent information —
-arriving at the condition where the front end is weakest. §9.14 shows the map is
-not what limits `noisy_lidar` either, which leaves the pose under noise as the
-one thing neither repair reaches alone.
+**It does nothing under noise.** On `noisy_lidar` success is unchanged and the
+pose error p95 moves 2%. Of 5.5 closure attempts an episode it refuses 2.5,
+against about one in ten on `dense` and `narrow` and one in five in the open
+cells. This paragraph first gave the reason as noisy scans matched against a
+noisy map; that was wrong, because closures here are matched scan against scan
+and never read the map, and §9.15 measures what is actually happening — closures
+under noise are plentiful and correct in exactly the episodes that fail, and the
+episodes fail anyway. §9.14 shows the map is not what limits `noisy_lidar`
+either, which leaves the pose under noise as the one thing neither repair reaches
+alone.
 
 **What this does to the report.** Nothing to the headline numbers: they remain the
 front end alone, because a pooled +0.010 that cannot be told from zero is not a
@@ -1717,6 +1718,74 @@ forecast is +0.02 ± 0.06 would be a registered coin flip. Nothing here was
 registered, so the calibration tally is unchanged. The rule stays off by default,
 with the identity controls above pinned; adopting it is a decision about the
 published stack rather than a finding.
+
+### 9.15 Both repairs together, and why correct loop closures do not rescue `noisy_lidar`
+
+§9.13 left the back end inert under noise and §9.14 left the obstacle range
+moving arrivals by two in a hundred. Whether the two together close the gap that
+neither closes alone is a factorial question, so
+[`combined_noisy_experiment.py`](../scripts/combined_noisy_experiment.py) runs
+the 2×2 on all 100 val worlds, one arm per process. The two arms already
+measured in §9.14 reproduce that run on 100 of 100 episodes each.
+
+| `noisy_lidar`, 100 val worlds | success | collisions | pose error, median | pose error, p95 |
+|---|---|---|---|---|
+| front end | 0.87 | 2 | 0.141 m | 0.277 m |
+| obstacle range | 0.89 | 0 | 0.099 m | 0.206 m |
+| back end | 0.89 | 0 | 0.138 m | 0.263 m |
+| both | 0.89 | 0 | 0.092 m | 0.193 m |
+
+**Together they are no better than either alone.** Each rule moves success by
++0.020; the pair moves it by +0.020; the pair against the obstacle range alone is
+two won and two lost, and the interaction is −0.020. The pose gains roughly stack —
+the pair gives the best pose of the four — and arrivals do not move. Not carried
+to the held-out worlds.
+
+**The reason I gave for running it was wrong, twice, and the result was expected
+before the data.** §9.13 and §12 said a cleaner map would help the closures,
+because closures score against the map. They do not: this back end matches scan
+against scan and never reads the map, so the obstacle range could not reach the
+closures at all. Applying the obstacle range to the keyframe scans instead was
+measured before the run and made closures *worse* — on six val worlds the share
+of closure attempts clearing the score gate fell from 29% to 14% — and was
+reverted. With both mechanisms gone, the expectation written down before the
+run was that the pair would land where the obstacle range alone does, and it did.
+
+**What actually fails.** With the obstacle range on, 5 of the 11 failures are a
+robot stopped just outside the 0.35 m tolerance believing it has arrived, with a
+median pose error of 0.47 m over the episode against about 0.09 m for those that
+arrive. [`noisy_localisation_diagnostic.py`](../scripts/noisy_localisation_diagnostic.py)
+traces them. **The error drifts; it does not jump**: the largest one-step rise is
+0.011 m, against 0.009 m in episodes that arrive, and the stuck episodes end
+0.529 m out against 0.162 m. The scan matcher returns no correction on 85% of
+steps in the stuck episodes and 79% in the arrivals — close enough that it does
+not separate them.
+
+**And the back end is not missing where the robot fails.** Across the 100 val
+worlds, the failing episodes accept 27.5 closures each and the arriving ones
+0.8; 69 episodes form no closure at all. Failures wander and revisit, so they
+generate the closures — and the closures are right. Scored against the *true*
+relative pose, 299 of the 302 closures accepted on twelve noisy worlds are within
+0.15 m of it and none is beyond 0.30 m. Closures under noise are plentiful and
+correct in exactly the episodes that fail, and the episodes fail anyway. (The
+share of attempts clearing the gate depends heavily on which worlds are drawn:
+29% on the first six, which are mostly arrivals that barely revisit anything,
+and 81% on twelve, which include episodes that circle and generate hundreds of
+attempts between them. That is the same finding, not a contradiction of it.)
+
+**So the noise-aware closure match was not built.** Widening the blur by the
+sensor's noise on both scans would have admitted 348 of the 373 attempts with one
+wrong, against 302 with none — more of something that is already present and
+already not helping. It is inert on clean scans by construction, and came out
+identical on `nominal`.
+
+**Open, and stated as a hypothesis rather than a finding.** Why do correct
+closures not fix the drift? The reading that fits is that they link keyframes
+that drifted *together*, late in an episode spent circling where the robot
+thinks the goal is: right relative to one another, and silent about the absolute
+error, which only a closure back to the well-localised keyframes near the start
+could measure. §12 says what would test it. Nothing here was registered, and the
+calibration tally is unchanged.
 
 ## 10. Discussion
 
@@ -1904,20 +1973,21 @@ In order of expected information per GPU-hour:
    them 0.96 of the way to the goal — a limit this comparison has never
    varied. None of this touches the seven clutter failures on worlds that had
    a margin-safe route all along, which remain unexplained.
-2. **Close `noisy_lidar` through the pose, not the map.** This item used to
-   ask for a better mapper under noise, and §9.14 delivered one: the phantoms
-   came from max-range beams pushed under the maximum by noise, an obstacle
-   range three noise deviations short of it removes 93% of them, and the floor
-   lost falls to the noise-free figure. Arrivals moved by two in a hundred. What
-   is still twice as wrong under noise is the pose (0.099 m median against
-   0.049 m), so the open question is whether the back end and the obstacle range
-   together close the gap that neither closes alone — one registered held-out
-   run on `noisy_lidar`, both rules against neither, the noise-free cells being
-   identical by construction. There is a mechanism for why they might: §9.13
-   found the back end inert under noise because it rejects 46% of its closures,
-   and a map with 93% fewer phantoms is exactly what a closure scores against. The suggestion this item used to make, clearing
-   that scales with how many beams cross a cell, was tested and is the wrong
-   lever: 309 phantoms to 288.
+2. **Find out why correct loop closures do not fix the drift under noise.**
+   The map under noise is repaired (§9.14), and the back end together with it
+   is no better than either alone (§9.15). What is left is specific: in the
+   `noisy_lidar` episodes that fail, the pose drifts — no jump — to about half
+   a metre, the robot stops just outside the goal believing it has arrived, and
+   the back end meanwhile accepts some 27 closures, almost all within 0.15 m of
+   the true relative pose. The hypothesis worth testing is that those closures
+   link keyframes that drifted together late in the episode: right relative to
+   each other and silent about the absolute error. The measurement is cheap —
+   how far back in the graph each accepted closure reaches, and whether any
+   reaches the well-localised keyframes near the start. Two suggestions this
+   item has made are spent: clearing that scales with beam count (309 phantoms
+   to 288, §9.14) and a noise-aware closure match (more of closures that already
+   are not helping, §9.15). A third was wrong as stated: this item claimed a
+   cleaner map would help the closures, but closures here never read the map.
 3. **A better front end for the sparse sensor.** The back end is done and
    measured on the held-out worlds (§9.13): pooled +0.010 over 600 paired
    episodes, 14 won and 8 lost, clutter pose error down 20%, not enough to

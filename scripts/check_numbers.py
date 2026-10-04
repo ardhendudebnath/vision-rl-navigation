@@ -1312,6 +1312,100 @@ def claims():
              round(vn["noisy_lidar"]["success"][1], 2)),
         ]
 
+    # --- both repairs together on noisy_lidar, Phase 6r ---------------------
+    kp2 = "results/combined_noisy_val.json"
+    if os.path.exists(kp2):
+        kj2 = load(kp2)
+        ka, kc = kj2["arms"], kj2["contrasts"]
+        for arm, sr, coll, med, p95 in (("front_end", 0.87, 2, 0.141, 0.277),
+                                        ("obstacle_range", 0.89, 0, 0.099, 0.206),
+                                        ("back_end", 0.89, 0, 0.138, 0.263),
+                                        ("both", 0.89, 0, 0.092, 0.193)):
+            e = ka[arm]
+            out += [
+                (f"combined {arm} success", sr, round(e["success"], 2)),
+                (f"combined {arm} collisions", coll, e["collisions"]),
+                (f"combined {arm} pose median", med, round(e["pose_err_median"], 3)),
+                (f"combined {arm} pose p95", p95, round(e["pose_err_p95"], 3)),
+            ]
+        out += [
+            ("combined each rule alone", 0.020,
+             round(kc["obstacle_range_vs_front_end"]["gain"], 3)),
+            ("combined back end alone", 0.020, round(kc["back_end_vs_front_end"]["gain"], 3)),
+            ("combined both", 0.020, round(kc["both_vs_front_end"]["gain"], 3)),
+            ("combined both vs obstacle range", 0.000,
+             round(kc["both_vs_obstacle_range"]["gain"], 3)),
+            ("combined both vs obstacle range won", 2, kc["both_vs_obstacle_range"]["won"]),
+            ("combined both vs obstacle range lost", 2, kc["both_vs_obstacle_range"]["lost"]),
+            ("combined interaction", -0.020, round(kj2["interaction"], 3)),
+        ]
+        # Closures by outcome, back end alone, all 100 worlds.
+        be_eps = ka["back_end"]["episodes"]
+        failed = [e for e in be_eps if not e["success"]]
+        arrived = [e for e in be_eps if e["success"]]
+        out += [
+            ("combined closures per failure", 27.5,
+             round(st.mean(e["closures"] for e in failed), 1)),
+            ("combined closures per arrival", 0.8,
+             round(st.mean(e["closures"] for e in arrived), 1)),
+            ("combined episodes with no closure", 69,
+             sum(1 for e in be_eps if e["closures"] == 0)),
+        ]
+        # The two arms already measured in Phase 6q reproduce it exactly.
+        vj = load("results/obstacle_range_val100.json")["cells"]["noisy_lidar"]
+        keys = ("success", "collision", "steps", "goal_distance", "pose_err_median", "replans")
+        for arm in ("front_end", "obstacle_range"):
+            old = {r["seed"]: r for r in vj[arm]["episodes"]}
+            new = {r["seed"]: r for r in ka[arm]["episodes"]}
+            out.append((f"combined {arm} reproduces phase 6q", 100,
+                        sum(all(new[s][k] == old[s][k] for k in keys) for s in old)))
+        # What fails, with the obstacle range on.
+        orx = vj["obstacle_range"]["episodes"]
+        stuck = [e for e in orx if not e["success"] and not e["collision"]
+                 and e["steps"] >= 500 and e["goal_distance"] <= 0.8]
+        out += [
+            ("noisy failures with obstacle range", 11, sum(1 for e in orx if not e["success"])),
+            ("noisy stopped just outside", 5, len(stuck)),
+            ("noisy stopped just outside pose", 0.47,
+             round(st.median(e["pose_err_median"] for e in stuck), 2)),
+            ("noisy arrivals pose", 0.09,
+             round(st.median(e["pose_err_median"] for e in orx if e["success"]), 2)),
+        ]
+    np2 = "results/noisy_localisation_diagnostic.json"
+    if os.path.exists(np2):
+        nj = load(np2)
+        fe2, be2, tk = nj["front_end"], nj["back_end"], nj["trimmed_keyframes"]
+        out += [
+            ("noisy largest rise stuck", 0.011,
+             round(max(r["max_step_rise"] for r in fe2["stuck"]), 3)),
+            ("noisy largest rise arrived", 0.009,
+             round(max(r["max_step_rise"] for r in fe2["arrived"]), 3)),
+            ("noisy final error stuck", 0.529,
+             round(st.median(r["final_error"] for r in fe2["stuck"]), 3)),
+            ("noisy final error arrived", 0.162,
+             round(st.median(r["final_error"] for r in fe2["arrived"]), 3)),
+            ("noisy zero corrections stuck", 85,
+             round(100 * st.median(r["zero_corrections"] for r in fe2["stuck"]))),
+            ("noisy zero corrections arrived", 79,
+             round(100 * st.median(r["zero_corrections"] for r in fe2["arrived"]))),
+            ("closure attempts noisy", 373, be2["noisy_lidar"]["attempts"]),
+            ("closures accepted published", 302, be2["noisy_lidar"]["published"]["accepted"]),
+            ("closures right published", 299, be2["noisy_lidar"]["published"]["right"]),
+            ("closures wrong published", 0, be2["noisy_lidar"]["published"]["wrong"]),
+            ("closures accepted noise aware", 348, be2["noisy_lidar"]["noise_aware"]["accepted"]),
+            ("closures wrong noise aware", 1, be2["noisy_lidar"]["noise_aware"]["wrong"]),
+            # Inert on clean scans by construction.
+            ("closures nominal identical", 1.0,
+             float(be2["nominal"]["published"] == be2["nominal"]["noise_aware"])),
+            ("closures gate full scans", 29,
+             round(100 * tk["full_scans"]["share_clearing_gate"])),
+            ("closures gate trimmed scans", 14,
+             round(100 * tk["trimmed_scans"]["share_clearing_gate"])),
+            ("closures gate twelve worlds", 81,
+             round(100 * be2["noisy_lidar"]["published"]["accepted"]
+                   / be2["noisy_lidar"]["attempts"])),
+        ]
+
     # Every failure in that run is a timeout, not a crash -- §9.8 and §12.
     fd = "results/frontier_diagnostic.json"
     if os.path.exists(fd):

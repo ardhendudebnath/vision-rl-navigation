@@ -3289,6 +3289,38 @@ Full treatment in report §9.14.
 - **Not carried to held-out**: val does not support a success gain. Nothing
   registered; calibration unchanged. Off by default.
 
+## Phase 6r — Both repairs together, and why correct closures do not rescue noisy_lidar
+
+A 2×2 on `noisy_lidar`, 100 val worlds, one arm per process
+(`combined_noisy_experiment.py`); the two arms from Phase 6q reproduce it
+100/100. Full treatment in report §9.15.
+
+| `noisy_lidar`, 100 val worlds | success | collisions | pose median | pose p95 |
+|---|---|---|---|---|
+| front end | 0.87 | 2 | 0.141 m | 0.277 m |
+| obstacle range | 0.89 | 0 | 0.099 m | 0.206 m |
+| back end | 0.89 | 0 | 0.138 m | 0.263 m |
+| both | 0.89 | 0 | 0.092 m | 0.193 m |
+
+- **The pair is no better than either alone**: +0.020 each, +0.020 together,
+  both vs obstacle range 2 won / 2 lost, interaction −0.020. Not carried.
+- **My stated mechanism was wrong twice.** Closures here never read the map, so
+  the obstacle range cannot reach them; trimming the keyframe scans instead cut
+  closure scores clearing the gate from 29% to 14% on six val worlds and was
+  reverted. The result was written down as expected before the run.
+- **Failures:** 5 of 11 stop just outside the goal believing they arrived, pose
+  median 0.47 m. The error **drifts** (largest one-step rise 0.011 m vs 0.009 m
+  in arrivals) to 0.529 m vs 0.162 m. Zero corrections 85% vs 79%: not a
+  separator. (I first reported 85% vs 20-45% by comparing step counts across
+  episodes of different lengths; the shares are what is pinned.)
+- **Closures are plentiful and correct where the robot fails**: 27.5 accepted
+  per failing episode vs 0.8 per arrival; 299 of 302 within 0.15 m of the true
+  relative pose, none beyond 0.30 m.
+- A noise-aware closure match would admit 348 of 373 with 1 wrong -- more of
+  what already is not helping -- so it was not built.
+- Open hypothesis: the closures link keyframes that drifted together late in an
+  episode. §12 item 2 gives the test. Nothing registered.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**
