@@ -3217,6 +3217,35 @@ sixteen part right.
 Off by default with an identity control; every published number is still the
 front end alone. Nothing ran on the test worlds.
 
+## Phase 6q — The noisy map, repaired at its source
+
+§9.6 left 309 phantom cells under noise. §12 proposed per-beam clearing.
+`clearing_diagnostic.py` tests it open loop with shadow maps fed the robot's
+identical scans; a null shadow ends every episode identical to the robot's map.
+Full treatment in report §9.14.
+
+| `noisy_lidar`, 12 val worlds | phantoms | beyond 0.5 m | recall | floor lost |
+|---|---|---|---|---|
+| published mapper | 309 | 190 | 0.806 | 0.270 |
+| one miss per beam | 288 | 186 | 0.779 | 0.264 |
+| obstacle range | 21 | 0 | 0.754 | 0.051 |
+
+- **Per-beam clearing is the wrong lever**: 309 → 288.
+- **190 of 309 phantoms sit beyond 0.5 m of any surface.** `Lidar2D.scan` adds
+  noise after clipping to max range, so half the beams that hit nothing read
+  just under 6 m, and the mapper took them as surfaces.
+- **Obstacle range** (Nav2's `obstacle_max_range`, three noise deviations short
+  of the maximum): phantoms −93%, floor lost to 0.051 beside nominal's 0.047.
+  Inert by construction without noise -- identical open loop on `nominal` and
+  `dense`, identical in every field closed loop on `nominal`. Costs 0.052 recall.
+- **Closed loop on all 100 val worlds: 0.87 → 0.89** (+0.020, p = 0.754, 6 won /
+  4 lost), collisions 2 → 0, pose median 0.141 → 0.099 m. The first 25 worlds
+  reproduce the 25-world run identically in every field.
+- **The map is no longer what limits `noisy_lidar`**; the pose, twice as wrong
+  under noise as without, is.
+- **Not carried to held-out**: val does not support a success gain. Nothing
+  registered; calibration unchanged. Off by default.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

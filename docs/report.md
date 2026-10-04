@@ -1578,6 +1578,81 @@ pinning that the arms agree step for step when it is off. Carrying it to the
 test worlds would change the headline numbers of this report, so it needs its own
 registered endpoint rather than a decision taken here; §12 says what that is.
 
+### 9.14 The noisy map, repaired at its source — and it was not what limited `noisy_lidar`
+
+§9.6 left `noisy_lidar` as this stack's worst open condition at 360 beams, 0.890
+on the held-out worlds against Nav2's 1.000, with 309 phantom cells still
+standing and 28% of the free floor lost to inflation around them. §12 proposed
+the next thing to try: count a miss once per *beam* that passes through a cell,
+not once per cell per scan. The code's own comment says that vote exists to stop
+the samples of one beam voting several times; collapsing separate beams as well
+is not what a textbook inverse sensor model does.
+
+[`clearing_diagnostic.py`](../scripts/clearing_diagnostic.py) measures that
+open loop, which isolates the map. The robot drives with the published mapper,
+and shadow maps are handed the identical scans at the identical poses. A null
+shadow with no rule must end every episode identical to the robot's own map —
+grid and evidence both — and did on all 36 episodes.
+
+| `noisy_lidar`, 12 val worlds | phantoms | beyond 0.5 m of any surface | surface recall | floor lost |
+|---|---|---|---|---|
+| published mapper | 309 | 190 | 0.806 | 0.270 |
+| one miss per beam | 288 | 186 | 0.779 | 0.264 |
+| **obstacle range** | **21** | **0** | 0.754 | **0.051** |
+
+**The rule §12 proposed is the wrong lever.** Per-beam clearing takes the
+phantoms from 309 to 288 and costs a little recall. The diagnostic also recorded
+how far each phantom sits from the nearest real surface, and that is the finding:
+190 of the 309 sit more than half a metre from anything real, which range noise
+of 0.1 m cannot do.
+
+**The sensor can.** `Lidar2D.scan` adds its noise *after* clipping to maximum
+range and then clips again, so a beam that hit nothing reads 6 m plus noise,
+clipped — and half of those come back a little under 6 m. The mapper took every
+reading below the maximum as a surface, so half the beams crossing open floor
+planted a phantom at the edge of the sensor's reach. Corroboration cannot help
+there, since a real surface at 6 m also returns one beam per cell, and almost no
+later beam passes through those cells to clear them.
+
+**The repair is Nav2's `obstacle_max_range`.** Readings within three standard
+deviations of the sensor's own range noise of its maximum still clear the space
+they cross, but never mark a surface. The margin is a datasheet figure the robot
+has for its own sensor, not anything about the world. With a noise-free sensor the
+line sits at the maximum, so the rule is inert there by construction: `nominal`
+and `dense` came out identical open loop (456 and 514 occupied cells on both
+arms), and on `nominal` closed loop every episode is identical in every field. On
+`noisy_lidar` the phantoms fall 93%, every one beyond 0.2 m is gone — the 21 left
+hug real walls, which is genuine range noise — and the floor lost falls to 0.051,
+beside the noise-free `nominal` figure of 0.047. The cost is recorded rather than
+buried: recall falls 0.052, because walls between 5.7 m and 6 m are now marked
+only once the robot is closer.
+
+**And it barely changes whether the robot arrives.** Closed loop, on all 100 val
+worlds:
+
+| `noisy_lidar`, 100 val worlds | success | McNemar *p* | collisions | replans | pose error, median |
+|---|---|---|---|---|---|
+| front end | 0.87 | | 2 | 61 | 0.141 m |
+| with the obstacle range | 0.89 | 0.754 (6 won / 4 lost) | 0 | 59 | 0.099 m |
+
++0.020, CI [−0.04, +0.08]. It removes both collisions and cuts the pose error by
+30%, which is the map repairing the matcher that reads it — and it moves arrivals
+by two episodes in a hundred. Twenty-five worlds had shown 0.92 against 0.92; a
+hundred show a small gain that is not distinguishable from none, and the first
+twenty-five reproduce identically in every field inside the larger run.
+
+**So the map is no longer what limits `noisy_lidar`.** Under noise it is now about
+as clean as the noise-free map, and success hardly moves. What is still twice as
+wrong is the pose — 0.099 m median under noise against 0.049 m on `nominal` —
+which is §9.11's error budget again, from a different direction.
+
+**Not carried to the held-out worlds.** Val supports no harm, fewer collisions and
+a better pose; it does not support a success gain, and a held-out run whose honest
+forecast is +0.02 ± 0.06 would be a registered coin flip. Nothing here was
+registered, so the calibration tally is unchanged. The rule stays off by default,
+with the identity controls above pinned; adopting it is a decision about the
+published stack rather than a finding.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -1760,12 +1835,18 @@ In order of expected information per GPU-hour:
    them 0.96 of the way to the goal — a limit this comparison has never
    varied. None of this touches the seven clutter failures on worlds that had
    a margin-safe route all along, which remain unexplained.
-2. **Finish the mapper under noise.** §9.6's rule left the phantom cells
-   standing (370 to 309 of about 1100): it delays them rather than refusing
-   them, and `noisy_lidar` is still this stack's worst open condition at 360
-   beams (0.890 against Nav2's 1.000). Clearing evidence that scales with how
-   often a cell is seen through, rather than one vote per scan, is the next
-   thing to try.
+2. **Close `noisy_lidar` through the pose, not the map.** This item used to
+   ask for a better mapper under noise, and §9.14 delivered one: the phantoms
+   came from max-range beams pushed under the maximum by noise, an obstacle
+   range three noise deviations short of it removes 93% of them, and the floor
+   lost falls to the noise-free figure. Arrivals moved by two in a hundred. What
+   is still twice as wrong under noise is the pose (0.099 m median against
+   0.049 m), so the open question is whether the back end and the obstacle range
+   together close the gap that neither closes alone — one registered held-out
+   run on `noisy_lidar`, both rules against neither, the noise-free cells being
+   identical by construction. The suggestion this item used to make, clearing
+   that scales with how many beams cross a cell, was tested and is the wrong
+   lever: 309 phantoms to 288.
 3. **Run the back end on the test worlds, with its own registered endpoint.**
    It exists now (§9.12) and it is the only change in §9.7–§9.12 that costs
    nothing: on val it wins three episodes of 100, loses none, collides never,

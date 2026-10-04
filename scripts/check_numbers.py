@@ -1172,6 +1172,75 @@ def claims():
              round(bc["narrow"]["tight"]["pose_err_p95"], 3)),
         ]
 
+    # --- the noisy map, repaired at its source, Phase 6q --------------------
+    dp = "results/clearing_diagnostic.json"
+    if os.path.exists(dp):
+        dj = load(dp)["conditions"]
+        nl = dj["noisy_lidar"]
+        for arm, ph, far, recall, lost in (("published", 309, 190, 0.806, 0.270),
+                                           ("beam_votes", 288, 186, 0.779, 0.264),
+                                           ("noise_margin", 21, 0, 0.754, 0.051)):
+            e = nl[arm]
+            out += [
+                (f"clearing {arm} phantoms", ph, round(e["phantoms"])),
+                (f"clearing {arm} beyond half a metre", far,
+                 round(e["phantoms_beyond_0.5m"])),
+                (f"clearing {arm} recall", recall, round(e["surface_recall"], 3)),
+                (f"clearing {arm} floor lost", lost, round(e["floor_lost"], 3)),
+            ]
+        out += [
+            # Every one beyond 0.2 m is gone; the 21 left hug real walls.
+            ("clearing margin phantoms within 0.2 m", 21,
+             round(nl["noise_margin"]["phantoms_within_0.2m"])),
+            ("clearing margin phantoms 0.2 to 0.5 m", 0,
+             round(nl["noise_margin"]["phantoms_0.2_to_0.5m"])),
+            ("clearing nominal floor lost", 0.047,
+             round(dj["nominal"]["published"]["floor_lost"], 3)),
+            # Inert without noise, open loop: the occupied set does not move.
+            ("clearing nominal occupied", 456, round(dj["nominal"]["published"]["occupied"])),
+            ("clearing nominal occupied with margin", 456,
+             round(dj["nominal"]["noise_margin"]["occupied"])),
+            ("clearing dense occupied", 514, round(dj["dense"]["published"]["occupied"])),
+            ("clearing dense occupied with margin", 514,
+             round(dj["dense"]["noise_margin"]["occupied"])),
+            # The null shadow reproduced the robot's own map on every episode.
+            ("clearing null shadow identical", 36,
+             sum(int(r["null_shadow_identical"]) for c in dj.values()
+                 for r in c["episodes"])),
+        ]
+    vp = "results/obstacle_range_val100.json"
+    if os.path.exists(vp):
+        v = load(vp)["cells"]["noisy_lidar"]
+        out += [
+            ("obstacle range front end", 0.87, round(v["success"][0], 2)),
+            ("obstacle range with rule", 0.89, round(v["success"][1], 2)),
+            ("obstacle range gain", 0.020, round(v["gain"], 3)),
+            ("obstacle range mcnemar", 0.754, round(v["mcnemar_p"], 3)),
+            ("obstacle range won", 6, v["won"]),
+            ("obstacle range lost", 4, v["lost"]),
+            ("obstacle range ci low", -0.04, round(v["ci"][0], 2)),
+            ("obstacle range ci high", 0.08, round(v["ci"][1], 2)),
+            ("obstacle range collisions before", 2, v["collisions"][0]),
+            ("obstacle range collisions after", 0, v["collisions"][1]),
+            ("obstacle range replans before", 61, round(v["replans"][0])),
+            ("obstacle range replans after", 59, round(v["replans"][1])),
+            ("obstacle range pose before", 0.141, round(v["pose_err_median"][0], 3)),
+            ("obstacle range pose after", 0.099, round(v["pose_err_median"][1], 3)),
+        ]
+    vs = "results/obstacle_range_val.json"
+    if os.path.exists(vs):
+        vn = load(vs)["cells"]
+        out += [
+            # Closed loop, the noise-free control is identical in every field.
+            ("obstacle range nominal identical", 1.0, float(vn["nominal"]["identical"])),
+            ("obstacle range nominal pose", 0.049,
+             round(vn["nominal"]["pose_err_median"][0], 3)),
+            ("obstacle range 25 worlds front end", 0.92,
+             round(vn["noisy_lidar"]["success"][0], 2)),
+            ("obstacle range 25 worlds with rule", 0.92,
+             round(vn["noisy_lidar"]["success"][1], 2)),
+        ]
+
     # Every failure in that run is a timeout, not a crash -- §9.8 and §12.
     fd = "results/frontier_diagnostic.json"
     if os.path.exists(fd):
