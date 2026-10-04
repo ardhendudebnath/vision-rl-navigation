@@ -1578,6 +1578,71 @@ pinning that the arms agree step for step when it is off. Carrying it to the
 test worlds would change the headline numbers of this report, so it needs its own
 registered endpoint rather than a decision taken here; §12 says what that is.
 
+### 9.13 The back end on the held-out worlds: smaller, and not free
+
+§9.12 measured the back end on val — three episodes won and none lost in 100 —
+and the held-out run was registered before a single held-out seed was driven
+([`backend_experiment.py`](../scripts/backend_experiment.py),
+`TEST_PREDICTION`), with every forecast taken from the val measurement of the
+same condition and sensor. Two things were caught before launch that would have
+made the run mean something else: four of the six conditions are scored on the
+`test_ood` band, not `test`, and the first version drove them on the wrong
+worlds; and the front end had to be shown to be the published arm, not assumed
+to be. **It reproduces Phase 6i's published outcomes on 100 of 100 episodes in
+each of the five 360-beam cells**, so every contrast below is against the
+numbers this report publishes.
+
+| held-out, 100 worlds each | success | Δ | McNemar *p* | pose error p95 |
+|---|---|---|---|---|
+| `sparse`, 32 beams | 0.58 → 0.60 | +0.020 | 0.500 (2 won / 0 lost) | 0.564 → 0.582 m |
+| `dense` | 0.59 → 0.61 | +0.020 | 0.727 (5 / 3) | 0.127 → 0.097 m |
+| `narrow` | 0.60 → 0.59 | −0.010 | 1.000 (3 / 4) | 0.139 → 0.115 m |
+| `nominal` | 0.96 → 0.97 | +0.010 | 1.000 (1 / 0) | 0.097 → 0.089 m |
+| `large` | 0.89 → 0.91 | +0.020 | 0.500 (2 / 0) | 0.173 → 0.140 m |
+| `noisy_lidar` | 0.89 → 0.89 | +0.000 | 1.000 (1 / 1) | 0.254 → 0.249 m |
+| **pooled, 600 paired** | **0.752 → 0.762** | **+0.010** | **0.286 (14 / 8)** | |
+
+**The registered endpoint held, by its letter, and the effect shrank.** Pooled
+over 600 paired episodes success rises 0.010, CI [−0.005, +0.025], inside the
+registered [0.00, +0.05]. The registration named this outcome in advance: a gain
+at the floor of the interval satisfies it while saying the val result was
+largely noise, and the report was to say so. It is not zero, and it is not
+distinguishable from zero. **And val's "costs nothing" does not replicate**: on
+the held-out worlds the back end wins 14 episodes and loses 8, where val won
+three and lost none. It is a small net benefit with real churn, not a free one.
+
+**The pose result held, at the edge.** Clutter pose error p95 falls 20.2%, from
+0.133 m to 0.106 m, against a registered 20–32% — inside by two tenths of a point.
+`sparse` at 32 beams stayed inside its registered ±0.03, at +0.020; it won two
+episodes on held-out where val had moved none, and its pose error got slightly
+worse rather than better.
+
+**The collision bound failed, and the reason is a fact I got wrong.** I
+registered at most two collisions with the back end, on the stated ground that
+"the front end has never collided in any measurement in this report". It has:
+the published front end collides 4 times in these 600 episodes, and the back end
+also collides 4 times — but not in the same worlds. On `dense` and `narrow` it
+avoids one collision each and causes one each elsewhere; on `noisy_lidar` both
+arms collide in the same two worlds. The net is zero, and a bound built on a
+false premise about this report's own numbers was the wrong instrument for it.
+
+**It does nothing under noise, and that connects to §9.14.** On `noisy_lidar`
+success is unchanged and the pose error p95 moves 2%. The graph barely engages:
+of 5.5 closure attempts an episode it rejects 2.5, against about one in ten on
+`dense` and `narrow` and one in five in the open cells, because noisy scans of
+noisy maps rarely clear the score gate. That is
+§9.12's lesson — a back end redistributes error, it cannot invent information —
+arriving at the condition where the front end is weakest. §9.14 shows the map is
+not what limits `noisy_lidar` either, which leaves the pose under noise as the
+one thing neither repair reaches alone.
+
+**What this does to the report.** Nothing to the headline numbers: they remain the
+front end alone, because a pooled +0.010 that cannot be told from zero is not a
+reason to replace them, and the back end stays off by default. Three of the four
+registered claims held — all three forecast from a val measurement of the same
+quantity — and the fourth failed on a premise about this report that was not
+true, which is the calibration lesson of §10 in miniature.
+
 ### 9.14 The noisy map, repaired at its source — and it was not what limited `noisy_lidar`
 
 §9.6 left `noisy_lidar` as this stack's worst open condition at 360 beams, 0.890
@@ -1701,19 +1766,23 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of forty-four predictions made in advance, eight held. Four were
-derived from a *measurement* — two to within 0.021 and 0.001, one on both
-magnitude and mechanism, and one whose magnitude came from measuring the
-estimator it was about. Two more are weaker in kind and are counted as held
-anyway: §9.8 and §9.10 each registered a *bound* on what a treatment would cost
-rather than a direction, and both came in at zero. A bound is the easiest form of
-prediction to satisfy, which is worth saying plainly in a tally that otherwise
-counts point forecasts. The last two are §9.12's, and one of them is the only
-*negative* prediction in the set — that a back end would not recover the tight
-gaps — which held for the arithmetic it was made from. Twenty from extrapolation,
-intuition, arithmetic or a post hoc description failed outright; sixteen got part
-right and part wrong. One of those twenty failed by helping: §9.12 registered
-`nominal` to stay inside ±0.03 and it improved by 0.040. Confidence
+**Calibration.** Of forty-eight predictions made in advance, eleven held. Seven
+were derived from a *measurement* of the same quantity — two to within 0.021 and
+0.001, one on both magnitude and mechanism, one whose magnitude came from
+measuring the estimator it was about, and three of §9.13's four, each forecast
+from the val result for the same condition and sensor. Two more are weaker in
+kind and are counted as held anyway: §9.8 and §9.10 each registered a *bound* on
+what a treatment would cost rather than a direction, and both came in at zero. A
+bound is the easiest form of prediction to satisfy, which is worth saying plainly
+in a tally that otherwise counts point forecasts. The last two are §9.12's: the
+only *negative* prediction in the set — that a back end would not recover the
+tight gaps — which held for the arithmetic it was made from, and a pose threshold
+set from a train-band check. Twenty-one from extrapolation, intuition, arithmetic
+or a post hoc description failed outright; sixteen got part right and part wrong.
+One of those twenty-one failed by helping: §9.12 registered `nominal` to stay
+inside ±0.03 and it improved by 0.040. Another failed on a fact: §9.13's collision
+bound rested on my statement that the front end had never collided in any
+measurement here, and it had. Confidence
 of expression was identical throughout. Three rules came out of them; the
 record of each prediction is in [`project_plan.md`](project_plan.md). The
 fifteenth also broke this report's own stated practice: its null was registered
@@ -1844,22 +1913,21 @@ In order of expected information per GPU-hour:
    0.049 m), so the open question is whether the back end and the obstacle range
    together close the gap that neither closes alone — one registered held-out
    run on `noisy_lidar`, both rules against neither, the noise-free cells being
-   identical by construction. The suggestion this item used to make, clearing
+   identical by construction. There is a mechanism for why they might: §9.13
+   found the back end inert under noise because it rejects 46% of its closures,
+   and a map with 93% fewer phantoms is exactly what a closure scores against. The suggestion this item used to make, clearing
    that scales with how many beams cross a cell, was tested and is the wrong
    lever: 309 phantoms to 288.
-3. **Run the back end on the test worlds, with its own registered endpoint.**
-   It exists now (§9.12) and it is the only change in §9.7–§9.12 that costs
-   nothing: on val it wins three episodes of 100, loses none, collides never,
-   and cuts the clutter pose error p95 by 26%. Everything published here is
-   still the front end alone, so carrying it across would move the headline
-   numbers of this report, and that needs registering before it is run rather
-   than deciding after. Note what it did *not* do, because it redirects the
-   guess this item used to make: at 32 beams on `sparse` it is inert to a
-   millimetre, since the front end there is already 0.472 m lost and a graph
-   can only redistribute error, not invent information the scans never carried.
-   A sparse-sensor back end is therefore not the answer for a sparse sensor;
-   a better *front* end is, which means more geometry per scan rather than more
-   inference over poses.
+3. **A better front end for the sparse sensor.** The back end is done and
+   measured on the held-out worlds (§9.13): pooled +0.010 over 600 paired
+   episodes, 14 won and 8 lost, clutter pose error down 20%, not enough to
+   replace the published front end. What it settled is where the 32-beam
+   problem lives. On val the front end there is already 0.472 m lost, and a
+   graph can only redistribute error, not invent information the scans never
+   carried; on held-out the back end's pose error at 32 beams got slightly
+   *worse*. A sparse sensor therefore needs more geometry per scan — matching
+   against features or line segments rather than a likelihood field of
+   points — rather than more inference over poses.
 4. **An encoder that can measure a gap.** The RGB features carry the
    clearance ahead as well as a depth vector does and the *width* of the gap
    past it not at all (§8.5). The first convolution strides 4 across a

@@ -3217,6 +3217,49 @@ sixteen part right.
 Off by default with an identity control; every published number is still the
 front end alone. Nothing ran on the test worlds.
 
+## Phase 6p — The back end on the held-out worlds
+
+Registered in `f3269f0` before any held-out seed was driven, forecasts taken
+from the val measurement of the same condition and sensor. The front end
+reproduces Phase 6i's published outcomes 100/100 in each of the five 360-beam
+cells. Full treatment in report §9.13.
+
+| held-out, 100 worlds each | success | Δ | McNemar *p* | pose p95 |
+|---|---|---|---|---|
+| `sparse`, 32 beams | 0.58 → 0.60 | +0.020 | 0.500 (2 / 0) | 0.564 → 0.582 m |
+| `dense` | 0.59 → 0.61 | +0.020 | 0.727 (5 / 3) | 0.127 → 0.097 m |
+| `narrow` | 0.60 → 0.59 | −0.010 | 1.000 (3 / 4) | 0.139 → 0.115 m |
+| `nominal` | 0.96 → 0.97 | +0.010 | 1.000 (1 / 0) | 0.097 → 0.089 m |
+| `large` | 0.89 → 0.91 | +0.020 | 0.500 (2 / 0) | 0.173 → 0.140 m |
+| `noisy_lidar` | 0.89 → 0.89 | +0.000 | 1.000 (1 / 1) | 0.254 → 0.249 m |
+| pooled, 600 paired | 0.752 → 0.762 | +0.010 | 0.286 (14 / 8) | |
+
+- Pooled +0.010, CI [−0.005, +0.025]: inside the registered [0.00, +0.05] and
+  not distinguishable from zero. Val's "costs nothing" (3 won, 0 lost) does not
+  replicate: 14 won, 8 lost.
+- Clutter pose p95 down 20.2%, inside 20–32% by two tenths of a point.
+- Collisions 4 → 4, in different worlds on `dense` and `narrow` (one avoided,
+  one caused, each), the same two on `noisy_lidar`.
+- Inert under noise: 2.5 of 5.5 closures rejected per episode.
+- Off by default; the headline numbers remain the front end alone.
+- Two problems caught before launch: four conditions are scored on `test_ood`,
+  not `test`; and a two-world smoke test touched test seeds before registration
+  (disclosed in `f3269f0`; those worlds are not in the scored run). Two attempts
+  were killed partway by the tool's background time limit; per-episode
+  checkpoints and detached processes fixed it.
+
+### Calibration
+
+45. **Pooled success between 0.00 and +0.05** -- **held**, +0.010.
+46. **Clutter pose p95 down 20–32%** -- **held**, 20.2%.
+47. **At most 2 collisions with the back end** -- **failed**, 4. The bound rested
+    on my statement that the front end had never collided here; it collides 4
+    times in the same 600 episodes.
+48. **`sparse` at 32 beams inside ±0.03** -- **held**, +0.020.
+
+Running total: forty-eight predictions, eleven held, twenty-one failed
+outright, sixteen part right.
+
 ## Phase 6q — The noisy map, repaired at its source
 
 §9.6 left 309 phantom cells under noise. §12 proposed per-beam clearing.

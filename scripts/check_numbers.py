@@ -1172,6 +1172,77 @@ def claims():
              round(bc["narrow"]["tight"]["pose_err_p95"], 3)),
         ]
 
+    # --- the back end on the held-out worlds, Phase 6p ----------------------
+    tp = "results/backend_test.json"
+    if os.path.exists(tp):
+        tj = load(tp)
+        tc, te = tj["cells"], tj["endpoints"]
+        for cond, before, after, gain, won, lost, p95a, p95b in (
+                ("sparse", 0.58, 0.60, 0.020, 2, 0, 0.564, 0.582),
+                ("dense", 0.59, 0.61, 0.020, 5, 3, 0.127, 0.097),
+                ("narrow", 0.60, 0.59, -0.010, 3, 4, 0.139, 0.115),
+                ("nominal", 0.96, 0.97, 0.010, 1, 0, 0.097, 0.089),
+                ("large", 0.89, 0.91, 0.020, 2, 0, 0.173, 0.140),
+                ("noisy_lidar", 0.89, 0.89, 0.000, 1, 1, 0.254, 0.249)):
+            e = tc[cond]
+            out += [
+                (f"held-out back end {cond} front end", before, round(e["success"][0], 2)),
+                (f"held-out back end {cond} back end", after, round(e["success"][1], 2)),
+                (f"held-out back end {cond} gain", gain, round(e["gain"], 3)),
+                (f"held-out back end {cond} won", won, e["won"]),
+                (f"held-out back end {cond} lost", lost, e["lost"]),
+                (f"held-out back end {cond} p95 before", p95a,
+                 round(e["pose_err_p95"][0], 3)),
+                (f"held-out back end {cond} p95 after", p95b,
+                 round(e["pose_err_p95"][1], 3)),
+            ]
+        out += [
+            ("held-out back end dense mcnemar", 0.727, round(tc["dense"]["mcnemar_p"], 3)),
+            # The control: the front end is the published arm, 100/100 in each
+            # of the five 360-beam cells.
+            ("held-out back end reproduces", 1.0, float(te["reproduces"])),
+            ("held-out back end reproduction cells", 5, len(te["reproduction"])),
+            ("held-out back end reproduction episodes", 500,
+             sum(v["matched"] for v in te["reproduction"].values())),
+            # The endpoints.
+            ("held-out back end pooled before", 0.752, round(te["pooled_success"][0], 3)),
+            ("held-out back end pooled after", 0.762, round(te["pooled_success"][1], 3)),
+            ("held-out back end pooled gain", 0.010, round(te["pooled_gain"], 3)),
+            ("held-out back end pooled mcnemar", 0.286, round(te["pooled_mcnemar_p"], 3)),
+            ("held-out back end pooled won", 14, te["pooled_won"]),
+            ("held-out back end pooled lost", 8, te["pooled_lost"]),
+            ("held-out back end pooled n", 600, te["pooled_n"]),
+            ("held-out back end pooled ci low", -0.005, round(te["pooled_ci"][0], 3)),
+            ("held-out back end pooled ci high", 0.025, round(te["pooled_ci"][1], 3)),
+            ("held-out back end clutter p95 before", 0.133,
+             round(te["clutter_pose_p95"][0], 3)),
+            ("held-out back end clutter p95 after", 0.106,
+             round(te["clutter_pose_p95"][1], 3)),
+            ("held-out back end clutter reduction", 20.2,
+             round(100 * te["clutter_pose_reduction"], 1)),
+            ("held-out back end collisions front end", 4, te["collisions"][0]),
+            ("held-out back end collisions back end", 4, te["collisions"][1]),
+            ("held-out back end pooled held", 1, int(te["pooled_held"])),
+            ("held-out back end pose held", 1, int(te["pose_held"])),
+            ("held-out back end collisions held", 0, int(te["collisions_held"])),
+            ("held-out back end sparse held", 1, int(te["sparse_held"])),
+            # Inert under noise: closures attempted and refused.
+            ("held-out back end noisy closures", 3.0, round(tc["noisy_lidar"]["closures"], 1)),
+            ("held-out back end noisy rejected", 2.5, round(tc["noisy_lidar"]["rejected"], 1)),
+        ]
+        # Rejection rates, quoted in §9.13 and §12 from the unrounded counts.
+        for cond, share in (("noisy_lidar", 46), ("dense", 10), ("narrow", 9),
+                            ("sparse", 19), ("nominal", 20), ("large", 20)):
+            c = tc[cond]
+            out.append((f"held-out back end {cond} closures refused %", share,
+                        round(100 * c["rejected"] / (c["closures"] + c["rejected"]))))
+        # Collisions in different worlds on dense and narrow, the same on noisy.
+        for cond, same in (("dense", False), ("narrow", False), ("noisy_lidar", True)):
+            fe = {r["seed"] for r in tc[cond]["front_end"]["episodes"] if r["collision"]}
+            be = {r["seed"] for r in tc[cond]["back_end"]["episodes"] if r["collision"]}
+            out.append((f"held-out back end {cond} collides in the same worlds",
+                        float(same), float(fe == be)))
+
     # --- the noisy map, repaired at its source, Phase 6q --------------------
     dp = "results/clearing_diagnostic.json"
     if os.path.exists(dp):
