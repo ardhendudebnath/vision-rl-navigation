@@ -1787,7 +1787,7 @@ error, which only a closure back to the well-localised keyframes near the start
 could measure. §12 says what would test it. Nothing here was registered, and the
 calibration tally is unchanged.
 
-### 9.16 The closures reach far enough; the solve does not use them
+### 9.16 Where the closures reach — tested through the wrong quantity
 
 §9.15 left a question with two answers that leave different marks. Correct
 closures in the failing `noisy_lidar` episodes might change nothing because they
@@ -1808,26 +1808,86 @@ count alike.
 | closures reaching an anchor within 0.15 m | 37% | below 20% | failed |
 | median change in the newest error per solve | 0.017 m | below 0.05 m | held |
 
-**The co-drift reading is refuted.** More than a third of the closures in the
-failing episodes reach back to a keyframe that was still within 0.15 m of the
-truth when it was added — exactly the closures that carry information about the
-absolute error. The newest keyframes they come from were 0.233 m out at the
-median, and the anchors 0.235 m, so the graph is being told about a real
-disagreement.
+More than a third of the closures in the failing episodes reach back to a
+keyframe that was still within 0.15 m of the truth when it was added, and over
+117 solves the newest keyframe's error moves by 0.017 m at the median — in the
+direction of *worse*, by 0.012 m. Of three claims, one held, and the scores stand
+as registered.
 
-**And the solve does nothing with it.** Over 117 solves that had closures to work
-with, the newest keyframe's error moves by 0.017 m at the median — and in the
-direction of *worse*, by 0.012 m. That is the signature registered for the
-alternative: closures that reach far enough, in a solve that does not let them
-pull. Two explanations remain and this measurement does not separate them. Each
-closure is weighted below each odometry edge — 0.6 against 1.0 in translation,
-2.0 against 4.0 in rotation — so a chain of confident odometry edges can outvote
-it; and 40% of the closures reach anchors that had *already* drifted beyond
-0.30 m, which may outvote the good ones. Both are properties of the solve, not of
-the scan matching that §9.15 showed is accurate.
+**The conclusion first drawn here was wrong, and §9.17 says why.** This section
+read the result as refuting the co-drift hypothesis and concluded that "the graph
+is being told about a real disagreement" which the solve then ignores. It is not
+being told one. The claims tested co-drift through each anchor's *absolute*
+error, which does not measure it: two keyframes can each be a quarter of a metre
+off and agree perfectly with one another if they drifted together. What decides
+it is the drift *between* the linked pair, and §9.17 measures that — 0.028 m at
+the median. The well-anchored closures came from keyframes that were themselves
+well localised, early in the episode, before anything drifted. The hypothesis
+held in substance; the registration tested it through a proxy.
 
-Of three claims, one held. The co-drift hypothesis was mine and it was wrong; the
-alternative it was registered against is what the data show.
+### 9.17 The closures agree with the drift: why the back end cannot see it
+
+§9.16 left two candidate causes for a solve that did not use correct closures —
+closures weighted below odometry, and closures anchored to drifted keyframes —
+and they can be separated without driving an episode differently.
+[`closure_resolve_diagnostic.py`](../scripts/closure_resolve_diagnostic.py)
+drives the ten failing val worlds once with the published back end, saves each
+graph, and re-solves it offline from the keyframes' estimates four ways. The
+control comes first, and holds: the offline re-solve with the published settings
+reproduces the pose each robot actually ended with, 0.000 m apart at the median.
+
+| failing episodes, final keyframe's true error, median | error | cut |
+|---|---|---|
+| robot as it ended | 0.388 m | |
+| front end alone, no solve | 0.388 m | |
+| published re-solve | 0.388 m | |
+| closures weighted as odometry | 0.388 m | −0% |
+| only the closures with well-localised anchors | 0.408 m | −5% |
+
+**By the registered rule, neither cause.** My guess was that dropping the
+drifted-anchor closures would cut the error by a quarter and raising the weights
+would not; the first failed — the oracle filter made it slightly *worse* — and
+the second held. The rule's third branch, "something about the solve itself",
+is what it returns.
+
+**That branch was misconceived, and one row says why.** The front end with no
+solve at all, the published re-solve and the robot all end at the same 0.388 m.
+A Gauss–Newton solve that moves nothing is not a broken solve; it is a solve
+whose measurements already agree with its estimates. The exploratory check that
+follows was added after the registered test, from the same saved graphs, and is
+labelled as such:
+
+| 303 closures in the failing episodes | median |
+|---|---|
+| closure against the *true* relative pose | 0.048 m |
+| closure against the relative pose the drifted chain implies | 0.054 m |
+| drift *between* the two keyframes a closure links | 0.028 m |
+| absolute error of each of those keyframes | 0.23 m |
+
+**The closures agree with the drift.** They link keyframes whose drift relative
+to one another is 0.028 m while each is 0.23 m from the truth, so they measure the
+relative pose accurately, the chain already has that relative pose right, and the
+disagreement the solve sees — 0.054 m — is the size of the measurement itself;
+only 10% of closures disagree by more than 0.10 m. The 113 closures with a
+well-localised anchor came from newest keyframes that were *also* well localised,
+0.073 m out: early in the episode, before anything drifted. Not one closure spans
+the drift. Re-solving moves any keyframe by 0.067 m at the median episode and
+0.115 m at most, which is the solve doing the little there is to do.
+
+**So the co-drift hypothesis held, and §9.16 tested it through a proxy.** The drift
+accumulates in the front end during a stretch where the robot revisits nothing it
+saw while still well localised; when it later circles, it revisits only places
+seen after the drift set in, and every closure it can make links two keyframes
+that drifted together. A loop-closing back end can correct drift only across a
+loop that closes back over it, and in these episodes none does. That makes the
+`noisy_lidar` failures unobservable to this back end by construction, and it puts
+the remaining repair where the drift is created — the front end under noise — or
+in a closure that reaches back across it, which this planner gives the robot no
+reason to make.
+
+Of the two registered claims one held. The proxy is its own calibration lesson,
+recorded in §10: a hypothesis registered through a quantity that does not measure
+it can fail its test and still be right.
 
 ## 10. Discussion
 
@@ -1877,7 +1937,7 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of fifty-one predictions made in advance, twelve held. Seven
+**Calibration.** Of fifty-three predictions made in advance, thirteen held. Seven
 were derived from a *measurement* of the same quantity — two to within 0.021 and
 0.001, one on both magnitude and mechanism, one whose magnitude came from
 measuring the estimator it was about, and three of §9.13's four, each forecast
@@ -1888,14 +1948,19 @@ bound is the easiest form of prediction to satisfy, which is worth saying plainl
 in a tally that otherwise counts point forecasts. Two more are §9.12's: the only
 *negative* prediction in the set — that a back end would not recover the tight
 gaps — which held for the arithmetic it was made from, and a pose threshold set
-from a train-band check. The twelfth is §9.16's third claim. Twenty-three from
-extrapolation, intuition, arithmetic or a post hoc description failed outright;
-sixteen got part right and part wrong. One of those twenty-three failed by
-helping: §9.12 registered `nominal` to stay inside ±0.03 and it improved by
-0.040. Another failed on a fact: §9.13's collision bound rested on my statement
-that the front end had never collided in any measurement here, and it had. Two
-more are §9.16's, and they are the hypothesis I proposed at the end of §9.15 —
-registered against its alternative, which is what held. Confidence
+from a train-band check. The last two are §9.16's third claim and §9.17's second.
+Twenty-four from extrapolation, intuition, arithmetic or a post hoc description
+failed outright; sixteen got part right and part wrong. One of those twenty-four
+failed by helping: §9.12 registered `nominal` to stay inside ±0.03 and it
+improved by 0.040. Another failed on a fact: §9.13's collision bound rested on my
+statement that the front end had never collided in any measurement here, and it
+had. And two failed for a reason this tally had not yet recorded: §9.16 registered
+the co-drift hypothesis through each anchor's *absolute* error, which does not
+measure co-drift, so the claims failed and the hypothesis — tested properly in
+§9.17, through the drift between the linked pair — held. A registered claim can
+be the wrong operationalisation of the idea it was written for, and then a failed
+prediction says less than it appears to; the only defence is to state, beside the
+claim, why that quantity measures that idea. Confidence
 of expression was identical throughout. Three rules came out of them; the
 record of each prediction is in [`project_plan.md`](project_plan.md). The
 fifteenth also broke this report's own stated practice: its null was registered
@@ -2017,19 +2082,21 @@ In order of expected information per GPU-hour:
    them 0.96 of the way to the goal — a limit this comparison has never
    varied. None of this touches the seven clutter failures on worlds that had
    a margin-safe route all along, which remain unexplained.
-2. **Make the solve use the closures it already has.** Under noise the back
-   end's closures are accurate (§9.15) and over a third of them reach
-   keyframes that were still well localised (§9.16), yet a solve moves the
-   newest pose by 0.017 m at the median, slightly the wrong way. Two causes are
-   left, and they can be separated without driving a single episode: save the
-   graphs of the failing episodes, and re-solve them offline with the closures
-   weighted up to the odometry's, and separately with only the closures whose
-   anchors were well localised. If raising the weights pulls the newest error
-   down, it is the weights; if dropping the drifted anchors does, it is them;
-   if neither does, it is something about the solve itself. Spent on the way:
-   clearing that scales with beam count (§9.14), a cleaner map for closures that
-   never read it, a noise-aware closure match (§9.15), and the reading that the
-   closures link co-drifted keyframes (§9.16).
+2. **Stop the drift where it is made: the front end under noise.** The back end
+   cannot see the `noisy_lidar` drift by construction (§9.17): every closure it
+   can make links two keyframes that drifted together, 0.028 m apart relative to
+   each other and 0.23 m from the truth, so the solve has nothing to correct.
+   Two directions remain, both untried. The drift is created by a scan matcher
+   whose corrections under noise are too weak to stop odometry bias
+   accumulating — §9.5 chose its motion prior on val, and under range noise the
+   score surface is flatter, so the same prior may now dominate; re-measuring
+   that choice under noise is cheap and is the first thing to try. The other is
+   to give the robot a closure that spans the drift — a deliberate return past a
+   place it saw while still well localised — which is a planning change with a
+   cost in path length, and worth it only if the first fails. Spent on the way:
+   clearing that scales with beam count (§9.14), a cleaner map for closures
+   that never read it, a noise-aware closure match (§9.15), and reweighting or
+   filtering the closures in the solve (§9.17).
 3. **A better front end for the sparse sensor.** The back end is done and
    measured on the held-out worlds (§9.13): pooled +0.010 over 600 paired
    episodes, 14 won and 8 lost, clutter pose error down 20%, not enough to

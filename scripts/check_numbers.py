@@ -1435,6 +1435,37 @@ def claims():
                         if r["success"] == kj3[r["seed"]]["success"]
                         and len(r["closures"]) == kj3[r["seed"]]["closures"])))
 
+    # --- the closures agree with the drift, Phase 6t -------------------------
+    sp2 = "results/closure_resolve_diagnostic.json"
+    if os.path.exists(sp2):
+        sj = load(sp2)
+        sm, sc, sr = sj["median"], sj["cut"], sj["residuals"]
+        out += [
+            ("resolve episodes", 10, len(sj["episodes"])),
+            ("resolve robot final", 0.388, round(sm["robot_final_error"], 3)),
+            ("resolve unsolved final", 0.388, round(sm["unsolved_final_error"], 3)),
+            ("resolve published final", 0.388, round(sm["published_final_error"], 3)),
+            ("resolve weights up final", 0.388, round(sm["weights_up_final_error"], 3)),
+            ("resolve good anchors final", 0.408, round(sm["good_anchors_final_error"], 3)),
+            ("resolve weights up cut", 0, round(100 * sc["weights_up"])),
+            ("resolve good anchors cut", -5, round(100 * sc["good_anchors"])),
+            ("resolve control", 0.000, round(sj["control"], 3)),
+            ("resolve claim 1 held", 0, int(sj["held"][0])),
+            ("resolve claim 2 held", 1, int(sj["held"][1])),
+            # The exploratory part, from the same saved graphs.
+            ("resolve closures", 303, sr["closures"]),
+            ("resolve against truth", 0.048, round(sr["against_truth_median"], 3)),
+            ("resolve against chain", 0.054, round(sr["residual_median"], 3)),
+            ("resolve disagreeing closures", 10, round(100 * sr["residual_above_0.10"])),
+            ("resolve pair drift", 0.028, round(sr["pair_drift_median"], 3)),
+            ("resolve anchor absolute", 0.235, round(sr["anchor_error_median"], 3)),
+            ("resolve newest absolute", 0.233, round(sr["newest_error_median"], 3)),
+            ("resolve good anchor closures", 113, sr["good_anchor_closures"]),
+            ("resolve good anchor newest", 0.073, round(sr["good_anchor_newest_median"], 3)),
+            ("resolve largest move median", 0.067, round(sj["largest_move_median"], 3)),
+            ("resolve largest move max", 0.115, round(sj["largest_move_max"], 3)),
+        ]
+
     # Every failure in that run is a timeout, not a crash -- §9.8 and §12.
     fd = "results/frontier_diagnostic.json"
     if os.path.exists(fd):

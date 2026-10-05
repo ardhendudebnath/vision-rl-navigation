@@ -154,6 +154,52 @@ def resolve(dump: dict, variant: str) -> np.ndarray:
                      for p, t in zip(graph.poses, truth, strict=True)])
 
 
+def closure_residuals(dumps: list[dict]) -> dict:
+    """Exploratory, added after the registered re-solve. Do the closures
+    disagree with the drifted chain at all?
+
+    A solve moves poses only where a measurement disagrees with what the poses
+    imply. For a closure that disagreement is the residual between the relative
+    pose the chain implies -- from the keyframes' estimates -- and the relative
+    pose the closure measured. §9.16 tested the co-drift reading through each
+    anchor's *absolute* error, which does not measure it: two keyframes can both
+    be well off and agree perfectly with each other if they drifted together.
+    What decides it is the drift *between* the linked pair.
+    """
+    from vision_nav.mapping.posegraph import relative_pose
+
+    resid, truth_err, pair_drift, anchor, newest = [], [], [], [], []
+    for d in dumps:
+        if d["success"]:
+            continue
+        est = [np.asarray(k["estimate"], dtype=float) for k in d["keyframes"]]
+        tru = [np.asarray(k["truth"], dtype=float) for k in d["keyframes"]]
+        for e in d["edges"]:
+            if e["j"] - e["i"] <= 1:
+                continue
+            i, j, z = e["i"], e["j"], np.asarray(e["z"], dtype=float)
+            chain, true = relative_pose(est[i], est[j]), relative_pose(tru[i], tru[j])
+            resid.append(float(np.linalg.norm(chain[:2] - z[:2])))
+            truth_err.append(float(np.linalg.norm(true[:2] - z[:2])))
+            pair_drift.append(float(np.linalg.norm(chain[:2] - true[:2])))
+            anchor.append(float(np.linalg.norm(est[i][:2] - tru[i][:2])))
+            newest.append(float(np.linalg.norm(est[j][:2] - tru[j][:2])))
+    r, t, pd_, a, n = (np.asarray(x) for x in (resid, truth_err, pair_drift, anchor, newest))
+    good = a <= WELL
+    return {
+        "closures": len(r),
+        "against_truth_median": float(np.median(t)),
+        "residual_median": float(np.median(r)),
+        "residual_above_0.10": float(np.mean(r > 0.10)),
+        "pair_drift_median": float(np.median(pd_)),
+        "anchor_error_median": float(np.median(a)),
+        "newest_error_median": float(np.median(n)),
+        "good_anchor_closures": int(good.sum()),
+        "good_anchor_newest_median": float(np.median(n[good])) if good.any() else None,
+        "good_anchor_residual_median": float(np.median(r[good])) if good.any() else None,
+    }
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--combined", default="results/combined_noisy_val.json",
@@ -225,6 +271,30 @@ def main(argv=None) -> int:
              if report["cut"][v] >= PREDICTION["decisive_cut"]]
     report["cause"] = cause or ["the solve itself"]
     print(f"decision rule -- the cause: {', '.join(report['cause'])}")
+    # How far the published re-solve moves any keyframe at all.
+    moved = []
+    for d in dumps:
+        if d["success"]:
+            continue
+        unsolved = np.array([float(np.linalg.norm(np.asarray(k["estimate"])[:2]
+                                                  - np.asarray(k["truth"])[:2]))
+                             for k in d["keyframes"]])
+        moved.append(float(np.max(np.abs(resolve(d, "published") - unsolved))))
+    report["largest_move_median"] = float(np.median(moved))
+    report["largest_move_max"] = float(np.max(moved))
+    report["residuals"] = closure_residuals(dumps)
+    rr = report["residuals"]
+    print("\nexploratory, after the registered test -- what the closures disagree with:")
+    print(f"  {rr['closures']} closures: against the true relative pose "
+          f"{rr['against_truth_median']:.3f} m; against the chain's "
+          f"{rr['residual_median']:.3f} m ({rr['residual_above_0.10']:.0%} above 0.10 m)")
+    print(f"  drift between the linked pair {rr['pair_drift_median']:.3f} m, against "
+          f"absolute errors of {rr['anchor_error_median']:.3f} m and "
+          f"{rr['newest_error_median']:.3f} m")
+    print(f"  the {rr['good_anchor_closures']} well-anchored closures came from newest "
+          f"keyframes {rr['good_anchor_newest_median']:.3f} m out")
+    print(f"  re-solving moves any keyframe by {report['largest_move_median']:.3f} m at the "
+          f"median episode, {report['largest_move_max']:.3f} m at most")
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2), encoding="utf-8")
