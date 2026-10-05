@@ -3321,6 +3321,39 @@ A 2×2 on `noisy_lidar`, 100 val worlds, one arm per process
 - Open hypothesis: the closures link keyframes that drifted together late in an
   episode. §12 item 2 gives the test. Nothing registered.
 
+## Phase 6s — The closures reach far enough; the solve does not use them
+
+`closure_reach_diagnostic.py`, registered in `39bbc17` before any val world was
+driven, the instrumentation checked first on eight train worlds. The worlds are
+the 31 that formed a closure in Phase 6r; the run reproduces that one on all 31,
+outcome and closure count. Full treatment in report §9.16.
+
+| failing episodes, 10 worlds, 303 closures | measured | registered |
+|---|---|---|
+| median anchor error when added | 0.235 m | above 0.30 m |
+| closures reaching an anchor within 0.15 m | 37% | below 20% |
+| median change in newest error per solve | 0.017 m | below 0.05 m |
+
+- **The co-drift reading is refuted**: over a third of closures reach anchors
+  that were still well localised, from newest keyframes 0.233 m out.
+- **The solve does nothing with them**: 117 solves move the newest error by
+  0.017 m at the median, slightly the wrong way (−0.012 m).
+- That is the registered alternative. Two causes remain, unseparated: closure
+  weights below odometry (0.6 vs 1.0, 2.0 vs 4.0), and the 40% of closures whose
+  anchors had already drifted beyond 0.30 m.
+- The 10 failures here against Phase 6r's 11: world 10074 failed with no closure
+  and so was never in the set.
+
+### Calibration
+
+49. **Median anchor error above 0.30 m** -- **failed**, 0.235 m.
+50. **Fewer than 20% of closures reach an anchor within 0.15 m** -- **failed**, 37%.
+51. **A solve moves the newest error by less than 0.05 m** -- **held**, 0.017 m.
+
+The hypothesis was mine, proposed at the end of Phase 6r; the alternative it was
+registered against is what held. Running total: fifty-one predictions, twelve
+held, twenty-three failed outright, sixteen part right.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

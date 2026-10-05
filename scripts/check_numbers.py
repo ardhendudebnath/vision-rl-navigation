@@ -1406,6 +1406,35 @@ def claims():
                    / be2["noisy_lidar"]["attempts"])),
         ]
 
+    # --- the closures reach far enough, Phase 6s ----------------------------
+    rp2 = "results/closure_reach_diagnostic.json"
+    if os.path.exists(rp2):
+        rj = load(rp2)
+        rf = rj["failed"]
+        out += [
+            ("reach failing episodes", 10, rf["episodes"]),
+            ("reach failing closures", 303, rf["closures"]),
+            ("reach anchor error", 0.235, round(rf["anchor_error_median"], 3)),
+            ("reach newest error", 0.233, round(rf["newest_error_median"], 3)),
+            ("reach well localised anchors", 37, round(100 * rf["well_localised_anchor_share"])),
+            ("reach drifted anchors", 40, round(100 * rf["drifted_anchor_share"])),
+            ("reach solves", 117, rf["solves"]),
+            ("reach solve change", -0.012, round(rf["solve_change_median"], 3)),
+            ("reach solve change abs", 0.017, round(rf["solve_change_abs_median"], 3)),
+            ("reach worlds", 31, len(rj["episodes"])),
+            # One of three registered claims held, and which.
+            ("reach claim 1 held", 0, int(rj["held"][0])),
+            ("reach claim 2 held", 0, int(rj["held"][1])),
+            ("reach claim 3 held", 1, int(rj["held"][2])),
+        ]
+        # It reproduces Phase 6r's back-end arm on every world it drove.
+        kj3 = {e["seed"]: e for e in
+               load("results/combined_noisy_val.json")["arms"]["back_end"]["episodes"]}
+        out.append(("reach reproduces phase 6r", 31,
+                    sum(1 for r in rj["episodes"]
+                        if r["success"] == kj3[r["seed"]]["success"]
+                        and len(r["closures"]) == kj3[r["seed"]]["closures"])))
+
     # Every failure in that run is a timeout, not a crash -- §9.8 and §12.
     fd = "results/frontier_diagnostic.json"
     if os.path.exists(fd):
