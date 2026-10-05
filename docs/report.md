@@ -1889,6 +1889,53 @@ Of the two registered claims one held. The proxy is its own calibration lesson,
 recorded in §10: a hypothesis registered through a quantity that does not measure
 it can fail its test and still be right.
 
+### 9.18 The motion prior is not the lever either
+
+§9.17 put the `noisy_lidar` drift in the front end, and the first candidate there
+was the scan matcher's motion prior: chosen on val in §9.5 to keep about 0.03 m of
+match noise from being taken seriously, it might, on a score surface flattened by
+range noise, override the scan when the scan is right. Binding alone would prove
+nothing — a prior that overrides a noisy argmax is doing its job — so
+[`prior_binding_diagnostic.py`](../scripts/prior_binding_diagnostic.py) computes,
+at every scan match, the odometry's prediction, the published correction and the
+answer with the prior removed, and scores each against the ground truth. Three
+claims were committed before any val world was driven, each beside the reason
+its quantity measures the idea, which is the defence §10 now prescribes.
+
+| val scans | prior binds | overridden answer closer to truth | median error: predicted / published / no prior |
+|---|---|---|---|
+| `nominal` | 46% | 55% | 0.039 / 0.038 / 0.036 m |
+| `noisy_lidar`, all | 87% | 49% | 0.210 / 0.209 / 0.213 m |
+| failing episodes | 86% | 58% | 0.318 / 0.318 / 0.331 m |
+| arriving episodes | 91% | 15% | 0.123 / 0.125 / 0.147 m |
+
+**Noise roughly doubles how often the prior binds** — 87% of scans against 46% on
+`nominal`, a ratio of 1.9 against the registered 2. **And the answers it overrides
+are a coin flip**: closer to the truth on 49% of the scans where it binds. So it is
+not systematically suppressing real corrections, and removing it would make the
+median error *worse* in both groups — 0.318 m to 0.331 m in the failures, 0.125 m
+to 0.147 m in the arrivals. The scan does point the right way more often in the
+failing episodes than in the arriving ones, 58% against 15%, which is the one
+claim of three that held; but it is not reliable enough there to correct anything,
+and it is wrong by more when it is wrong.
+
+**One structural fact is worth more than the rest.** In the failing episodes the
+odometry's prediction and the published correction are the same at the median —
+0.318 m from the truth — and that is four times the matcher's search window, which
+reaches ±0.08 m. Once the drift has outgrown the window, no setting of the prior
+can bring the pose back in a step; the matcher can only agree with a map that the
+same drift built. Under 0.1 m of range noise the match against that map is not
+informative enough to stop the drift while it is still small, and neither the prior
+nor the back end changes what the match can see.
+
+**What that leaves.** Five candidate levers on `noisy_lidar` have now been measured
+and set aside: clearing scaled by beam count, a cleaner map for closures that never
+read it, closures matched with a noise-widened blur, closures reweighted or
+filtered in the solve, and the motion prior. The pose under noise is what limits
+`noisy_lidar`, as §9.11 found the pose is what limits the tight gaps, and the
+levers that leave the scan matcher's search unchanged are spent. §12 says what is
+left.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -1937,7 +1984,7 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of fifty-three predictions made in advance, thirteen held. Seven
+**Calibration.** Of fifty-six predictions made in advance, fourteen held. Seven
 were derived from a *measurement* of the same quantity — two to within 0.021 and
 0.001, one on both magnitude and mechanism, one whose magnitude came from
 measuring the estimator it was about, and three of §9.13's four, each forecast
@@ -1948,9 +1995,10 @@ bound is the easiest form of prediction to satisfy, which is worth saying plainl
 in a tally that otherwise counts point forecasts. Two more are §9.12's: the only
 *negative* prediction in the set — that a back end would not recover the tight
 gaps — which held for the arithmetic it was made from, and a pose threshold set
-from a train-band check. The last two are §9.16's third claim and §9.17's second.
-Twenty-four from extrapolation, intuition, arithmetic or a post hoc description
-failed outright; sixteen got part right and part wrong. One of those twenty-four
+from a train-band check. The last three are §9.16's third claim, §9.17's second
+and §9.18's third. Twenty-six from extrapolation, intuition, arithmetic or a post
+hoc description failed outright; sixteen got part right and part wrong. One of
+those twenty-six
 failed by helping: §9.12 registered `nominal` to stay inside ±0.03 and it
 improved by 0.040. Another failed on a fact: §9.13's collision bound rested on my
 statement that the front end had never collided in any measurement here, and it
@@ -2082,21 +2130,26 @@ In order of expected information per GPU-hour:
    them 0.96 of the way to the goal — a limit this comparison has never
    varied. None of this touches the seven clutter failures on worlds that had
    a margin-safe route all along, which remain unexplained.
-2. **Stop the drift where it is made: the front end under noise.** The back end
-   cannot see the `noisy_lidar` drift by construction (§9.17): every closure it
-   can make links two keyframes that drifted together, 0.028 m apart relative to
-   each other and 0.23 m from the truth, so the solve has nothing to correct.
-   Two directions remain, both untried. The drift is created by a scan matcher
-   whose corrections under noise are too weak to stop odometry bias
-   accumulating — §9.5 chose its motion prior on val, and under range noise the
-   score surface is flatter, so the same prior may now dominate; re-measuring
-   that choice under noise is cheap and is the first thing to try. The other is
-   to give the robot a closure that spans the drift — a deliberate return past a
-   place it saw while still well localised — which is a planning change with a
-   cost in path length, and worth it only if the first fails. Spent on the way:
-   clearing that scales with beam count (§9.14), a cleaner map for closures
-   that never read it, a noise-aware closure match (§9.15), and reweighting or
-   filtering the closures in the solve (§9.17).
+2. **A different scan matcher — the one lever left, for both remaining gaps.**
+   The two places this stack still loses to Nav2 in the open trace to the same
+   thing. The tight gaps fail on pose error (§9.11), and `noisy_lidar` fails on a
+   drift that the back end cannot see (§9.17) and the motion prior cannot stop
+   (§9.18). Five levers that leave the scan matcher's search unchanged have been
+   measured and set aside. What is left is the search itself: a ±0.08 m window
+   matched once per scan against a map the same drift built. slam_toolbox, which
+   reaches 1.000 on `noisy_lidar`, was run here with the parameters in
+   [`slam_params.yaml`](../ros2_bridge/slam_params.yaml): a correlation window of
+   0.5 m (±0.25 m), headings searched over ±0.349 rad before a fine pass, a match
+   against a buffer of the last 10 scans rather than the whole map, and loop
+   closures searched over 8 m. Its heading search alone is fifteen times this
+   stack's ±0.024 rad. A drift that has grown past this stack's window can still
+   be found inside that one, and one scan's noise is averaged against ten. That
+   is a front-end rebuild rather than a rule, and it is the next thing worth
+   building; a planned return across the drift remains a fallback with a cost in
+   path length. Spent on the way:
+   clearing scaled by beam count (§9.14), a cleaner map for closures that never
+   read it, a noise-aware closure match (§9.15), closures reweighted or filtered
+   in the solve (§9.17), and the motion prior (§9.18).
 3. **A better front end for the sparse sensor.** The back end is done and
    measured on the held-out worlds (§9.13): pooled +0.010 over 600 paired
    episodes, 14 won and 8 lost, clutter pose error down 20%, not enough to

@@ -1,0 +1,59 @@
+{
+  "split": "val",
+  "registered": {
+    "binding_ratio_at_least": 2.0,
+    "no_prior_better_share_above": 0.5,
+    "failures_suppressed_more": true
+  },
+  "binds_above": 0.01,
+  "noisy": {
+    "episodes": 20,
+    "scans": 7300,
+    "binding_share": 0.8702739726027398,
+    "no_prior_better_when_binding": 0.4929954352274516,
+    "no_prior_better_overall": 0.49273972602739724,
+    "error_predicted": 0.20961679078584522,
+    "error_published": 0.20930424873163167,
+    "error_no_prior": 0.21347590516423254,
+    "gap_median_when_binding": 0.025495097567963382
+  },
+  "noisy_failed": {
+    "episodes": 13,
+    "scans": 5953,
+    "binding_share": 0.8609104653116076,
+    "no_prior_better_when_binding": 0.576,
+    "no_prior_better_overall": 0.5684528809003864,
+    "error_predicted": 0.3182948047345625,
+    "error_published": 0.31840141868604527,
+    "error_no_prior": 0.33085588481204503,
+    "gap_median_when_binding": 0.025000000000000355
+  },
+  "noisy_arrived": {
+    "episodes": 7,
+    "scans": 1347,
+    "binding_share": 0.9116555308092057,
+    "no_prior_better_when_binding": 0.1465798045602606,
+    "no_prior_better_overall": 0.15812917594654788,
+    "error_predicted": 0.12313904032159882,
+    "error_published": 0.12457960570386518,
+    "error_no_prior": 0.1472936042526401,
+    "gap_median_when_binding": 0.025495097567964253
+  },
+  "nominal": {
+    "episodes": 7,
+    "scans": 1221,
+    "binding_share": 0.45782145782145783,
+    "no_prior_better_when_binding": 0.5474060822898033,
+    "no_prior_better_overall": 0.46846846846846846,
+    "error_predicted": 0.038975104998122664,
+    "error_published": 0.03802823078791617,
+    "error_no_prior": 0.03562445905862554,
+    "gap_median_when_binding": 0.01581138830084156
+  },
+  "binding_ratio": 1.9009025412306713,
+  "held": [
+    false,
+    false,
+    true
+  ]
+}

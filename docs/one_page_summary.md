@@ -128,11 +128,11 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of fifty-three advance predictions, thirteen held —
+pre-registered endpoints. Of fifty-six advance predictions, fourteen held —
 seven derived from *measurements* of the same quantity, two registered as
 bounds, which are the easiest kind to satisfy, one the only negative prediction
-in the set, one set from a train-band check, and two the surviving claims of
-tests whose other claims failed; twenty-four failed outright and sixteen got
+in the set, one set from a train-band check, and three the surviving claims of
+tests whose other claims failed; twenty-six failed outright and sixteen got
 part right and part wrong, with identical confidence of expression throughout.
 Two of the failures were a hypothesis registered through a quantity that did not
 measure it, which a proper test later showed was right. The three failures that reasoned from a real measurement all
@@ -184,7 +184,7 @@ committee can tell the difference.
 **~60 words, for a CV entry or the opening of an email.**
 
 > Vision + RL autonomous navigation (Python, PyTorch, Stable-Baselines3,
-> ROS 2 / Nav2): a fifty-nine-experiment controlled study of learned versus
+> ROS 2 / Nav2): a sixty-experiment controlled study of learned versus
 > classical navigation under distribution shift, with seed-level significance
 > testing, pre-registered predictions, a real Nav2 baseline over a ROS 2
 > bridge, and a 523-test suite. Includes a documented false positive I caught

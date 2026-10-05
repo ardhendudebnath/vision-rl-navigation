@@ -3393,6 +3393,42 @@ outright, sixteen part right. Claims 49 and 50 are recorded as failed and are
 also recorded here as having tested the right hypothesis through the wrong
 quantity.
 
+## Phase 6u — The motion prior is not the lever either
+
+`prior_binding_diagnostic.py`, registered in `ce329eb` before any val world was
+driven (its instrumentation checked on two train worlds, where it left
+behaviour unchanged and showed the prior binding on 97% of scans -- disclosed).
+At every scan match: the odometry's prediction, the published correction and
+the no-prior answer, each against the ground truth. Full treatment in report
+§9.18.
+
+| val scans | prior binds | overridden closer to truth | median error: predicted / published / no prior |
+|---|---|---|---|
+| `nominal` | 46% | 55% | 0.039 / 0.038 / 0.036 m |
+| `noisy_lidar` | 87% | 49% | 0.210 / 0.209 / 0.213 m |
+| failing | 86% | 58% | 0.318 / 0.318 / 0.331 m |
+| arriving | 91% | 15% | 0.123 / 0.125 / 0.147 m |
+
+- Noise nearly doubles binding (1.9x, registered 2x) and the overridden answers
+  are a coin flip (49%). Removing the prior makes the median error worse in both
+  groups. Not the repair.
+- In the failures the robot is 0.318 m off, four times the ±0.08 m search
+  window: once drift outgrows the window, no prior brings it back.
+- Five levers on `noisy_lidar` now set aside. What is left is the scan matcher's
+  search itself. slam_toolbox, per the repo's `slam_params.yaml`, searches a
+  0.5 m window and ±0.349 rad of heading -- fifteen times this stack's ±0.024 --
+  against a buffer of the last 10 scans, with loop closures over 8 m. A front-end
+  rebuild, not a rule.
+
+### Calibration
+
+54. **Binding at least twice as often under noise** -- **failed**, 1.9x.
+55. **Overridden answers better more than half the time** -- **failed**, 49%.
+56. **Suppression heavier in failures** -- **held**, 57% vs 16%.
+
+Running total: fifty-six predictions, fourteen held, twenty-six failed outright,
+sixteen part right.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

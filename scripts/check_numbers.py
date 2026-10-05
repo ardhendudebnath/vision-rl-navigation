@@ -1466,6 +1466,58 @@ def claims():
             ("resolve largest move max", 0.115, round(sj["largest_move_max"], 3)),
         ]
 
+    # --- the motion prior is not the lever, Phase 6u ------------------------
+    pp2 = "results/prior_binding_diagnostic.json"
+    if os.path.exists(pp2):
+        pj = load(pp2)
+        for key, binds, better, pred, pub, nop in (
+                ("nominal", 46, 55, 0.039, 0.038, 0.036),
+                ("noisy", 87, 49, 0.210, 0.209, 0.213),
+                ("noisy_failed", 86, 58, 0.318, 0.318, 0.331),
+                ("noisy_arrived", 91, 15, 0.123, 0.125, 0.147)):
+            e = pj[key]
+            out += [
+                (f"prior {key} binds", binds, round(100 * e["binding_share"])),
+                (f"prior {key} overridden better", better,
+                 round(100 * e["no_prior_better_when_binding"])),
+                (f"prior {key} predicted error", pred, round(e["error_predicted"], 3)),
+                (f"prior {key} published error", pub, round(e["error_published"], 3)),
+                (f"prior {key} no-prior error", nop, round(e["error_no_prior"], 3)),
+            ]
+        out += [
+            ("prior binding ratio", 1.9, round(pj["binding_ratio"], 1)),
+            ("prior claim 1 held", 0, int(pj["held"][0])),
+            ("prior claim 2 held", 0, int(pj["held"][1])),
+            ("prior claim 3 held", 1, int(pj["held"][2])),
+            ("prior failed overall better", 57,
+             round(100 * pj["noisy_failed"]["no_prior_better_overall"])),
+            ("prior arrived overall better", 16,
+             round(100 * pj["noisy_arrived"]["no_prior_better_overall"])),
+        ]
+    # The scan matcher's window against slam_toolbox's, from the configuration
+    # Nav2 was actually run with and the class this stack actually uses.
+    sy = "ros2_bridge/slam_params.yaml"
+    if os.path.exists(sy):
+        from vision_nav.mapping.localisation import ScanMatchConfig
+
+        with open(sy, encoding="utf-8") as f:
+            text = f.read()
+
+        def yaml_value(name):
+            return float(re.search(rf"^\s*{name}:\s*([0-9.]+)", text, re.M).group(1))
+
+        smc = ScanMatchConfig()
+        out += [
+            ("slam correlation window", 0.5, yaml_value("correlation_search_space_dimension")),
+            ("slam heading search", 0.349, yaml_value("coarse_search_angle_offset")),
+            ("slam scan buffer", 10, yaml_value("scan_buffer_size")),
+            ("slam loop search", 8.0, yaml_value("loop_search_space_dimension")),
+            ("stack window", 0.08, smc.window),
+            ("stack heading window", 0.024, smc.angular_window),
+            ("heading search ratio", 15,
+             round(yaml_value("coarse_search_angle_offset") / smc.angular_window)),
+        ]
+
     # Every failure in that run is a timeout, not a crash -- §9.8 and §12.
     fd = "results/frontier_diagnostic.json"
     if os.path.exists(fd):
