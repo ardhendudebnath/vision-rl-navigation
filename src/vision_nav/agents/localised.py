@@ -25,6 +25,7 @@ import numpy as np
 from vision_nav.agents.classical import PursuitConfig
 from vision_nav.agents.mapped import MappedPursuitAgent, make_sensor
 from vision_nav.envs.robot import RobotConfig, wrap_angle
+from vision_nav.mapping.frontend import CorrelativeConfig, CorrelativeFrontEnd
 from vision_nav.mapping.localisation import (
     DeadReckoning,
     OdometryConfig,
@@ -61,11 +62,25 @@ class LocalisedPursuitAgent(MappedPursuitAgent):
                  frontier: bool = False, relax_on_stall: int = 0,
                  pose_graph: bool = False,
                  graph_config: PoseGraphConfig | None = None,
-                 noise_margin: float = 0.0) -> None:
+                 noise_margin: float = 0.0, front_end: str = "map",
+                 front_end_config: CorrelativeConfig | None = None) -> None:
         super().__init__(config, robot, sensor, noise_std, corroborate, commit,
                          frontier, relax_on_stall, noise_margin)
+        if front_end not in ("map", "correlative"):
+            raise ValueError(f"front_end must be 'map' or 'correlative', not {front_end!r}")
         self.odometry = odometry
-        self.matcher = ScanMatcher(match_config) if scan_matching else None
+        #: Which scan matcher localises the robot, when ``scan_matching`` is on.
+        #: ``"map"`` is :class:`ScanMatcher`, every scan against the whole map
+        #: in a narrow window -- every published result. ``"correlative"`` is
+        #: :class:`CorrelativeFrontEnd`, keyframes against a buffer of recent
+        #: keyframes in slam_toolbox's wide window, and it replaces the first
+        #: rather than running beside it: two matchers correcting one pose
+        #: would make neither's contribution attributable.
+        self.front_end = front_end
+        self.matcher = (ScanMatcher(match_config)
+                        if scan_matching and front_end == "map" else None)
+        self.correlative = (CorrelativeFrontEnd(front_end_config)
+                            if scan_matching and front_end == "correlative" else None)
         #: The SLAM back end (:mod:`vision_nav.mapping.posegraph`). Off by
         #: default: every published result runs the front end alone, which is
         #: what §9.5's 0.1 m and §9.11's error budget were measured on.
@@ -93,6 +108,8 @@ class LocalisedPursuitAgent(MappedPursuitAgent):
         self._odom.reset(pose)
         if self.matcher is not None:
             self.matcher.reset()
+        if self.correlative is not None:
+            self.correlative.reset()
         if self.graph is not None:
             self.graph.reset()
         self._history = []
@@ -118,6 +135,9 @@ class LocalisedPursuitAgent(MappedPursuitAgent):
         ranges = self.map.scan(truth)
         if self.matcher is not None:
             estimate = self.matcher.correct(estimate, ranges, self.map)
+            self._odom.pose = estimate.copy()
+        elif self.correlative is not None:
+            estimate = self.correlative.update(estimate, ranges, self.map.sensor)
             self._odom.pose = estimate.copy()
         if self.graph is not None:
             estimate = self._update_graph(estimate, ranges)

@@ -253,29 +253,8 @@ class PoseGraph:
     def _field(self, points: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """A blurred occupancy image of ``points``, and its origin in metres."""
         cfg = self.config
-        res = cfg.loop_resolution
-        pad = 2.0 * cfg.loop_sigma + cfg.loop_window + res
-        origin = points.min(axis=0) - pad
-        extent = points.max(axis=0) + pad - origin
-        w = int(np.ceil(extent[0] / res)) + 1
-        h = int(np.ceil(extent[1] / res)) + 1
-        grid = np.zeros((h, w), dtype=np.float32)
-        cols = np.clip(((points[:, 0] - origin[0]) / res).astype(int), 0, w - 1)
-        rows = np.clip(((points[:, 1] - origin[1]) / res).astype(int), 0, h - 1)
-        grid[rows, cols] = 1.0
-
-        k = int(np.ceil(2.0 * cfg.loop_sigma / res))
-        padded = np.pad(grid, k)
-        field = np.zeros_like(grid)
-        for dr in range(-k, k + 1):
-            for dc in range(-k, k + 1):
-                weight = float(np.exp(-((dr * dr + dc * dc) * res * res)
-                                      / (2.0 * cfg.loop_sigma ** 2)))
-                if weight < 0.01:
-                    continue
-                np.maximum(field, weight * padded[k + dr:k + dr + h, k + dc:k + dc + w],
-                           out=field)
-        return field, origin
+        pad = 2.0 * cfg.loop_sigma + cfg.loop_window + cfg.loop_resolution
+        return blurred_field(points, cfg.loop_sigma, cfg.loop_resolution, pad)
 
     def _score(self, rel: np.ndarray, source: np.ndarray, field: np.ndarray,
                origin: np.ndarray) -> float:
@@ -365,6 +344,39 @@ class PoseGraph:
     @property
     def due_to_optimise(self) -> bool:
         return self._since_optimise >= self.config.optimise_every
+
+
+def blurred_field(points: np.ndarray, sigma: float, resolution: float,
+                  pad: float) -> tuple[np.ndarray, np.ndarray]:
+    """A blurred occupancy image of ``points``, and its corner in metres.
+
+    Each point marks its cell, and the image is the running maximum of a
+    Gaussian of width ``sigma`` around every marked cell -- a smeared lookup
+    grid of the kind a correlative matcher scores against. ``pad`` widens the
+    image beyond the points, so a search that moves them still reads inside it.
+    Shared by the back end's loop closures and the correlative front end.
+    """
+    res = resolution
+    origin = points.min(axis=0) - pad
+    extent = points.max(axis=0) + pad - origin
+    w = int(np.ceil(extent[0] / res)) + 1
+    h = int(np.ceil(extent[1] / res)) + 1
+    grid = np.zeros((h, w), dtype=np.float32)
+    cols = np.clip(((points[:, 0] - origin[0]) / res).astype(int), 0, w - 1)
+    rows = np.clip(((points[:, 1] - origin[1]) / res).astype(int), 0, h - 1)
+    grid[rows, cols] = 1.0
+
+    k = int(np.ceil(2.0 * sigma / res))
+    padded = np.pad(grid, k)
+    field = np.zeros_like(grid)
+    for dr in range(-k, k + 1):
+        for dc in range(-k, k + 1):
+            weight = float(np.exp(-((dr * dr + dc * dc) * res * res) / (2.0 * sigma ** 2)))
+            if weight < 0.01:
+                continue
+            np.maximum(field, weight * padded[k + dr:k + dr + h, k + dc:k + dc + w],
+                       out=field)
+    return field, origin
 
 
 def _project(pose: np.ndarray, local: np.ndarray) -> np.ndarray:
