@@ -1936,6 +1936,78 @@ filtered in the solve, and the motion prior. The pose under noise is what limits
 levers that leave the scan matcher's search unchanged are spent. §12 says what is
 left.
 
+### 9.19 slam_toolbox's front end, rebuilt: it smooths the drift and does not remove it
+
+§12 named a different scan matcher as the one lever left on `noisy_lidar`.
+[`frontend.py`](../src/vision_nav/mapping/frontend.py) copies the three ways
+slam_toolbox's matcher differs from this stack's, with the values in the repo's
+own `slam_params.yaml`: a match only every 0.5 m or 0.5 rad of travel, against a
+buffer of the last 10 keyframe scans rather than the whole map, over ±0.25 m and
+±0.349 rad of heading — fifteen times this stack's heading window — with Karto's
+deliberately weak tie-break towards the odometry. It reuses the back end's
+correlative machinery, and its tests recover offsets well past the old matcher's
+reach. [`frontend_experiment.py`](../scripts/frontend_experiment.py) measures it
+against the published map matcher on all 100 val worlds. The expectation was
+written down before that run: better pose under noise, worse on clean worlds,
+success roughly unchanged.
+
+| 100 val worlds | success | McNemar *p* | pose error, median | pose error, final |
+|---|---|---|---|---|
+| `noisy_lidar` | 0.87 → 0.83 | 0.52 (9 won / 13 lost) | 0.141 → 0.113 m | 0.251 → 0.252 m |
+| `nominal` | 0.95 → 0.99 | 0.125 (4 / 0) | 0.047 → 0.060 m | 0.068 → 0.120 m |
+| `dense` | 0.72 → 0.73 | 1.000 (4 / 3) | 0.052 → 0.079 m | 0.078 → 0.163 m |
+
+**It does not close `noisy_lidar`; it makes it slightly worse.** Success falls by
+0.040, nine episodes won against thirteen lost. The median pose error under noise
+does improve, by a fifth — the expectation's first clause — and the number that
+decides the episode does not move: the pose error at the end of the episode is
+0.251 m before and 0.252 m after. **The buffer drifts with the robot.** Matching
+against the last ten keyframes bounds how fast the drift builds, which is why the
+median improves, and holds no more absolute reference than the map did, which is
+why the drift that ends the episode is untouched. That concern was stated in the
+design before any of this was run.
+
+**And it costs the clean conditions their pose.** Matching only every half metre
+lets the odometry drift in between where the published matcher tracks every
+step, so the final pose error roughly doubles — 0.068 m to 0.120 m on `nominal`
+and 0.078 m to 0.163 m on `dense`. Success there does not suffer: `nominal` moves
+four episodes the right way and none the wrong way, and `dense` is level, but at
+p = 0.125 the first cannot be told from noise.
+
+**Not carried to the held-out worlds.** Val does not support it on the condition it
+was built for, and it costs pose accuracy everywhere else. It stays in the code,
+off by default, with an identity control pinning the published arm. Nothing was
+registered, and the calibration tally is unchanged.
+
+**Is slam_toolbox's pose even better? Measured, not assumed.** Six levers were
+aimed at localisation on the premise that localisation is why Nav2 reaches 1.000
+on `noisy_lidar`. The Nav2 runs recorded each episode's final believed-against-true
+pose error, so the premise can be checked on the same held-out worlds — and the
+odometry is identical, because the ROS bridge drifts its `odom` frame with this
+stack's own `DeadReckoning` and default `OdometryConfig`, seeded the same way.
+
+| held-out `noisy_lidar`, 360 beams | success | final pose error, median | max |
+|---|---|---|---|
+| Nav2 + slam_toolbox | 1.00 | 0.075 m | 0.294 m |
+| this stack | 0.89 | 0.238 m | 1.043 m |
+
+On the 89 worlds where both arrived — so that this stack's 500-step failures
+cannot inflate its figure — slam_toolbox ends 0.074 m from the truth and this stack
+0.228 m, worse on 90% of them. Episodes here run 178 steps against 140, which does
+not make a factor of three. **The premise holds: slam_toolbox localises three times
+better from the same odometry and the same scans**, and the front end copied here
+reproduces none of it.
+
+**What that leaves, from its configuration rather than a guess.** In slam_toolbox
+every new scan is linked to every earlier scan within 1.5 m
+(`link_scan_maximum_distance`) whose match clears a response of 0.1
+(`link_match_minimum_response_fine`), so the graph holds many constraints per node
+and drift is held continuously, not only at the rare closure. This back end links
+consecutive keyframes and adds a closure only between keyframes at least six apart
+whose match clears 0.55 — a sparse graph with a strict gate. That difference is in
+the graph, not the matcher, which is the one part of slam_toolbox this section did
+not copy.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -2130,7 +2202,7 @@ In order of expected information per GPU-hour:
    them 0.96 of the way to the goal — a limit this comparison has never
    varied. None of this touches the seven clutter failures on worlds that had
    a margin-safe route all along, which remain unexplained.
-2. **A different scan matcher — the one lever left, for both remaining gaps.**
+2. **A wider loop-closure search — the lever this stack does not have.**
    The two places this stack still loses to Nav2 in the open trace to the same
    thing. The tight gaps fail on pose error (§9.11), and `noisy_lidar` fails on a
    drift that the back end cannot see (§9.17) and the motion prior cannot stop
@@ -2144,12 +2216,23 @@ In order of expected information per GPU-hour:
    closures searched over 8 m. Its heading search alone is fifteen times this
    stack's ±0.024 rad. A drift that has grown past this stack's window can still
    be found inside that one, and one scan's noise is averaged against ten. That
-   is a front-end rebuild rather than a rule, and it is the next thing worth
-   building; a planned return across the drift remains a fallback with a cost in
-   path length. Spent on the way:
-   clearing scaled by beam count (§9.14), a cleaner map for closures that never
-   read it, a noise-aware closure match (§9.15), closures reweighted or filtered
-   in the solve (§9.17), and the motion prior (§9.18).
+   is a front-end rebuild rather than a rule; §9.19 built it and measured it, and
+   it smoothed the drift and left the final pose error where it was (0.251 m to
+   0.252 m), so this item has moved on. **slam_toolbox localises three times
+   better from the same odometry and the same scans** (§9.19: 0.074 m against
+   0.228 m at the end of episodes both stacks completed), so the gap is real and
+   it is not the scan matcher. What its configuration shows and this stack lacks
+   is a dense graph: every new scan linked to every earlier scan within 1.5 m at
+   a response gate of 0.1 (`link_scan_maximum_distance`,
+   `link_match_minimum_response_fine`), where this back end links consecutive
+   keyframes and adds rare closures six keyframes apart behind a 0.55 gate.
+   Densifying the graph that way is the next thing to build, and the comparison
+   with Nav2's recorded pose error is what it should be judged against. Spent on
+   the
+   way: clearing scaled by beam count (§9.14), a cleaner map for closures that
+   never read it, a noise-aware closure match (§9.15), closures reweighted or
+   filtered in the solve (§9.17), the motion prior (§9.18), and slam_toolbox's
+   front end (§9.19).
 3. **A better front end for the sparse sensor.** The back end is done and
    measured on the held-out worlds (§9.13): pooled +0.010 over 600 paired
    episodes, 14 won and 8 lost, clutter pose error down 20%, not enough to

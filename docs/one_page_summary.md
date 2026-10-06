@@ -184,7 +184,7 @@ committee can tell the difference.
 **~60 words, for a CV entry or the opening of an email.**
 
 > Vision + RL autonomous navigation (Python, PyTorch, Stable-Baselines3,
-> ROS 2 / Nav2): a sixty-experiment controlled study of learned versus
+> ROS 2 / Nav2): a sixty-one-experiment controlled study of learned versus
 > classical navigation under distribution shift, with seed-level significance
 > testing, pre-registered predictions, a real Nav2 baseline over a ROS 2
 > bridge, and a 533-test suite. Includes a documented false positive I caught

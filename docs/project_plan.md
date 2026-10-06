@@ -3429,6 +3429,37 @@ the no-prior answer, each against the ground truth. Full treatment in report
 Running total: fifty-six predictions, fourteen held, twenty-six failed outright,
 sixteen part right.
 
+## Phase 6v — slam_toolbox's front end, rebuilt: it smooths the drift
+
+`src/vision_nav/mapping/frontend.py` copies slam_toolbox's matcher with the
+repo's own `slam_params.yaml`: keyframes every 0.5 m / 0.5 rad, a buffer of the
+last 10 keyframe scans, ±0.25 m and ±0.349 rad of search, Karto's weak
+tie-break. Measured against the published map matcher on all 100 val worlds by
+`frontend_experiment.py`. Full treatment in report §9.19.
+
+| 100 val worlds | success | McNemar *p* | pose median | pose final |
+|---|---|---|---|---|
+| `noisy_lidar` | 0.87 → 0.83 | 0.52 (9 / 13) | 0.141 → 0.113 m | 0.251 → 0.252 m |
+| `nominal` | 0.95 → 0.99 | 0.125 (4 / 0) | 0.047 → 0.060 m | 0.068 → 0.120 m |
+| `dense` | 0.72 → 0.73 | 1.000 (4 / 3) | 0.052 → 0.079 m | 0.078 → 0.163 m |
+
+- **Does not close `noisy_lidar`**: −0.040, and the final pose error is
+  unchanged (0.251 → 0.252 m) while the median improves. The buffer drifts with
+  the robot -- the concern stated in the design before the run.
+- **Costs clean pose**: final error roughly doubles on `nominal` and `dense`,
+  from matching only every half metre. Success there is level or better, not
+  significantly.
+- Not carried. Development, nothing registered. Off by default with an identity
+  control.
+- **The premise, measured**: on held-out `noisy_lidar` Nav2 + slam_toolbox ends
+  episodes 0.075 m from the truth against this stack's 0.238 m; on the 89 worlds
+  both completed, 0.074 m against 0.228 m, this stack worse on 90%. Same odometry
+  (the bridge uses this stack's own `DeadReckoning`), same scans. slam_toolbox
+  localises three times better, and the copied front end reproduces none of it.
+- What its configuration shows and this stack lacks is a dense graph: links to
+  every scan within 1.5 m at a 0.1 gate, against consecutive keyframes plus rare
+  closures six apart behind 0.55. That is the next thing to build.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

@@ -1518,6 +1518,72 @@ def claims():
              round(yaml_value("coarse_search_angle_offset") / smc.angular_window)),
         ]
 
+    # --- slam_toolbox's front end rebuilt, Phase 6v --------------------------
+    fv = "results/frontend_val.json"
+    if os.path.exists(fv):
+        fvj = load(fv)["cells"]
+        for cell, sr0, sr1, won, lost, med0, med1, fin0, fin1 in (
+                ("noisy_lidar", 0.87, 0.83, 9, 13, 0.141, 0.113, 0.251, 0.252),
+                ("nominal", 0.95, 0.99, 4, 0, 0.047, 0.060, 0.068, 0.120),
+                ("dense", 0.72, 0.73, 4, 3, 0.052, 0.079, 0.078, 0.163)):
+            e = fvj[cell]
+            out += [
+                (f"frontend {cell} map success", sr0, round(e["success"][0], 2)),
+                (f"frontend {cell} correlative success", sr1, round(e["success"][1], 2)),
+                (f"frontend {cell} won", won, e["won"]),
+                (f"frontend {cell} lost", lost, e["lost"]),
+                (f"frontend {cell} pose median map", med0, round(e["pose_err_median"][0], 3)),
+                (f"frontend {cell} pose median correlative", med1,
+                 round(e["pose_err_median"][1], 3)),
+                (f"frontend {cell} pose final map", fin0, round(e["pose_err_final"][0], 3)),
+                (f"frontend {cell} pose final correlative", fin1,
+                 round(e["pose_err_final"][1], 3)),
+            ]
+        out += [
+            ("frontend noisy mcnemar", 0.52, round(fvj["noisy_lidar"]["mcnemar_p"], 2)),
+            ("frontend nominal mcnemar", 0.125, round(fvj["nominal"]["mcnemar_p"], 3)),
+        ]
+    # Is slam_toolbox's pose better? From the committed held-out results.
+    nl = "results/nav2_slam_runs/noisy_lidar__nav2_slam.json"
+    bt = "results/backend_test.json"
+    if os.path.exists(nl) and os.path.exists(bt):
+        nlj = load(nl)
+        mine = load(bt)["cells"]["noisy_lidar"]["front_end"]["episodes"]
+        by_seed = {e["seed"]: e for e in mine}
+        per = nlj["per_episode"]
+        both = [i for i, p in enumerate(per)
+                if p["success"] and by_seed.get(p["world_seed"], {}).get("success")]
+        a = [nlj["pose_error_per_episode"][i] for i in both]
+        b = [by_seed[per[i]["world_seed"]]["pose_err_final"] for i in both]
+        out += [
+            ("nav2 slam noisy success", 1.00, round(nlj["success_rate"], 2)),
+            ("nav2 slam noisy pose median", 0.075, round(nlj["pose_error_median"], 3)),
+            ("nav2 slam noisy pose max", 0.294, round(nlj["pose_error_max"], 3)),
+            ("stack noisy pose median", 0.238,
+             round(st.median(e["pose_err_final"] for e in mine), 3)),
+            ("stack noisy pose max", 1.043, round(max(e["pose_err_final"] for e in mine), 3)),
+            ("both arrived noisy", 89, len(both)),
+            ("both arrived nav2 pose", 0.074, round(st.median(a), 3)),
+            ("both arrived stack pose", 0.228, round(st.median(b), 3)),
+            ("both arrived stack worse", 90,
+             round(100 * sum(1 for x, y in zip(a, b, strict=True) if y > x) / len(both))),
+            ("both arrived nav2 steps", 140,
+             round(st.median(per[i]["steps"] for i in both))),
+            ("both arrived stack steps", 178,
+             round(st.median(by_seed[per[i]["world_seed"]]["steps"] for i in both))),
+        ]
+    # Graph density: slam_toolbox's linking against this back end's closures.
+    if os.path.exists(sy):
+        from vision_nav.mapping.posegraph import PoseGraphConfig
+
+        pgc = PoseGraphConfig()
+        out += [
+            ("slam link distance", 1.5, yaml_value("link_scan_maximum_distance")),
+            ("slam link gate", 0.1, yaml_value("link_match_minimum_response_fine")),
+            ("stack closure gap", 6, pgc.loop_min_gap),
+            ("stack closure gate", 0.55, pgc.loop_min_score),
+        ]
+
     # Every failure in that run is a timeout, not a crash -- §9.8 and §12.
     fd = "results/frontier_diagnostic.json"
     if os.path.exists(fd):

@@ -68,7 +68,7 @@ decision below follows from wanting that comparison to be trustworthy.
 | And what its features lack: the clearance ahead is there, the width of the gap past it is not | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Sixty experiments, each pre-registered where it tests a hypothesis. The
+Sixty-one experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).
