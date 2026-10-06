@@ -36,7 +36,7 @@ decision below follows from wanting that comparison to be trustworthy.
 
 | Stage | State |
 |---|---|
-| Task, metrics, splits, 533-test suite | Done |
+| Task, metrics, splits, 538-test suite | Done |
 | Classical baseline (A* + pure pursuit, full map) | Done |
 | Privileged RL, robustness suite, distribution shifts | Done |
 | Four explanations for the gap, each tested and rejected | Done |
@@ -66,6 +66,7 @@ decision below follows from wanting that comparison to be trustworthy.
 | Encoder cost re-priced at 1:1: survives (−0.180 narrow), and still fails by stalling | Done |
 | Why the pixel policy stalls: the image carries the depth, and a velocity latch holds the stall — released, it crashes | Done |
 | And what its features lack: the clearance ahead is there, the width of the gap past it is not | Done |
+| Bridge bug found: Nav2 never received `noisy_lidar`'s noise — fixed and tested; the four affected runs are being repeated | In progress |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
 Sixty-one experiments, each pre-registered where it tests a hypothesis. The
@@ -113,9 +114,14 @@ asynchronous and does not reproduce itself exactly.
 | nominal | 1.000 | 0.970–0.980 | −0.030 to −0.020 |
 | sparse | 1.000 | 0.990 | −0.010 |
 | large | 1.000 | 0.990 | −0.010 |
-| noisy_lidar | 1.000 | 0.970–0.980 | −0.030 to −0.020 |
+| noisy_lidar | 1.000 | 0.970–0.980 † | −0.030 to −0.020 † |
 | dense | 0.890 | 0.910–0.940 | +0.020 to +0.050 |
 | narrow | 0.850 | 0.910–0.930 | +0.060 to +0.080 |
+
+† Nav2 was scored here on a clean sensor: the bridge configured the condition's
+range noise and never applied it. That row is two more passes of `nominal`'s
+worlds, and is being re-run with the noise delivered — see the correction at the
+head of the [report](docs/report.md).
 
 The two agree to within 0.03 wherever clutter is not the binding constraint.
 On `narrow` Nav2 is ahead in both passes, so the `narrow` gap above is a

@@ -45,10 +45,10 @@ from __future__ import annotations
 
 import math
 import os
-from dataclasses import replace
 
 import numpy as np
 import rclpy
+from bridge_sensor import BridgeScanner
 from geometry_msgs.msg import Quaternion, TransformStamped, Twist, TwistStamped
 from nav_msgs.msg import OccupancyGrid, Odometry
 from rclpy.node import Node
@@ -58,7 +58,6 @@ from sensor_msgs.msg import LaserScan
 from tf2_ros import StaticTransformBroadcaster, TransformBroadcaster
 
 from vision_nav.envs import NavEnvConfig, ProceduralNavEnv
-from vision_nav.envs.sensors import Lidar2D
 from vision_nav.mapping.localisation import DeadReckoning, OdometryConfig
 
 #: Beams in the scan handed to Nav2. Far denser than the learned policies get
@@ -110,7 +109,10 @@ class Nav2Bridge(Node):
         # §9.2 built its map from: at 360 against 32, a difference between the
         # two stacks would be partly a sensor ten times denser.
         self.beams = int(beams)
-        self._scan = Lidar2D(replace(env_config.lidar, n_beams=self.beams))
+        # BridgeScanner applies the condition's noise; the scanner this
+        # replaced inherited noise_std and never applied it (see its module
+        # docstring), so every noisy_lidar scan Nav2 received was clean.
+        self._scan = BridgeScanner(env_config.lidar, self.beams)
 
         self._cmd = np.zeros(2)  # (v, omega) in SI units, as Nav2 sends them
         self._sim_time = 0.0
@@ -192,6 +194,7 @@ class Nav2Bridge(Node):
         # privilege: it is the origin the map frame is defined by.
         self._odom.rng = np.random.default_rng((int(world_seed), 7))
         self._odom.reset(self.env.robot.pose)
+        self._scan.start_episode(world_seed)
         self.publish_all()
         self.publish_map()
         return info

@@ -41,6 +41,16 @@ Nav2 row, so both are checked at runtime rather than trusted:
   beams but inherits `noise_std` and `dropout_prob` from the evaluation
   condition. Constructing a fresh `LidarConfig` here would have handed Nav2 a
   clean sensor under `noisy_lidar` and scored the wrong experiment.
+
+  **This check passed, and Nav2 got a clean sensor anyway.** Inheriting the
+  setting is not delivering it: `Lidar2D.scan` adds noise and dropout only when
+  it is handed a random generator, and the bridge never passed one. Every Nav2
+  run on `noisy_lidar` before `bridge_sensor.py` existed was scored on clean
+  scans. The scanner now lives in [`bridge_sensor.py`](bridge_sensor.py), free of
+  ROS imports, seeded per episode from the world as the hand-written stack seeds
+  its own, and [`tests/test_bridge_sensor.py`](../tests/test_bridge_sensor.py)
+  checks the scan it *delivers*: noise of the configured size under
+  `noisy_lidar`, none under `nominal`.
 - **Control-loop starvation.** The simulator runs faster than real time. If
   Nav2's 10 Hz controller could not keep up, the robot would coast on stale
   commands and Nav2 would lose to a scheduling artefact. Every run reports
@@ -139,6 +149,7 @@ noise off; `NAV2_SLAM_RTF` and `NAV2_FULL_RTF` change the real-time cap.
 | File | |
 |---|---|
 | `nav2_bridge.py` | ROS 2 node wrapping `ProceduralNavEnv`: publishes `/clock`, `/scan`, `/map`, `/odom` and TF; applies `/cmd_vel`. |
+| `bridge_sensor.py` | The scan the bridge publishes, with the condition's noise actually applied. ROS-free, so it is tested on every machine. |
 | `nav2_launch.py` | Minimal four-node bringup. |
 | `nav2_params.yaml` | DWB controller + NavFn planner, limits copied from `RobotConfig`. |
 | `run_nav2_eval.py` | Episodic runner: same worlds, same seed order, same metrics. |

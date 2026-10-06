@@ -152,7 +152,9 @@ def claims():
         rng = nav2_range(cond)
         if not rng:
             continue
-        m = re.search(rf"^\| {cond} \| [0-9.]+ \| ([0-9.]+)(?:–([0-9.]+))? \|",
+        # A † marks a cell measured on the wrong sensor; it is still the
+        # recorded number, so it is still checked.
+        m = re.search(rf"^\| {cond} \| [0-9.]+ \| ([0-9.]+)(?:–([0-9.]+))?(?: †)? \|",
                       readme, re.M)
         if m:
             lo = float(m.group(1))

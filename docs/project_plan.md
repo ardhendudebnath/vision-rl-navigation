@@ -3456,9 +3456,45 @@ tie-break. Measured against the published map matcher on all 100 val worlds by
   both completed, 0.074 m against 0.228 m, this stack worse on 90%. Same odometry
   (the bridge uses this stack's own `DeadReckoning`), same scans. slam_toolbox
   localises three times better, and the copied front end reproduces none of it.
+  **[Withdrawn — the scans were not the same; see Phase 6w.]**
 - What its configuration shows and this stack lacks is a dense graph: links to
   every scan within 1.5 m at a 0.1 gate, against consecutive keyframes plus rare
   closures six apart behind 0.55. That is the next thing to build.
+  **[Its premise is withdrawn with the bullet above; see Phase 6w.]**
+
+## Phase 6w — Correction: Nav2 never received `noisy_lidar`'s noise
+
+Found while planning the dense-graph back end that Phase 6v proposed. The bridge
+built its scanner from the condition's `LidarConfig`, so `noise_std = 0.10` was
+inherited — the fairness check in `ros2_bridge/README.md` looked at exactly that,
+and it passed — and then called `Lidar2D.scan(world, pose)` with no generator.
+The sensor applies noise and dropout only when given one. Confirmed at runtime:
+the scanner as the bridge called it returned scans identical to one configured
+with no noise at all; given a generator, the same scanner's readings moved by up
+to 0.377 m.
+
+- **Affected**: every Nav2 run on `noisy_lidar` — the two full-privilege passes
+  (`results/nav2_runs/run1`, `run2`) and the two SLAM arms
+  (`results/nav2_slam_runs/noisy_lidar__nav2_slam.json`, `..._b32.json`). No other
+  condition configures noise or dropout. `noisy_lidar` and `nominal` share their
+  worlds, so each affected run was one more pass of `nominal`. The result files
+  are kept unchanged as the record of what was run.
+- **Withdrawn**: Phase 6v's "same scans … three times better", and the dense
+  graph it motivated; report §9.5's "under noise this stack loses 0.27 to 0.28
+  more than Nav2" and the abstract's "under noise". **Provisional**: every pooled
+  Nav2 comparison that includes the cell (report §9.4–§9.6), and the registered
+  verdicts of Phases 6g and 6h, which pool it — re-scored after the re-run.
+- **Stands**: everything Phases 6q–6v measured about this stack, which read the
+  noisy sensor throughout.
+- **Fixed**: `ros2_bridge/bridge_sensor.py`, ROS-free and seeded per episode from
+  the world as the hand-written stack seeds its own sensor;
+  `tests/test_bridge_sensor.py` checks the delivered scan (noise of the
+  configured size under `noisy_lidar`, none under `nominal`) and pins the bridge
+  to that scanner at the source. The source pin fails on the old bridge.
+- **Next**: repeat the four runs with the fixed bridge.
+- **Lesson**: a fairness check on a configured value is a check on the
+  configuration. The test that would have caught this asks what reaches the
+  other side.
 
 ## Hardware notes
 

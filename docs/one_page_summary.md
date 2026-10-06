@@ -42,7 +42,9 @@ nothing.
    with SLAM, asked the same question, pays at least as much given the same
    32-beam scanner and a seventh of it given 360 beams; this stack given 360
    beams halves its cost, all of it in localisation. The pose stood in for the
-   sensor, the map for the implementation. Four
+   sensor, the map for the implementation. (One of the six conditions pooled
+   there, `noisy_lidar`, reached Nav2 without its sensor noise — a bridge bug,
+   found and fixed; those runs are being repeated.) Four
    standard explanations — insufficient data, wrong training distribution,
    insufficient compute (tested twice, to 2.7× budget), reward
    mis-specification — were each tested and rejected. The cause is
@@ -187,7 +189,7 @@ committee can tell the difference.
 > ROS 2 / Nav2): a sixty-one-experiment controlled study of learned versus
 > classical navigation under distribution shift, with seed-level significance
 > testing, pre-registered predictions, a real Nav2 baseline over a ROS 2
-> bridge, and a 533-test suite. Includes a documented false positive I caught
+> bridge, and a 538-test suite. Includes a documented false positive I caught
 > in my own results.
 
 **One line, for a subject line or an introduction.**
