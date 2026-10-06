@@ -15,15 +15,26 @@ the delivered value was not, and only the first was ever looked at.
 The generator is seeded from the world exactly as the hand-written stack seeds
 its own map's sensor (``np.random.default_rng(int(world.seed))``), so the two
 stacks see noise of the same distribution, drawn from the same seed, per world.
+
+Every scan is also audited: the same scan is cast once more without noise, and
+the difference on beams that hit something well inside the maximum range is
+accumulated, so a run can report the noise it *delivered* and refuse to continue
+when that disagrees with the noise it was configured with.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import replace
 
 import numpy as np
 
 from vision_nav.envs.sensors import Lidar2D, LidarConfig
+
+#: Beams whose noise-free range is within this of the maximum are left out of
+#: the audit, because the sensor clips after adding noise and the clipped
+#: difference understates it.
+AUDIT_MARGIN = 0.5
 
 
 class BridgeScanner:
@@ -36,6 +47,8 @@ class BridgeScanner:
         # generator.
         self.lidar = Lidar2D(replace(lidar, n_beams=int(beams)))
         self.rng: np.random.Generator = np.random.default_rng(0)
+        self._clean = Lidar2D(replace(self.lidar.config, noise_std=0.0, dropout_prob=0.0))
+        self._sq, self._n = 0.0, 0
 
     @property
     def config(self) -> LidarConfig:
@@ -49,4 +62,31 @@ class BridgeScanner:
 
     def scan(self, world, pose: np.ndarray) -> np.ndarray:
         """The ranges to publish, with the condition's noise and dropout."""
-        return self.lidar.scan(world, np.asarray(pose, dtype=np.float64), self.rng)
+        pose = np.asarray(pose, dtype=np.float64)
+        ranges = self.lidar.scan(world, pose, self.rng)
+        clean = self._clean.scan(world, pose)
+        inside = clean < self.config.max_range - AUDIT_MARGIN
+        d = ranges[inside] - clean[inside]
+        self._sq += float(np.dot(d, d))
+        self._n += int(inside.sum())
+        return ranges
+
+    @property
+    def delivered_noise_std(self) -> float | None:
+        """Root-mean-square difference between what was published and the
+        noise-free scan, over every audited beam so far; None before any."""
+        return math.sqrt(self._sq / self._n) if self._n else None
+
+
+def delivered_matches(config: LidarConfig, delivered: float | None) -> bool:
+    """Whether the noise a run delivered is the noise it was configured with:
+    none on a clean sensor, and within half to one and a half times the
+    configured size on a noisy one. Dropout reads as a large difference, so
+    where it is configured only a floor is checked."""
+    if delivered is None:
+        return False
+    if config.dropout_prob > 0.0:
+        return delivered > 0.0 and delivered >= 0.5 * config.noise_std
+    if config.noise_std == 0.0:
+        return delivered == 0.0
+    return 0.5 * config.noise_std <= delivered <= 1.5 * config.noise_std

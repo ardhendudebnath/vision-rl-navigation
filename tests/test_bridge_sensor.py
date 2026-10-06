@@ -85,6 +85,45 @@ def test_only_the_beam_count_is_replaced():
     assert scanner.config.max_range == cfg.lidar.max_range
 
 
+def test_the_audit_measures_the_noise_delivered():
+    """What the run reports is measured on the published scans: the configured
+    size under noisy_lidar, exactly zero on a clean sensor, nothing before the
+    first scan."""
+    module = _bridge_sensor()
+    for condition, expected in (("noisy_lidar", 0.10), ("nominal", 0.0)):
+        cfg, env = _env(condition)
+        scanner = module.BridgeScanner(cfg.lidar, 360)
+        assert scanner.delivered_noise_std is None
+        scanner.start_episode(int(env.world.seed))
+        for _ in range(5):
+            scanner.scan(env.world, env.robot.pose)
+        assert scanner.delivered_noise_std == pytest.approx(expected, abs=0.01), condition
+        assert module.delivered_matches(scanner.config, scanner.delivered_noise_std)
+
+
+def test_a_mismatch_between_configured_and_delivered_noise_is_caught():
+    """The check run_nav2_eval makes after the first episode. The old bridge
+    delivered 0.0 against a configured 0.10, and must fail it."""
+    module = _bridge_sensor()
+    noisy, _ = _env("noisy_lidar")
+    clean, _ = _env("nominal")
+    assert not module.delivered_matches(noisy.lidar, 0.0), "the bug itself"
+    assert not module.delivered_matches(noisy.lidar, None)
+    assert not module.delivered_matches(noisy.lidar, 0.3)
+    assert not module.delivered_matches(clean.lidar, 0.1)
+    assert module.delivered_matches(noisy.lidar, 0.1)
+    assert module.delivered_matches(clean.lidar, 0.0)
+
+
+def test_the_runner_checks_and_records_the_delivered_noise():
+    """run_nav2_eval.py needs ROS to import, so the check is pinned at the
+    source: it must stop a run whose delivered noise disagrees with its
+    configuration, and write what was delivered into the result file."""
+    source = (BRIDGE / "run_nav2_eval.py").read_text(encoding="utf-8")
+    assert "delivered_matches(bridge.scan_config, bridge.delivered_noise_std)" in source
+    assert '"delivered_noise_std": bridge_noise' in source
+
+
 def test_the_bridge_publishes_through_the_scanner_that_applies_noise():
     """nav2_bridge.py needs ROS to import, so its use of BridgeScanner is
     pinned at the source: the scanner it publishes from must be this one, and

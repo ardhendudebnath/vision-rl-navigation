@@ -24,6 +24,7 @@ from pathlib import Path
 
 import numpy as np
 import rclpy
+from bridge_sensor import delivered_matches
 from geometry_msgs.msg import PoseStamped
 from lifecycle_msgs.msg import State
 from lifecycle_msgs.srv import GetState
@@ -513,6 +514,16 @@ def main(argv=None) -> int:
                     f"({CMD_VEL_TYPE.__name__}); check enable_stamped_cmd_vel "
                     "in nav2_params.yaml."
                 )
+            if i == 1 and not delivered_matches(bridge.scan_config, bridge.delivered_noise_std):
+                # Every noisy_lidar run before this check existed scored Nav2
+                # on clean scans while the configured value read 0.10. The
+                # delivered value is what is checked now, and a mismatch stops
+                # the run instead of being published.
+                raise RuntimeError(
+                    f"the published scans carried {bridge.delivered_noise_std} m of "
+                    f"range noise; the condition configures "
+                    f"{bridge.scan_config.noise_std} m. See bridge_sensor.py."
+                )
             results.append(r)
             err = f" pose err {pose_error:.3f}m" if bridge.slam else ""
             print(
@@ -523,6 +534,7 @@ def main(argv=None) -> int:
             )
     finally:
         metrics = aggregate(results) if results else None
+        bridge_noise = bridge.delivered_noise_std
         if tf_side is not None:
             tf_side[0].shutdown()
             tf_side[1].destroy_node()
@@ -545,7 +557,8 @@ def main(argv=None) -> int:
     if bridge.slam:
         label += " | SLAM"
     print(metrics.as_table(label))
-    print(f"\nmean commands per sim step: {mean_ratio:.3f}")
+    print(f"\nrange noise delivered: {bridge_noise} m (configured {noise} m)")
+    print(f"mean commands per sim step: {mean_ratio:.3f}")
     print(f"episodes with no command at all: {zero_cmd}/{len(ratios)}"
           + ("  <-- Nav2 could not plan; check the costmaps" if zero_cmd else ""))
     extra: dict = {"nav2_aborted_episodes": int(sum(aborted_flags)),
@@ -589,6 +602,8 @@ def main(argv=None) -> int:
                 "split": split,
                 "shift": shift or "none",
                 "lidar_noise_std": noise,
+                # Measured on the published scans, not read from the config.
+                "delivered_noise_std": bridge_noise,
                 "mean_commands_per_step": mean_ratio,
                 "zero_command_episodes": zero_cmd,
                 **metrics.to_dict(),

@@ -99,19 +99,18 @@ class Nav2Bridge(Node):
         # separates what SLAM does from what the odometry feeding it does.
         noisy = self.slam and not os.environ.get("NAV2_PERFECT_ODOM")
         self._odom = DeadReckoning(env_config.robot, OdometryConfig() if noisy else None)
-        # Only the beam count is replaced. Range, FOV and — critically — the
-        # noise and dropout of the evaluation condition are inherited from the
-        # env config: building a fresh LidarConfig here would hand Nav2 a clean
-        # sensor under `noisy_lidar` and quietly score the wrong experiment.
+        # Only the beam count is replaced. Range, FOV and the noise and dropout
+        # of the evaluation condition are inherited from the env config -- and
+        # inheriting them is not enough: the scanner this replaced inherited
+        # noise_std and never applied it (see bridge_sensor.py), so every
+        # noisy_lidar scan Nav2 received was clean. BridgeScanner applies the
+        # noise and measures what it delivered.
         #
         # 360 by default, as in every published Nav2 row. The SLAM comparison
         # also runs at 32, the scanner the hand-written mapping stack of report
         # §9.2 built its map from: at 360 against 32, a difference between the
         # two stacks would be partly a sensor ten times denser.
         self.beams = int(beams)
-        # BridgeScanner applies the condition's noise; the scanner this
-        # replaced inherited noise_std and never applied it (see its module
-        # docstring), so every noisy_lidar scan Nav2 received was clean.
         self._scan = BridgeScanner(env_config.lidar, self.beams)
 
         self._cmd = np.zeros(2)  # (v, omega) in SI units, as Nav2 sends them
@@ -198,6 +197,17 @@ class Nav2Bridge(Node):
         self.publish_all()
         self.publish_map()
         return info
+
+    @property
+    def scan_config(self):
+        """The LidarConfig the published scans are drawn from."""
+        return self._scan.config
+
+    @property
+    def delivered_noise_std(self) -> float | None:
+        """The range noise the published scans actually carried, measured
+        against the same scans cast without it -- not the configured value."""
+        return self._scan.delivered_noise_std
 
     @property
     def believed_pose(self) -> np.ndarray:
