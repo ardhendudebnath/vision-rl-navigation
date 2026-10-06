@@ -34,6 +34,12 @@ intervals are bootstrap draws from a different stream and are not compared.
     bash ros2_bridge/run_nav2.sh --condition noisy_lidar --episodes 100 --privileges slam --beams 32 --out-dir results/nav2_noise_rerun/slam
     bash ros2_bridge/run_nav2.sh --condition noisy_lidar --episodes 100 --out-dir results/nav2_noise_rerun/run1
     bash ros2_bridge/run_nav2.sh --condition noisy_lidar --episodes 100 --out-dir results/nav2_noise_rerun/run2
+
+and, for the addendum below (the full arm at the SLAM arm's 5x cap):
+
+    NAV2_FULL_RTF=5 bash ros2_bridge/run_nav2.sh --condition noisy_lidar --episodes 100 --out-dir results/nav2_noise_rerun/run1_rtf5
+    NAV2_FULL_RTF=5 bash ros2_bridge/run_nav2.sh --condition noisy_lidar --episodes 100 --out-dir results/nav2_noise_rerun/run2_rtf5
+    NAV2_FULL_RTF=5 bash ros2_bridge/run_nav2.sh --condition nominal --episodes 100 --out-dir results/nav2_noise_rerun/nominal_rtf5
     python scripts/nav2_noise_rerun.py
 """
 
@@ -108,13 +114,46 @@ PREDICTION = (
     "SLAM arms send no more than 5% of goals before SLAM is ready."
 )
 
+#: Added after the registered runs, and committed before the runs it is about.
+#:
+#: The registered full-privilege passes scored 0.720 and 0.730, with Nav2
+#: abandoning 27 episodes in each without moving, on worlds that mostly
+#: differed between the passes. A val diagnosis, run afterwards and each arm
+#: alone (30 worlds): unthrottled noisy_lidar 0.767 with 7 abandoned,
+#: unthrottled *nominal* -- no noise at all -- 0.733 with 8 abandoned, and
+#: noisy_lidar held to 5x real time 1.000 with none. The unthrottled harness
+#: abandons episodes on a clean sensor too, which is the fault run_nav2_eval
+#: documents for unthrottled runs (the loop outruns the global costmap's switch
+#: to the new world's map), so the registered passes measured the harness, not
+#: the noise. They stay the registered result and are reported as such.
+#:
+#: The full arm is therefore repeated at the SLAM arm's 5x cap, two passes, and
+#: with a third run at the same cap on `nominal` -- the same worlds, clean -- so
+#: that the noise is measured within one protocol.
+#:
+#: DISCLOSED: made knowing everything above, the registered runs' results, and
+#: the three val diagnosis runs.
+ADDENDUM = (
+    "at 5x real time the full-privilege arm does not notice the noise. Both "
+    "noisy_lidar passes succeed between 0.94 and 1.00 and collide at most 0.04; "
+    "the nominal pass at the same cap succeeds between 0.94 and 1.00; and "
+    "against it, on the same worlds, each noisy pass differs by at most 0.04 "
+    "with exact McNemar p > 0.05. No pass abandons more than 3 episodes. "
+    "Re-scored with the throttled noisy_lidar cells in place of the registered "
+    "ones: Phase 6g's decisions are UNRESOLVED at 32 beams and IMPLEMENTATION "
+    "at 360; Phase 6h's difference lies between +0.09 and +0.12 in both passes, "
+    "label not called, and noisy_lidar still carries the largest difference in "
+    "both; Phase 6i's is UNRESOLVED. Every pooled difference falls from its "
+    "published value by between 0.000 and 0.030."
+)
 
-def load_rerun(path: Path) -> dict:
+
+def load_rerun(path: Path, noise: float = NOISE) -> dict:
     """A rerun file, refused unless it records noise delivered as configured."""
     raw = json.loads(path.read_text(encoding="utf-8"))
     delivered = raw.get("delivered_noise_std")
-    if not delivered_matches(LidarConfig(noise_std=NOISE), delivered):
-        raise SystemExit(f"{path}: delivered noise {delivered} m against {NOISE} m configured")
+    if not delivered_matches(LidarConfig(noise_std=noise), delivered):
+        raise SystemExit(f"{path}: delivered noise {delivered} m against {noise} m configured")
     return {**load_nav2(path), "raw": raw}
 
 
@@ -255,6 +294,38 @@ def main(argv=None) -> int:
     report["pose_vs_this_stack"] = pose_comparison(slam[360]["raw"])
     report["rescored"] = rescore(full, slam, rng, args.bootstrap)
 
+    # --- the addendum: the full arm at 5x real time, and a clean control on
+    # the same worlds at the same cap
+    thr_paths = {q: rd / f"{q}_rtf5" / "noisy_lidar__nav2.json" for q in PASSES}
+    ctrl_path = rd / "nominal_rtf5" / "nominal__nav2.json"
+    if all(p.exists() for p in thr_paths.values()) and ctrl_path.exists():
+        thr = {q: load_rerun(thr_paths[q]) for q in PASSES}
+        ctrl = load_rerun(ctrl_path, noise=0.0)
+        for x in (*thr.values(), ctrl):
+            assert x["seeds"] == orig_full["run1"]["seeds"], "worlds differ from the original"
+        report["checks"]["addendum_runs_at_5x"] = all(
+            x["raw"].get("realtime_factor_cap") == 5.0 for x in (*thr.values(), ctrl))
+
+        def summary(x: dict) -> dict:
+            return {"success": float(x["success"].mean()), "collision": x["collision"],
+                    "timeout": x["timeout"], "abandoned": x["raw"]["nav2_aborted_episodes"],
+                    "commands": x["commands"],
+                    "delivered_noise_std": x["raw"]["delivered_noise_std"]}
+
+        noise_cost = {}
+        for q in PASSES:
+            # Exact McNemar: a sign test on the worlds where the two disagree.
+            a, b = ctrl["success"].astype(bool), thr[q]["success"].astype(bool)
+            won, lost = int(np.sum(~a & b)), int(np.sum(a & ~b))
+            noise_cost[q] = {"delta": float(b.mean() - a.mean()), "won": won, "lost": lost,
+                             "p": sign_test(won, lost)}
+        report["addendum"] = {
+            "prediction": ADDENDUM,
+            "runs": {**{q: summary(thr[q]) for q in PASSES}, "nominal": summary(ctrl)},
+            "noise_vs_nominal": noise_cost,
+            "rescored": rescore(thr, slam, rng, args.bootstrap),
+        }
+
     for name, r in report["runs"].items():
         print(f"{name:8s} success {r['success']:.3f} (clean {r['clean_success']:.3f})  "
               f"collision {r['collision']:.3f}  timeout {r['timeout']:.3f}  "
@@ -271,6 +342,25 @@ def main(argv=None) -> int:
             print(f"{name:16s} {q}: {v['did']:+.3f} [{v['ci95'][0]:+.3f}, {v['ci95'][1]:+.3f}] "
                   f"{v['class']}  (published {PUBLISHED[name][q]:+.3f}; largest {v['largest']})")
         print(f"{name:16s} decision: {r['decision']}")
+    ad = report.get("addendum")
+    if ad is None:
+        print("addendum: the 5x full-privilege runs are not all present yet")
+    else:
+        print("addendum, full privileges at 5x real time:")
+        for name, r in ad["runs"].items():
+            print(f"  {name:8s} success {r['success']:.3f}  collision {r['collision']:.3f}  "
+                  f"timeout {r['timeout']:.3f}  abandoned {r['abandoned']}  "
+                  f"noise delivered {r['delivered_noise_std']:.4f} m")
+        for q, v in ad["noise_vs_nominal"].items():
+            print(f"  noise, {q} against nominal: {v['delta']:+.3f} "
+                  f"({v['won']} won / {v['lost']} lost, McNemar p {v['p']:.3f})")
+        for name, r in ad["rescored"].items():
+            for q, v in r["passes"].items():
+                print(f"  {name:16s} {q}: {v['did']:+.3f} [{v['ci95'][0]:+.3f}, "
+                      f"{v['ci95'][1]:+.3f}] {v['class']}  (published "
+                      f"{PUBLISHED[name][q]:+.3f}; largest {v['largest']})")
+            print(f"  {name:16s} decision: {r['decision']}")
+        print("registered addendum: " + ADDENDUM)
     print(f"checks: {report['checks']}")
     print("pre-registered: " + PREDICTION)
 

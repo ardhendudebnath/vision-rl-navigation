@@ -1,0 +1,231 @@
+{
+  "prediction": "with the noise delivered, slam_toolbox still localises better than this stack on the same sensor, by less than the withdrawn factor of three, and the full-privilege arm does not notice the noise. Primary, on the held-out worlds both stacks complete at 360 beams: Nav2 + slam_toolbox ends closer to the truth on more than half of them, two-sided sign test p < 0.05, with a median final pose error between 0.40 and 0.67 of this stack's. Decision -- BETTER: Nav2 closer with sign-test p < 0.05 and median ratio at most 0.67. WORSE: this stack closer with p < 0.05. Otherwise UNRESOLVED. Prediction: BETTER. Nav2 + SLAM at 360 beams: success at least 0.90, median final pose error between 0.08 and 0.18 m. At 32 beams: success between 0.50 and 0.78, median final pose error above the clean run's 0.226 m. Full privileges: both passes succeed between 0.94 and 1.00 and collide at most 0.04. Re-scored: Phase 6g's decisions stand, UNRESOLVED at 32 beams and IMPLEMENTATION at 360; Phase 6h's stands at IMPLEMENTATION, every pass at least +0.100, and noisy_lidar is still the condition carrying the largest difference in both passes; against the repaired mapper (Phase 6i) the difference stays UNRESOLVED. Every pooled difference falls, because Nav2 now pays something under noise where it paid nothing. All four runs deliver noise within the bridge's check, pass the starvation gate, and the SLAM arms send no more than 5% of goals before SLAM is ready.",
+  "checks": {
+    "identity_reproduces_published_points": true,
+    "slam_ready_within_5pct": true
+  },
+  "identity": {
+    "6g_32": {
+      "run1": -0.058,
+      "run2": -0.05
+    },
+    "6g_360": {
+      "run1": 0.243,
+      "run2": 0.252
+    },
+    "6h_360": {
+      "run1": 0.112,
+      "run2": 0.12
+    },
+    "6i_corroborated": {
+      "run1": 0.09,
+      "run2": 0.098
+    }
+  },
+  "runs": {
+    "run1": {
+      "success": 0.72,
+      "collision": 0.0,
+      "timeout": 0.28,
+      "commands": 0.989204736965616,
+      "delivered_noise_std": 0.10003235611363522,
+      "clean_success": 0.97
+    },
+    "run2": {
+      "success": 0.73,
+      "collision": 0.0,
+      "timeout": 0.27,
+      "commands": 0.9927227762604001,
+      "delivered_noise_std": 0.09999171221999122,
+      "clean_success": 0.98
+    },
+    "slam360": {
+      "success": 0.95,
+      "collision": 0.0,
+      "timeout": 0.05,
+      "pose_error_median": 0.225075503989684,
+      "commands": 0.9952679704002578,
+      "delivered_noise_std": 0.0999682609713248,
+      "clean_success": 1.0,
+      "clean_pose_error_median": 0.07537864836035277
+    },
+    "slam32": {
+      "success": 0.64,
+      "collision": 0.02,
+      "timeout": 0.34,
+      "pose_error_median": 0.4004589048763743,
+      "commands": 0.998945327210341,
+      "delivered_noise_std": 0.10008776312948672,
+      "clean_success": 0.75,
+      "clean_pose_error_median": 0.22556670352600486
+    }
+  },
+  "pose_vs_this_stack": {
+    "both_completed": 87,
+    "nav2_median": 0.2203123540446197,
+    "this_stack_median": 0.227795457092217,
+    "ratio": 0.9671499021836597,
+    "nav2_closer": 47,
+    "this_stack_closer": 40,
+    "sign_p": 0.5202915935750737,
+    "decision": "UNRESOLVED"
+  },
+  "rescored": {
+    "6g_32": {
+      "passes": {
+        "run1": {
+          "did": -0.035,
+          "ci95": [
+            -0.08833333333333333,
+            0.018333333333333333
+          ],
+          "class": "PROBLEM",
+          "per_condition": {
+            "sparse": 0.13,
+            "large": -0.12,
+            "nominal": -0.03,
+            "noisy_lidar": 0.14,
+            "dense": -0.07,
+            "narrow": -0.26
+          },
+          "largest": "noisy_lidar"
+        },
+        "run2": {
+          "did": -0.02666666666666667,
+          "ci95": [
+            -0.07833333333333334,
+            0.02666666666666667
+          ],
+          "class": "PROBLEM",
+          "per_condition": {
+            "sparse": 0.13,
+            "large": -0.12,
+            "nominal": -0.02,
+            "noisy_lidar": 0.13,
+            "dense": -0.04,
+            "narrow": -0.24
+          },
+          "largest": "sparse"
+        }
+      },
+      "decision": "PROBLEM"
+    },
+    "6g_360": {
+      "passes": {
+        "run1": {
+          "did": 0.27666666666666667,
+          "ci95": [
+            0.23333333333333334,
+            0.31833333333333336
+          ],
+          "class": "IMPLEMENTATION",
+          "per_condition": {
+            "sparse": 0.4,
+            "large": 0.44,
+            "nominal": 0.14,
+            "noisy_lidar": 0.45,
+            "dense": 0.13,
+            "narrow": 0.1
+          },
+          "largest": "noisy_lidar"
+        },
+        "run2": {
+          "did": 0.285,
+          "ci95": [
+            0.24333333333333335,
+            0.32666666666666666
+          ],
+          "class": "IMPLEMENTATION",
+          "per_condition": {
+            "sparse": 0.4,
+            "large": 0.44,
+            "nominal": 0.15,
+            "noisy_lidar": 0.44,
+            "dense": 0.16,
+            "narrow": 0.12
+          },
+          "largest": "large"
+        }
+      },
+      "decision": "IMPLEMENTATION"
+    },
+    "6h_360": {
+      "passes": {
+        "run1": {
+          "did": 0.145,
+          "ci95": [
+            0.10666666666666667,
+            0.18333333333333332
+          ],
+          "class": "IMPLEMENTATION",
+          "per_condition": {
+            "sparse": 0.0,
+            "large": 0.07,
+            "nominal": 0.03,
+            "noisy_lidar": 0.48,
+            "dense": 0.15,
+            "narrow": 0.14
+          },
+          "largest": "noisy_lidar"
+        },
+        "run2": {
+          "did": 0.15333333333333332,
+          "ci95": [
+            0.11666666666666667,
+            0.19166666666666668
+          ],
+          "class": "IMPLEMENTATION",
+          "per_condition": {
+            "sparse": 0.0,
+            "large": 0.07,
+            "nominal": 0.04,
+            "noisy_lidar": 0.47,
+            "dense": 0.18,
+            "narrow": 0.16
+          },
+          "largest": "noisy_lidar"
+        }
+      },
+      "decision": "IMPLEMENTATION"
+    },
+    "6i_corroborated": {
+      "passes": {
+        "run1": {
+          "did": 0.12333333333333334,
+          "ci95": [
+            0.08666666666666667,
+            0.15833333333333333
+          ],
+          "class": "IMPLEMENTATION",
+          "per_condition": {
+            "sparse": -0.02,
+            "large": 0.08,
+            "nominal": 0.03,
+            "noisy_lidar": 0.34,
+            "dense": 0.18,
+            "narrow": 0.13
+          },
+          "largest": "noisy_lidar"
+        },
+        "run2": {
+          "did": 0.13166666666666665,
+          "ci95": [
+            0.09666666666666666,
+            0.16666666666666666
+          ],
+          "class": "IMPLEMENTATION",
+          "per_condition": {
+            "sparse": -0.02,
+            "large": 0.08,
+            "nominal": 0.04,
+            "noisy_lidar": 0.33,
+            "dense": 0.21,
+            "narrow": 0.15
+          },
+          "largest": "noisy_lidar"
+        }
+      },
+      "decision": "IMPLEMENTATION"
+    }
+  }
+}
