@@ -3544,6 +3544,37 @@ treatment in report §9.20.
   condition at 360; `noisy_lidar` 0.225 m). Phase 6h's unchanged.
 - Tally: 58 predictions, 15 held, 26 failed, 17 partial.
 
+## Phase 6y — The clutter gap on held-out worlds
+
+`scripts/route_class_test.py`. §9.9 left seven val clutter failures on
+margin-safe worlds unexplained; re-joining `margin_audit.json` and
+`clutter_forensic.json` put six of them on long margin detours (1.35–1.95×,
+against at most 1.17× for 31 of 32 arrivals), fitting the step budget at the
+arrivals' pace (216–430 steps). Registered before any held-out route class was
+computed (commit 2eb39e1); no agent run — held-out outcomes from §9.13's
+`backend_test.json`. Identity control: on val the script reproduces the audit's
+route lengths exactly and the val tallies. Full treatment in report §9.21.
+
+| route class | val | held-out (200) | held-out failures |
+|---|---|---|---|
+| no route at the full margin | 0 / 11 | 1 / 42 | 41 |
+| margin-safe ≥ 1.2× shortest | 1 / 7 | 12 / 27 | 15 |
+| margin-safe < 1.2× | 31 / 32 | 106 / 131 | 25 |
+
+- **Decision PARTIAL.** Held: blocked worlds 34% (25–50%), success 0.188
+  (≤ 0.25) against 0.809 (≥ 0.80), Fisher p = 8 × 10⁻¹⁸, no-route success 0.024
+  (≤ 0.10). Failed: blocked share of failures 69% (≥ 70%); back-end clause (net
+  −2 on long detours, +3 on short).
+- §9.9's no-route finding replicates: 1 of 42, 21% of worlds, 51% of failures.
+  The long-detour class does not: 12 of 27, and 6/13 vs 6/14 by detour halves.
+- Descriptive: 72 of 81 failures end ≥ 1 m out (median 5.6–7.2 m by class) with
+  pose error 0.06–0.09 m; 7 end within 1 m believing they arrived (0.36–0.51 m
+  off); 2 collide. 33 of the 72 stalls are on worlds with a margin-safe route.
+
+### Calibration
+
+- Partial. Tally: 59 predictions, 15 held, 26 failed, 18 partial.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

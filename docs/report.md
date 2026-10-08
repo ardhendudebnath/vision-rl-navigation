@@ -2153,6 +2153,63 @@ what kept the harness's failure from being published as a finding about noise:
 without the unthrottled `nominal` run, 0.72 would have read as the noise costing
 Nav2 a quarter of its success with the map in hand.
 
+### 9.21 The clutter gap on held-out worlds: no margin-safe route, no arrival
+
+§9.9 found that every val clutter world with no route at the planner's full
+margin fails, and left seven failures on worlds that had such a route
+unexplained. Joining the same two val files again suggested an answer: six of
+the seven are worlds whose margin-safe route is a long detour — 1.35× to 1.95×
+the shortest route, where 31 of the 32 arrivals' routes are at most 1.17×. The
+detours fit the step budget at the arrivals' own pace (216 to 430 of 500 steps),
+so those episodes need not run out of road. Four of the six stall, replanning
+103 to 203 times; one makes progress all episode and ends 3 m short; one ends
+0.2 m out believing it has arrived. That made three classes, by what the margin
+does to the shortest route, with the cut between the last two read off the
+data:
+
+| route class | val, 50 worlds | held-out, 200 worlds | held-out failures |
+|---|---|---|---|
+| no route at the full margin | 0 of 11 arrive | **1 of 42** | 41 |
+| margin-safe route ≥ 1.2× the shortest | 1 of 7 | 12 of 27 | 15 |
+| margin-safe route shorter than that | 31 of 32 | 106 of 131 | 25 |
+
+Because a lead read off val is not a finding, the held-out test was registered
+first ([`route_class_test.py`](../scripts/route_class_test.py)), before any
+held-out world's route class had been computed. It runs no agent: the classes
+come from the margin audit's own route measure, and the outcomes are the ones
+§9.13 already recorded for the same stack on `test_ood`. On val the script
+reproduces the audit's route lengths exactly.
+
+**§9.9's finding replicates out of sample, almost without exception.** Of 42
+held-out clutter worlds with no route at the planner's margin, the stack arrives
+on one. They are 21% of the worlds and hold 51% of the failures, in `dense` and
+`narrow` alike (1 of 21 and 0 of 21).
+
+**The class I added does not.** Long detours arrive on 12 of 27 held-out worlds,
+not one in seven, and success does not fall with the detour: 6 of 13 on the
+shorter half (1.21× to 1.50×), 6 of 14 on the longer (1.56× to 2.70×). Seven val
+worlds made a class that a hundred held-out ones do not support. And the short
+class fails more than val showed — 25 of 131 against 1 of 32 — so the remainder
+§9.9 called unexplained is not seven episodes but 31% of the held-out failures.
+
+**The registered decision is PARTIAL.** Blocked worlds — no route or a long
+detour — are 34% of the worlds (registered 25% to 50%), the stack succeeds on
+0.188 of them against 0.809 of the rest (at most 0.25 and at least 0.80), Fisher
+p = 8 × 10⁻¹⁸ (below 0.001), and on no-route worlds it succeeds on 0.024 (at most
+0.10). They hold 69% of the failures, where the registration asked for 70%. And
+the back end's val gain, all of it on long detours, did not replicate: held-out
+it loses two worlds net there and gains three on short routes.
+
+**Wherever they happen, the failures look the same.** Of 81 held-out clutter
+failures, 72 end at least a metre from the goal — a median of 5.6 to 7.2 m by
+class — with the pose known to within 0.06 to 0.09 m (median); 7 end within a
+metre believing they have arrived, 0.36 to 0.51 m from where they think they
+are; 2 collide. The clutter failure is a stall with a known pose. Whether a
+route exists at the planner's margin is the best predictor of it found here, and
+§9.10 has already shown that taking the margin away on those worlds does not
+convert them. Nearly half the stalls — 33 of 72 — happen where a margin-safe
+route exists, and nothing in this report explains them yet.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -2201,7 +2258,7 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of fifty-eight predictions made in advance, fifteen held. Eight
+**Calibration.** Of fifty-nine predictions made in advance, fifteen held. Eight
 were derived from a *measurement* of the same quantity — two to within 0.021 and
 0.001, one on both magnitude and mechanism, one whose magnitude came from
 measuring the estimator it was about, three of §9.13's four, each forecast
@@ -2215,9 +2272,10 @@ in a tally that otherwise counts point forecasts. Two more are §9.12's: the onl
 gaps — which held for the arithmetic it was made from, and a pose threshold set
 from a train-band check. The last three are §9.16's third claim, §9.17's second
 and §9.18's third. Twenty-six from extrapolation, intuition, arithmetic or a post
-hoc description failed outright; seventeen got part right and part wrong, the
-last of them §9.20's registration, whose primary was among the parts it got
-wrong. One of
+hoc description failed outright; eighteen got part right and part wrong, the
+last two §9.20's registration, whose primary was among the parts it got wrong,
+and §9.21's, which replicated a val association at p = 8 × 10⁻¹⁸ and missed its
+failure-share bound by a point. One of
 those twenty-six
 failed by helping: §9.12 registered `nominal` to stay inside ±0.03 and it
 improved by 0.040. Another failed on a fact: §9.13's collision bound rested on my
@@ -2361,8 +2419,12 @@ In order of expected information per GPU-hour:
    between the arms §9.8 measured, and varying the step budget, since all 39
    failures there spend the full 500 steps with no collision at all, some of
    them 0.96 of the way to the goal — a limit this comparison has never
-   varied. None of this touches the seven clutter failures on worlds that had
-   a margin-safe route all along, which remain unexplained.
+   varied. On held-out worlds the gap splits in two (§9.21): worlds with no
+   route at the planner's margin, where the stack arrives on 1 of 42 and which
+   hold half the clutter failures, and failures on worlds that do have such a
+   route — 40 of 81, 33 of them stalls with the pose known to within a tenth
+   of a metre — which nothing here has explained. The second half is the
+   larger untouched block, and §9.7's indecision is the only diagnosis it has.
 2. **Under noise, what a stack does with the pose error it cannot remove.**
    Localisation under noise is no longer a gap to close: with the noise
    delivered, slam_toolbox ends episodes 0.220 m from the truth and this stack

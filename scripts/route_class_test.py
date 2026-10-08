@@ -14,8 +14,11 @@ what the margin does to the shortest route:
   short         it is shorter than that                               31 of 32
 
 The detours fit the step budget easily at the arrivals' own pace (216 to 430
-steps of 500), so the robot does not fail them by running out of road; it fails
-them stalled, replanning 94 to 203 times. The cut between the classes was chosen
+steps of 500), so the robot need not run out of road on them. Four of the six
+stall, replanning 103 to 203 times; one progresses all episode and ends 3 m
+short; one ends 0.2 m out believing it has arrived. (As committed with the
+registration this sentence read "it fails them stalled, replanning 94 to 203
+times", which was wrong for two of the six.) The cut between the classes was chosen
 by looking at those numbers, in the gap between 1.17 and 1.35, and the
 association is between worlds, so on val it is a lead and nothing more.
 

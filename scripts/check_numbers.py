@@ -1740,6 +1740,98 @@ def claims():
         pub = [load(p)["zero_command_episodes"] for p in glob.glob("results/nav2_runs/run*/*__nav2.json")]
         out += [("published passes", 12, len(pub)),
                 ("published passes command-less episodes", 1, sum(pub))]
+    # The clutter gap on held-out worlds, report §9.21.
+    rv, rt = "results/route_class_val.json", "results/route_class_test.json"
+    if os.path.exists(rv) and os.path.exists(rt):
+        vj, tj = load(rv), load(rt)
+        out += [(f"route class control {k}", 1.0, float(v)) for k, v in vj["checks"].items()]
+        for label, j, rows in (
+            ("val", vj, (("no route", 0, 11), ("long detour", 1, 7), ("short", 31, 32))),
+            ("test", tj, (("no route", 1, 42), ("long detour", 12, 27), ("short", 106, 131))),
+        ):
+            for kind, arrived, n in rows:
+                out += [(f"route class {label} {kind} arrived", arrived, j["per_class"][kind]["arrived"]),
+                        (f"route class {label} {kind} n", n, j["per_class"][kind]["n"])]
+        tp, tn = tj["pooled"], tj["back_end_net"]
+        out += [("route class decision PARTIAL", 1.0, float(tj["decision"] == "PARTIAL")),
+                ("route class blocked share", 0.34, round(tp["blocked_share_of_worlds"], 2)),
+                ("route class blocked success", 0.188, round(tp["blocked_success"], 3)),
+                ("route class short success", 0.809, round(tp["short_success"], 3)),
+                ("route class blocked share of failures", 0.69, round(tp["blocked_share_of_failures"], 2)),
+                ("route class fisher p exponent", -18, math.floor(math.log10(tp["fisher_p"]))),
+                ("route class fisher p mantissa", 8,
+                 round(tp["fisher_p"] / 10 ** math.floor(math.log10(tp["fisher_p"])))),
+                ("route class no-route success", 0.024, round(tp["no_route_success"], 3)),
+                ("route class back end long net", -2, tn["long detour"]["net"]),
+                ("route class back end short net", 3, tn["short"]["net"]),
+                ("route class back end val long net", 2, vj["back_end_net"]["long detour"]["net"])]
+        tw = [w for c in ("dense", "narrow") for w in tj["conditions"][c]["worlds"]]
+        no_route = [w for w in tw if w["class"] == "no route"]
+        fails = [w for w in tw if not w["front_end"]]
+        out += [("route class no-route share of worlds", 0.21, round(len(no_route) / len(tw), 2)),
+                ("route class no-route share of failures", 0.51,
+                 round(sum(not w["front_end"] for w in no_route) / len(fails), 2)),
+                ("route class no-route dense", 1, sum(w["front_end"] for w in no_route if w["cond"] == "dense")),
+                ("route class no-route narrow", 0, sum(w["front_end"] for w in no_route if w["cond"] == "narrow")),
+                ("route class failures", 81, len(fails)),
+                ("route class short share of failures", 0.31,
+                 round(sum(1 for w in fails if w["class"] == "short") / len(fails), 2))]
+        ld = sorted((w["l_full"] / w["l_base"], w["front_end"]) for w in tw if w["class"] == "long detour")
+        lo, hi = ld[:len(ld) // 2], ld[len(ld) // 2:]
+        out += [("route class detour short half", 6, sum(o for _, o in lo)),
+                ("route class detour short half n", 13, len(lo)),
+                ("route class detour long half", 6, sum(o for _, o in hi)),
+                ("route class detour long half n", 14, len(hi)),
+                ("route class detour short half low", 1.21, round(lo[0][0], 2)),
+                ("route class detour short half high", 1.50, round(lo[-1][0], 2)),
+                ("route class detour long half low", 1.56, round(hi[0][0], 2)),
+                ("route class detour long half high", 2.70, round(hi[-1][0], 2))]
+        # What the held-out failures are, from §9.13's per-episode records.
+        be = load(bt)["cells"]
+        ep = {(c, e["seed"]): e for c in ("dense", "narrow") for e in be[c]["front_end"]["episodes"]}
+        fe = {k: [ep[(w["cond"], w["seed"])] for w in fails if w["class"] == k]
+              for k in ("no route", "long detour", "short")}
+        far = {k: [e for e in v if not e["collision"] and e["goal_distance"] >= 1.0] for k, v in fe.items()}
+        near = {k: [e for e in v if not e["collision"] and e["goal_distance"] < 1.0] for k, v in fe.items()}
+        far_d = [st.median(e["goal_distance"] for e in v) for v in far.values() if v]
+        far_p = [st.median(e["pose_err_final"] for e in v) for v in far.values() if v]
+        near_p = [st.median(e["pose_err_final"] for e in v) for v in near.values() if v]
+        out += [("route class far failures", 72, sum(len(v) for v in far.values())),
+                ("route class near failures", 7, sum(len(v) for v in near.values())),
+                ("route class collisions", 2, sum(e["collision"] for v in fe.values() for e in v)),
+                ("route class far stalls on route worlds", 33, len(far["long detour"]) + len(far["short"])),
+                ("route class far distance low", 5.6, round(min(far_d), 1)),
+                ("route class far distance high", 7.2, round(max(far_d), 1)),
+                ("route class far pose low", 0.06, round(min(far_p), 2)),
+                ("route class far pose high", 0.09, round(max(far_p), 2)),
+                ("route class near pose low", 0.36, round(min(near_p), 2)),
+                ("route class near pose high", 0.51, round(max(near_p), 2))]
+        # The val lead: detours of the failures and the arrivals, the pace, and
+        # how the six long-detour failures end.
+        vw = [w for c in ("dense", "narrow") for w in vj["conditions"][c]["worlds"]]
+        ld_fail = [w for w in vw if w["class"] == "long detour" and not w["front_end"]]
+        ok_detours = sorted(w["l_full"] / w["l_base"] for w in vw if w["l_full"] and w["front_end"])
+        out += [("route class val detour fail low", 1.35, round(min(w["l_full"] / w["l_base"] for w in ld_fail), 2)),
+                ("route class val detour fail high", 1.95, round(max(w["l_full"] / w["l_base"] for w in ld_fail), 2)),
+                ("route class val arrivals at most", 1.17, round(ok_detours[-2], 2)),
+                ("route class val one arrival", 1.38, round(ok_detours[-1], 2))]
+        cf = load("results/clutter_forensic.json")["conditions"]
+        fx = {(c, e["seed"]): e for c in ("dense", "narrow") for e in cf[c]["episodes"]}
+        arrivals = [(fx[(w["cond"], w["seed"])]["steps"], w["l_full"]) for w in vw
+                    if w["l_full"] and w["front_end"]]
+        pace = st.median(s / length for s, length in arrivals)
+        need = [w["l_full"] * pace for w in ld_fail]
+        rec = [fx[(w["cond"], w["seed"])] for w in ld_fail]
+        stalled = [e for e in rec if e["stall_fraction"] > 0.4 and e["best_remaining"] > 1.0]
+        out += [("route class val pace low", 216, round(min(need))),
+                ("route class val pace high", 430, round(max(need))),
+                ("route class val long detour stalled", 4, len(stalled)),
+                ("route class val stalled replans low", 103, min(e["replans"] for e in stalled)),
+                ("route class val stalled replans high", 203, max(e["replans"] for e in stalled)),
+                ("route class val progressed ends short m", 3,
+                 round(min(e["final_remaining"] for e in rec if e["stall_fraction"] < 0.05))),
+                ("route class val believed arrival m", 0.2,
+                 round(min(e["best_remaining"] for e in rec), 1))]
     # Graph density: slam_toolbox's linking against this back end's closures.
     if os.path.exists(sy):
         from vision_nav.mapping.posegraph import PoseGraphConfig

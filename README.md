@@ -67,6 +67,7 @@ decision below follows from wanting that comparison to be trustworthy.
 | Why the pixel policy stalls: the image carries the depth, and a velocity latch holds the stall — released, it crashes | Done |
 | And what its features lack: the clearance ahead is there, the width of the gap past it is not | Done |
 | Bridge bug found: Nav2 never received `noisy_lidar`'s noise — fixed, re-run: on the same scans slam_toolbox localises no better than this stack | Done |
+| The clutter gap on held-out worlds: where no route clears the planner's margin, the robot arrives on 1 of 42 | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
 Sixty-one experiments, each pre-registered where it tests a hypothesis. The
