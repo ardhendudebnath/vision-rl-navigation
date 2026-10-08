@@ -2310,8 +2310,8 @@ enough.**
   now measures what it delivers. The corrected full-privilege passes ran at 5×
   real time while §4.1's other ten ran unthrottled, because the unthrottled
   harness now abandons episodes on a clean sensor; the published passes show no
-  sign of that fault, but the protocol behind them is fragile and any re-run
-  should use the cap.
+  sign of that fault, but the protocol behind them is fragile, and the harness
+  now caps both arms at 5× by default.
 - **§9.4's SLAM arms ran one pass each**, held to 5× real time, against the
   full-privilege arm's two unthrottled passes. And §9.5 ran this stack at 360
   beams on parameters tuned for 32, deliberately: its mapper's log-odds
@@ -2403,7 +2403,7 @@ In order of expected information per GPU-hour:
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 541 tests
+pytest                                        # 542 tests
 python scripts/check_docs.py                  # every doc link resolves
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix

@@ -90,23 +90,29 @@ SLAM_SETTLE_STEPS = 10
 LATCHED = QoSProfile(depth=1, reliability=QoSReliabilityPolicy.RELIABLE,
                      durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
 
-#: SLAM arm only: the fastest the simulator may run, as a multiple of real time.
+#: The fastest the simulator may run, as a multiple of real time, in both arms.
 #:
 #: The loop that advances sim time is otherwise unthrottled — ``spin_once``
-#: returns at once whenever a message is waiting, and one always is. With full
-#: privileges that is harmless: startup lasts about a second and Nav2 was
-#: verified to keep up during episodes (commands per sim step near 1.0). The
-#: SLAM arm broke it. Sim time ran at about 190x real time while navigation
-#: waited to start, publishing a 360-beam scan every half millisecond;
-#: slam_toolbox's queue overflowed and dropped them, and the machine starved
-#: badly enough that the lifecycle manager's call to configure controller_server
-#: timed out and the bringup hung for good.
+#: returns at once whenever a message is waiting, and one always is. The SLAM
+#: arm broke on that first. Sim time ran at about 190x real time while
+#: navigation waited to start, publishing a 360-beam scan every half
+#: millisecond; slam_toolbox's queue overflowed and dropped them, and the
+#: machine starved badly enough that the lifecycle manager's call to configure
+#: controller_server timed out and the bringup hung for good.
+#:
+#: The full arm's published passes (§4.1) ran unthrottled, and were checked to
+#: keep up: one command-less episode in twelve runs. Re-run that way in October
+#: 2026 it abandoned about a quarter of its episodes, on a clean sensor as well
+#: as a noisy one (report §9.20) — the loop outrunning the global costmap's
+#: switch to a new world's map and asking for a plan on the previous one. At 5x
+#: the same worlds scored 1.000. So both arms are capped by default.
 #:
 #: Capping the rate only ever gives the stack *more* wall-clock time per sim
-#: step, so it cannot help the planner against the full-privilege row, only stop
-#: SLAM being scored on a flood of dropped scans. The full arm keeps its
-#: original, unthrottled protocol so the published row stays comparable.
-SLAM_REALTIME_FACTOR = 5.0
+#: step, so it cannot flatter Nav2 against a row recorded uncapped; it only stops
+#: the harness from scoring its own races. NAV2_SLAM_RTF and NAV2_FULL_RTF
+#: override it per arm, and 0 removes the cap: NAV2_FULL_RTF=0 is the published
+#: passes' protocol, for reproducing them.
+REALTIME_FACTOR = 5.0
 
 
 class Pace:
@@ -407,13 +413,10 @@ def main(argv=None) -> int:
     seeds = list(env_config.world_seeds)
 
     bridge = Nav2Bridge(env_config, privileges=args.privileges, beams=args.beams)
-    # The full arm stays unthrottled unless NAV2_FULL_RTF says otherwise: that
-    # is the protocol its published passes were recorded under. Throttling it
-    # is a development option for runs made alongside others, where the
-    # unthrottled loop can outrun the global costmap's switch to a new world's
-    # map and ask for a plan on the previous one.
-    factor = float(os.environ.get("NAV2_SLAM_RTF", SLAM_REALTIME_FACTOR)) if bridge.slam \
-        else float(os.environ.get("NAV2_FULL_RTF", 0.0))
+    # Both arms at REALTIME_FACTOR unless overridden; see its comment for why
+    # the full arm is no longer left unthrottled.
+    factor = float(os.environ.get("NAV2_SLAM_RTF" if bridge.slam else "NAV2_FULL_RTF",
+                                  REALTIME_FACTOR))
     bridge.pace = Pace(bridge.dt, factor)
     nav = BasicNavigator()
     executor = SingleThreadedExecutor()

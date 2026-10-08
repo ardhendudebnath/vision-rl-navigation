@@ -53,14 +53,15 @@ Nav2 row, so both are checked at runtime rather than trusted:
   `noisy_lidar`, none under `nominal`. Every run now records
   `delivered_noise_std`, measured against the same scans cast without noise,
   and stops after the first episode if that disagrees with the condition.
-- **Run the full-privilege arm at 5× real time.** Re-run in October 2026, the
-  unthrottled full arm abandoned about a quarter of its episodes, on a clean
-  sensor as well as a noisy one (30 val worlds: 0.733 on `nominal`, 8
-  abandoned; `noisy_lidar` at 5×, 1.000) —
-  the global-costmap race described in `run_nav2_eval.py`. The published
-  unthrottled passes show one command-less episode in twelve runs and were not
-  affected, but set `NAV2_FULL_RTF=5` for any new run, and read the
-  "episodes Nav2 abandoned" line every run prints.
+- **The harness racing itself.** Both arms run at most 5× real time by default
+  (`REALTIME_FACTOR` in `run_nav2_eval.py`). The full-privilege arm's published
+  passes ran unthrottled and show one command-less episode in twelve runs, but
+  re-run that way in October 2026 it abandoned about a quarter of its episodes,
+  on a clean sensor as well as a noisy one (30 val worlds: 0.733 on `nominal`,
+  8 abandoned; `noisy_lidar` at 5×, 1.000) — the loop outrunning the global
+  costmap's switch to a new world's map. `NAV2_FULL_RTF=0` restores the
+  published protocol, for reproducing those passes; read the "episodes Nav2
+  abandoned" line every run prints if you use it.
 - **Control-loop starvation.** The simulator runs faster than real time. If
   Nav2's 10 Hz controller could not keep up, the robot would coast on stale
   commands and Nav2 would lose to a scheduling artefact. Every run reports
@@ -140,8 +141,10 @@ python scripts/nav2_slam_comparison.py
 
 What the SLAM arm does differently, each for a reason given where it is set:
 
-- The simulator is held to at most 5× real time (`SLAM_REALTIME_FACTOR`), so
-  slam_toolbox is not scored on a flood of scans it had to drop.
+- The simulator is held to at most 5× real time (`REALTIME_FACTOR`), so
+  slam_toolbox is not scored on a flood of scans it had to drop. This was the
+  SLAM arm's alone until October 2026; it is now both arms' default (see
+  *Fairness checks*).
 - The global costmap is a rolling 34 m window (`make_slam_params.py`), so a goal
   the robot has not seen yet is somewhere it can plan to.
 - Navigation starts 15 s after slam_toolbox, which must publish the `map` frame
@@ -152,7 +155,9 @@ What the SLAM arm does differently, each for a reason given where it is set:
 it thinks the robot went — the tool that found the one fault that mattered.
 Development switches, none used by a registered run: `NAV2_TRACE=1` prints true,
 odometry and SLAM poses every 25 steps; `NAV2_PERFECT_ODOM=1` turns the odometry
-noise off; `NAV2_SLAM_RTF` and `NAV2_FULL_RTF` change the real-time cap.
+noise off. `NAV2_SLAM_RTF` and `NAV2_FULL_RTF` change each arm's real-time cap
+from its default of 5, and 0 removes it; `NAV2_FULL_RTF=0` is the protocol
+§4.1's published full-privilege passes were recorded under.
 
 ## Files
 

@@ -124,6 +124,17 @@ def test_the_runner_checks_and_records_the_delivered_noise():
     assert '"delivered_noise_std": bridge_noise' in source
 
 
+def test_the_runner_caps_both_arms_by_default():
+    """Unthrottled, the full-privilege arm abandoned about a quarter of its
+    episodes on a clean sensor (report §9.20), so both arms default to 5x real
+    time; an environment variable set to 0 is the only way back to no cap."""
+    source = (BRIDGE / "run_nav2_eval.py").read_text(encoding="utf-8")
+    assert "REALTIME_FACTOR = 5.0" in source
+    assert ('os.environ.get("NAV2_SLAM_RTF" if bridge.slam else "NAV2_FULL_RTF",\n'
+            "                                  REALTIME_FACTOR)") in source
+    assert '"NAV2_FULL_RTF", 0.0' not in source, "the full arm must not default to uncapped"
+
+
 def test_the_bridge_publishes_through_the_scanner_that_applies_noise():
     """nav2_bridge.py needs ROS to import, so its use of BridgeScanner is
     pinned at the source: the scanner it publishes from must be this one, and

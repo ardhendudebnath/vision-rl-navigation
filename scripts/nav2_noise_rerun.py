@@ -32,8 +32,10 @@ intervals are bootstrap draws from a different stream and are not compared.
 
     bash ros2_bridge/run_nav2.sh --condition noisy_lidar --episodes 100 --privileges slam --out-dir results/nav2_noise_rerun/slam
     bash ros2_bridge/run_nav2.sh --condition noisy_lidar --episodes 100 --privileges slam --beams 32 --out-dir results/nav2_noise_rerun/slam
-    bash ros2_bridge/run_nav2.sh --condition noisy_lidar --episodes 100 --out-dir results/nav2_noise_rerun/run1
-    bash ros2_bridge/run_nav2.sh --condition noisy_lidar --episodes 100 --out-dir results/nav2_noise_rerun/run2
+    NAV2_FULL_RTF=0 bash ros2_bridge/run_nav2.sh --condition noisy_lidar --episodes 100 --out-dir results/nav2_noise_rerun/run1
+    NAV2_FULL_RTF=0 bash ros2_bridge/run_nav2.sh --condition noisy_lidar --episodes 100 --out-dir results/nav2_noise_rerun/run2
+
+(the registered passes ran unthrottled, which is no longer the runner's default)
 
 and, for the addendum below (the full arm at the SLAM arm's 5x cap):
 
