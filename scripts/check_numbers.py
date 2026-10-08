@@ -1635,6 +1635,26 @@ def claims():
         out += [("rerun success this stack", 0.890, st.mean(s_hw)),
                 ("rerun success won", 8, won), ("rerun success lost", 2, lost),
                 ("rerun success mcnemar p", 0.11, round(p, 2))]
+        # Failures included: pose error over all 100 worlds, and on the worlds
+        # Nav2 wins, where this stack stalls rather than gets lost.
+        ep = raw["slam360"]["per_episode"]
+        n_err = raw["slam360"]["pose_error_per_episode"]
+        hs_ep = {e["seed"]: e for e in mine}
+        h_err = [hs_ep[e["world_seed"]]["pose_err_final"] for e in ep]
+        wins =[i for i, e in enumerate(ep) if e["success"] and not hs[e["world_seed"]]]
+        stalls = [i for i in wins if hs_ep[ep[i]["world_seed"]]["goal_distance"] > 5.0
+                  and h_err[i] < 0.4]
+        out += [("tail all nav2 pose", 0.225, round(st.median(n_err), 3)),
+                ("tail all stack pose", 0.238, round(st.median(h_err), 3)),
+                ("tail nav2 beyond tolerance", 13, sum(x > 0.35 for x in n_err)),
+                ("tail stack beyond tolerance", 17, sum(x > 0.35 for x in h_err)),
+                ("tail nav2 wins nav2 pose", 0.289, round(st.median(n_err[i] for i in wins), 3)),
+                ("tail nav2 wins stack pose", 0.262, round(st.median(h_err[i] for i in wins), 3)),
+                ("tail nav2 wins stalls", 5, len(stalls)),
+                ("tail stalls nearest goal m", 5, math.floor(min(
+                    hs_ep[ep[i]["world_seed"]]["goal_distance"] for i in stalls))),
+                ("tail stalls furthest goal m", 9, math.floor(max(
+                    hs_ep[ep[i]["world_seed"]]["goal_distance"] for i in stalls)))]
         # The addendum: the full arm at 5x, and a clean control on the same worlds.
         ar = ad["runs"]
         out += [

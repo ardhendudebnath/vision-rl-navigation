@@ -2047,11 +2047,12 @@ copied here was being measured against a target that did not exist.
 gap that a production stack does not close either. What separates the two under
 noise is arrival — 0.950 against 0.890, eight worlds won and two lost
 (McNemar p = 0.11), not resolved at a hundred worlds — and if it is real, it is
-not localisation, because the pose error is the same. It would be in what each
-stack does with a fifth of a metre of pose error: the planner and the controller,
-where §9.11's tight gaps already point. slam_toolbox does link every new scan to
-every earlier scan within 1.5 m (`link_scan_maximum_distance`) at a response of
-0.1 (`link_match_minimum_response_fine`), where this back end links consecutive
+not localisation, because the pose error is the same, failures included. Five of
+the eight worlds this stack loses and Nav2 wins end 5 to 9 m from the goal with
+the pose known to within 0.4 m (§9.20): stalls, not lost robots. slam_toolbox
+does link every new scan to every earlier scan within 1.5 m
+(`link_scan_maximum_distance`) at a response of 0.1
+(`link_match_minimum_response_fine`), where this back end links consecutive
 keyframes and adds rare closures six apart behind 0.55; that is a fact about the
 two configurations, and no longer the explanation of anything.
 
@@ -2090,7 +2091,14 @@ factor of 1.5 to 2.5 — less than the three §9.19 had reported, and BETTER.
 ratio of 0.97; slam_toolbox is the closer on 47 worlds and this stack on 40, sign
 test p = 0.52. UNRESOLVED, where the registration said BETTER. Its success edge,
 0.950 against 0.890, does not resolve either (8 worlds won, 2 lost,
-McNemar p = 0.11).
+McNemar p = 0.11). Restricting to completed worlds could have hidden a
+difference in the failures, so they were counted afterwards, unregistered: over
+all 100 worlds the median final pose error is 0.225 m for slam_toolbox and
+0.238 m for this stack, with 13 and 17 episodes ending beyond the 0.35 m goal
+tolerance, and on the eight worlds Nav2 wins this stack is not the worse
+localised (0.262 m against 0.289 m). Five of its eight failures there end 5 to
+9 m from the goal with the pose known to within 0.4 m. They stall; they do not
+get lost.
 
 **The full-privilege arm, as registered, measured the harness.** Its two passes
 ran unthrottled, as §4.1's had, and scored 0.720 and 0.730: Nav2 abandoned 27
@@ -2343,12 +2351,12 @@ In order of expected information per GPU-hour:
    arrivals while collapsing the stack's zero-collision record to 12 crashes
    (§9.10). Clearance was genuinely blocking those worlds and is not
    sufficient to pass them: a 0.22 m robot in a gap under 0.40 m has no room
-   for the 0.07–0.22 m of pose error §9.5 measured. So the work is on the
-   estimator and the controller — a back end for the pose (item 3), and
-   measuring cross-track error against gap width directly, which is a
-   diagnostic this project has never run and which would say whether the
-   robot misses the gap because it does not know where it is or because it
-   cannot hold a line. Two cheaper things remain open: costing unknown cells
+   for the 0.07–0.22 m of pose error §9.5 measured. §9.11 measured that budget
+   directly — the controller holds its line to within 0.003–0.039 m while the
+   pose is wrong by 0.065–0.125 m against 0.02 m of room — and the back end
+   built for it (§9.12, §9.13) did not move the tight gaps. So the work is on
+   how precisely the robot localises inside a gap, which item 3 asks of the
+   sparse sensor. Two cheaper things remain open: costing unknown cells
    *above* free ones rather than refusing them outright, the graded middle
    between the arms §9.8 measured, and varying the step budget, since all 39
    failures there spend the full 500 steps with no collision at all, some of
@@ -2364,11 +2372,11 @@ In order of expected information per GPU-hour:
    solve (§9.17), the motion prior (§9.18), and slam_toolbox's own front end
    (§9.19) — were aimed at a gap a production stack does not close either.
    What remains is arrival: 0.950 for Nav2 against 0.890, eight worlds to two,
-   not resolved at a hundred worlds (p = 0.11). More worlds would say whether
-   it exists; if it does, it lies in the planner and
-   the controller tolerating a fifth of a metre of error, which is item 1's
-   question asked in open space, and the same cross-track diagnostic answers
-   both.
+   not resolved at a hundred worlds (p = 0.11), and the worlds it is made of
+   are mostly stalls — five of the eight end 5 to 9 m from the goal with the
+   pose known to within 0.4 m (§9.20). More worlds would say whether the gap
+   exists; if it does, it is in the map and the planner under noise, not in
+   tolerating pose error.
 3. **A better front end for the sparse sensor.** The back end is done and
    measured on the held-out worlds (§9.13): pooled +0.010 over 600 paired
    episodes, 14 won and 8 lost, clutter pose error down 20%, not enough to
