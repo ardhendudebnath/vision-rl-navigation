@@ -40,11 +40,12 @@ nothing.
    arenas). The two privileges are worth opposite things, and structure is why:
    it is both what a map is needed for and what a pose is recovered from. Nav2
    with SLAM, asked the same question, pays at least as much given the same
-   32-beam scanner and a seventh of it given 360 beams; this stack given 360
+   32-beam scanner and under a fifth of it given 360 beams; this stack given 360
    beams halves its cost, all of it in localisation. The pose stood in for the
-   sensor, the map for the implementation. (One of the six conditions pooled
-   there, `noisy_lidar`, reached Nav2 without its sensor noise — a bridge bug,
-   found and fixed; those runs are being repeated.) Four
+   sensor, the map for the implementation. (Those figures are corrected: a bridge
+   bug had given Nav2 a clean sensor under `noisy_lidar`. Re-run with the noise,
+   no verdict moved — and slam_toolbox, credited with localising three times
+   better, localises no better on the same scans.) Four
    standard explanations — insufficient data, wrong training distribution,
    insufficient compute (tested twice, to 2.7× budget), reward
    mis-specification — were each tested and rejected. The cause is

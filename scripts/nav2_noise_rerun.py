@@ -237,8 +237,14 @@ def rescore(noisy_full: dict, noisy_slam: dict, rng, n_boot: int) -> dict:
             label = classify(point, ci)
             labels.add(label)
             per_cond = {c: float(per[c].mean()) for c in CONDITIONS}
+            # What each stack pays for losing the map and the pose, pooled.
+            nav_cost = float(np.mean(np.concatenate(
+                [full[p][c]["success"] - slam[beams][c]["success"] for c in CONDITIONS])))
+            hw_cost = float(np.mean(np.concatenate(
+                [hw_with[c] - hw_without[c] for c in CONDITIONS])))
             per_pass[p] = {"did": point, "ci95": ci, "class": label, "per_condition": per_cond,
-                           "largest": max(per_cond, key=per_cond.get)}
+                           "largest": max(per_cond, key=per_cond.get),
+                           "nav2_cost": nav_cost, "handwritten_cost": hw_cost}
         out[name] = {"passes": per_pass,
                      "decision": labels.pop() if len(labels) == 1 else "UNRESOLVED"}
     return out

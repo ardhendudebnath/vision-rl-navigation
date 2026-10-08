@@ -2,7 +2,8 @@
   "prediction": "with the noise delivered, slam_toolbox still localises better than this stack on the same sensor, by less than the withdrawn factor of three, and the full-privilege arm does not notice the noise. Primary, on the held-out worlds both stacks complete at 360 beams: Nav2 + slam_toolbox ends closer to the truth on more than half of them, two-sided sign test p < 0.05, with a median final pose error between 0.40 and 0.67 of this stack's. Decision -- BETTER: Nav2 closer with sign-test p < 0.05 and median ratio at most 0.67. WORSE: this stack closer with p < 0.05. Otherwise UNRESOLVED. Prediction: BETTER. Nav2 + SLAM at 360 beams: success at least 0.90, median final pose error between 0.08 and 0.18 m. At 32 beams: success between 0.50 and 0.78, median final pose error above the clean run's 0.226 m. Full privileges: both passes succeed between 0.94 and 1.00 and collide at most 0.04. Re-scored: Phase 6g's decisions stand, UNRESOLVED at 32 beams and IMPLEMENTATION at 360; Phase 6h's stands at IMPLEMENTATION, every pass at least +0.100, and noisy_lidar is still the condition carrying the largest difference in both passes; against the repaired mapper (Phase 6i) the difference stays UNRESOLVED. Every pooled difference falls, because Nav2 now pays something under noise where it paid nothing. All four runs deliver noise within the bridge's check, pass the starvation gate, and the SLAM arms send no more than 5% of goals before SLAM is ready.",
   "checks": {
     "identity_reproduces_published_points": true,
-    "slam_ready_within_5pct": true
+    "slam_ready_within_5pct": true,
+    "addendum_runs_at_5x": true
   },
   "identity": {
     "6g_32": {
@@ -88,7 +89,9 @@
             "dense": -0.07,
             "narrow": -0.26
           },
-          "largest": "noisy_lidar"
+          "largest": "noisy_lidar",
+          "nav2_cost": 0.325,
+          "handwritten_cost": 0.29
         },
         "run2": {
           "did": -0.02666666666666667,
@@ -105,7 +108,9 @@
             "dense": -0.04,
             "narrow": -0.24
           },
-          "largest": "sparse"
+          "largest": "sparse",
+          "nav2_cost": 0.31666666666666665,
+          "handwritten_cost": 0.29
         }
       },
       "decision": "PROBLEM"
@@ -127,7 +132,9 @@
             "dense": 0.13,
             "narrow": 0.1
           },
-          "largest": "noisy_lidar"
+          "largest": "noisy_lidar",
+          "nav2_cost": 0.013333333333333334,
+          "handwritten_cost": 0.29
         },
         "run2": {
           "did": 0.285,
@@ -144,7 +151,9 @@
             "dense": 0.16,
             "narrow": 0.12
           },
-          "largest": "large"
+          "largest": "large",
+          "nav2_cost": 0.005,
+          "handwritten_cost": 0.29
         }
       },
       "decision": "IMPLEMENTATION"
@@ -166,7 +175,9 @@
             "dense": 0.15,
             "narrow": 0.14
           },
-          "largest": "noisy_lidar"
+          "largest": "noisy_lidar",
+          "nav2_cost": 0.013333333333333334,
+          "handwritten_cost": 0.15833333333333333
         },
         "run2": {
           "did": 0.15333333333333332,
@@ -183,7 +194,9 @@
             "dense": 0.18,
             "narrow": 0.16
           },
-          "largest": "noisy_lidar"
+          "largest": "noisy_lidar",
+          "nav2_cost": 0.005,
+          "handwritten_cost": 0.15833333333333333
         }
       },
       "decision": "IMPLEMENTATION"
@@ -205,7 +218,9 @@
             "dense": 0.18,
             "narrow": 0.13
           },
-          "largest": "noisy_lidar"
+          "largest": "noisy_lidar",
+          "nav2_cost": 0.013333333333333334,
+          "handwritten_cost": 0.13666666666666666
         },
         "run2": {
           "did": 0.13166666666666665,
@@ -222,10 +237,229 @@
             "dense": 0.21,
             "narrow": 0.15
           },
-          "largest": "noisy_lidar"
+          "largest": "noisy_lidar",
+          "nav2_cost": 0.005,
+          "handwritten_cost": 0.13666666666666666
         }
       },
       "decision": "IMPLEMENTATION"
+    }
+  },
+  "addendum": {
+    "prediction": "at 5x real time the full-privilege arm does not notice the noise. Both noisy_lidar passes succeed between 0.94 and 1.00 and collide at most 0.04; the nominal pass at the same cap succeeds between 0.94 and 1.00; and against it, on the same worlds, each noisy pass differs by at most 0.04 with exact McNemar p > 0.05. No pass abandons more than 3 episodes. Re-scored with the throttled noisy_lidar cells in place of the registered ones: Phase 6g's decisions are UNRESOLVED at 32 beams and IMPLEMENTATION at 360; Phase 6h's difference lies between +0.09 and +0.12 in both passes, label not called, and noisy_lidar still carries the largest difference in both; Phase 6i's is UNRESOLVED. Every pooled difference falls from its published value by between 0.000 and 0.030.",
+    "runs": {
+      "run1": {
+        "success": 0.98,
+        "collision": 0.0,
+        "timeout": 0.02,
+        "abandoned": 0,
+        "commands": 0.9959057355624504,
+        "delivered_noise_std": 0.09999336818439652
+      },
+      "run2": {
+        "success": 0.99,
+        "collision": 0.0,
+        "timeout": 0.01,
+        "abandoned": 0,
+        "commands": 0.9959738771984111,
+        "delivered_noise_std": 0.09999917874689239
+      },
+      "nominal": {
+        "success": 1.0,
+        "collision": 0.0,
+        "timeout": 0.0,
+        "abandoned": 0,
+        "commands": 0.9968985454653146,
+        "delivered_noise_std": 0.0
+      }
+    },
+    "noise_vs_nominal": {
+      "run1": {
+        "delta": -0.020000000000000018,
+        "won": 0,
+        "lost": 2,
+        "p": 0.5
+      },
+      "run2": {
+        "delta": -0.010000000000000009,
+        "won": 0,
+        "lost": 1,
+        "p": 1.0
+      }
+    },
+    "rescored": {
+      "6g_32": {
+        "passes": {
+          "run1": {
+            "did": -0.07833333333333334,
+            "ci95": [
+              -0.13,
+              -0.02666666666666667
+            ],
+            "class": "UNRESOLVED",
+            "per_condition": {
+              "sparse": 0.13,
+              "large": -0.12,
+              "nominal": -0.03,
+              "noisy_lidar": -0.12,
+              "dense": -0.07,
+              "narrow": -0.26
+            },
+            "largest": "sparse",
+            "nav2_cost": 0.36833333333333335,
+            "handwritten_cost": 0.29
+          },
+          "run2": {
+            "did": -0.07,
+            "ci95": [
+              -0.12,
+              -0.018333333333333333
+            ],
+            "class": "UNRESOLVED",
+            "per_condition": {
+              "sparse": 0.13,
+              "large": -0.12,
+              "nominal": -0.02,
+              "noisy_lidar": -0.13,
+              "dense": -0.04,
+              "narrow": -0.24
+            },
+            "largest": "sparse",
+            "nav2_cost": 0.36,
+            "handwritten_cost": 0.29
+          }
+        },
+        "decision": "UNRESOLVED"
+      },
+      "6g_360": {
+        "passes": {
+          "run1": {
+            "did": 0.23333333333333334,
+            "ci95": [
+              0.19333333333333333,
+              0.2733333333333333
+            ],
+            "class": "IMPLEMENTATION",
+            "per_condition": {
+              "sparse": 0.4,
+              "large": 0.44,
+              "nominal": 0.14,
+              "noisy_lidar": 0.19,
+              "dense": 0.13,
+              "narrow": 0.1
+            },
+            "largest": "large",
+            "nav2_cost": 0.056666666666666664,
+            "handwritten_cost": 0.29
+          },
+          "run2": {
+            "did": 0.24166666666666667,
+            "ci95": [
+              0.20166666666666666,
+              0.2816666666666667
+            ],
+            "class": "IMPLEMENTATION",
+            "per_condition": {
+              "sparse": 0.4,
+              "large": 0.44,
+              "nominal": 0.15,
+              "noisy_lidar": 0.18,
+              "dense": 0.16,
+              "narrow": 0.12
+            },
+            "largest": "large",
+            "nav2_cost": 0.04833333333333333,
+            "handwritten_cost": 0.29
+          }
+        },
+        "decision": "IMPLEMENTATION"
+      },
+      "6h_360": {
+        "passes": {
+          "run1": {
+            "did": 0.10166666666666667,
+            "ci95": [
+              0.065,
+              0.13666666666666666
+            ],
+            "class": "IMPLEMENTATION",
+            "per_condition": {
+              "sparse": 0.0,
+              "large": 0.07,
+              "nominal": 0.03,
+              "noisy_lidar": 0.22,
+              "dense": 0.15,
+              "narrow": 0.14
+            },
+            "largest": "noisy_lidar",
+            "nav2_cost": 0.056666666666666664,
+            "handwritten_cost": 0.15833333333333333
+          },
+          "run2": {
+            "did": 0.11,
+            "ci95": [
+              0.07333333333333333,
+              0.14666666666666667
+            ],
+            "class": "IMPLEMENTATION",
+            "per_condition": {
+              "sparse": 0.0,
+              "large": 0.07,
+              "nominal": 0.04,
+              "noisy_lidar": 0.21,
+              "dense": 0.18,
+              "narrow": 0.16
+            },
+            "largest": "noisy_lidar",
+            "nav2_cost": 0.04833333333333333,
+            "handwritten_cost": 0.15833333333333333
+          }
+        },
+        "decision": "IMPLEMENTATION"
+      },
+      "6i_corroborated": {
+        "passes": {
+          "run1": {
+            "did": 0.08,
+            "ci95": [
+              0.04666666666666667,
+              0.11333333333333333
+            ],
+            "class": "UNRESOLVED",
+            "per_condition": {
+              "sparse": -0.02,
+              "large": 0.08,
+              "nominal": 0.03,
+              "noisy_lidar": 0.08,
+              "dense": 0.18,
+              "narrow": 0.13
+            },
+            "largest": "dense",
+            "nav2_cost": 0.056666666666666664,
+            "handwritten_cost": 0.13666666666666666
+          },
+          "run2": {
+            "did": 0.08833333333333333,
+            "ci95": [
+              0.056666666666666664,
+              0.12166666666666667
+            ],
+            "class": "UNRESOLVED",
+            "per_condition": {
+              "sparse": -0.02,
+              "large": 0.08,
+              "nominal": 0.04,
+              "noisy_lidar": 0.07,
+              "dense": 0.21,
+              "narrow": 0.15
+            },
+            "largest": "dense",
+            "nav2_cost": 0.04833333333333333,
+            "handwritten_cost": 0.13666666666666666
+          }
+        },
+        "decision": "UNRESOLVED"
+      }
     }
   }
 }

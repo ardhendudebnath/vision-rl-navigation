@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import math
 import os
 import re
 import statistics as st
@@ -73,8 +74,12 @@ def classical(cond, field="success_rate"):
 
 
 def nav2_range(cond, field="success_rate"):
+    # The published noisy_lidar passes had Nav2 on a clean sensor; the docs
+    # quote the corrected passes, run with the noise delivered (report §9.20).
+    runs = ("results/nav2_noise_rerun/run*_rtf5" if cond == "noisy_lidar"
+            else "results/nav2_runs/run*")
     vals = []
-    for run in sorted(glob.glob("results/nav2_runs/run*")):
+    for run in sorted(glob.glob(runs)):
         p = os.path.join(run, f"{cond}__nav2.json")
         if os.path.exists(p):
             vals.append(load(p)[field])
@@ -1569,11 +1574,152 @@ def claims():
             ("both arrived stack pose", 0.228, round(st.median(b), 3)),
             ("both arrived stack worse", 90,
              round(100 * sum(1 for x, y in zip(a, b, strict=True) if y > x) / len(both))),
-            ("both arrived nav2 steps", 140,
-             round(st.median(per[i]["steps"] for i in both))),
-            ("both arrived stack steps", 178,
-             round(st.median(by_seed[per[i]["world_seed"]]["steps"] for i in both))),
         ]
+    # The noise, delivered: Nav2 re-run on noisy_lidar, report §9.20.
+    nr = "results/nav2_noise_rerun.json"
+    if os.path.exists(nr) and os.path.exists(bt):
+        rj = load(nr)
+        runs, ad, pc = rj["runs"], rj["addendum"], rj["pose_vs_this_stack"]
+        mine = load(bt)["cells"]["noisy_lidar"]["front_end"]["episodes"]
+        rd = "results/nav2_noise_rerun"
+        raw = {k: load(f"{rd}/{p}") for k, p in (
+            ("run1", "run1/noisy_lidar__nav2.json"), ("run2", "run2/noisy_lidar__nav2.json"),
+            ("slam360", "slam/noisy_lidar__nav2_slam.json"),
+            ("slam32", "slam/noisy_lidar__nav2_slam_b32.json"),
+            ("rtf1", "run1_rtf5/noisy_lidar__nav2.json"),
+            ("rtf2", "run2_rtf5/noisy_lidar__nav2.json"))}
+        noisy = [raw[k]["delivered_noise_std"] for k in raw]
+        silent = {k: {e["world_seed"] for e, c in zip(raw[k]["per_episode"],
+                                                     raw[k]["commands_per_step_per_episode"],
+                                                     strict=True) if c == 0.0}
+                  for k in ("run1", "run2")}
+        out += [(f"rerun control {k}", 1.0, float(v)) for k, v in rj["checks"].items()]
+        out += [
+            ("rerun noise delivered low", 0.100, round(min(noisy), 3)),
+            ("rerun noise delivered high", 0.100, round(max(noisy), 3)),
+            ("rerun slam360 success", 0.950, runs["slam360"]["success"]),
+            ("rerun slam32 success", 0.640, runs["slam32"]["success"]),
+            ("rerun slam360 pose median", 0.225, round(runs["slam360"]["pose_error_median"], 3)),
+            ("rerun slam360 pose max", 0.826, round(raw["slam360"]["pose_error_max"], 3)),
+            ("rerun slam32 pose median", 0.400, round(runs["slam32"]["pose_error_median"], 3)),
+            ("rerun slam360 clean pose", 0.075, round(runs["slam360"]["clean_pose_error_median"], 3)),
+            ("rerun slam32 clean pose", 0.226, round(runs["slam32"]["clean_pose_error_median"], 3)),
+            ("rerun noise triples slam pose", 3.0,
+             round(runs["slam360"]["pose_error_median"] / runs["slam360"]["clean_pose_error_median"], 1)),
+            # The registered full-privilege passes, and why they are not read.
+            ("rerun full run1 registered", 0.720, runs["run1"]["success"]),
+            ("rerun full run2 registered", 0.730, runs["run2"]["success"]),
+            ("rerun full run1 abandoned", 27, raw["run1"]["nav2_aborted_episodes"]),
+            ("rerun full run2 abandoned", 27, raw["run2"]["nav2_aborted_episodes"]),
+            ("rerun full run1 silent", 16, len(silent["run1"])),
+            ("rerun full run2 silent", 19, len(silent["run2"])),
+            ("rerun full silent in both", 2, len(silent["run1"] & silent["run2"])),
+            # The primary: final pose error on the worlds both stacks complete.
+            ("rerun both completed", 87, pc["both_completed"]),
+            ("rerun both nav2 pose", 0.220, round(pc["nav2_median"], 3)),
+            ("rerun both stack pose", 0.228, round(pc["this_stack_median"], 3)),
+            ("rerun both ratio", 0.97, round(pc["ratio"], 2)),
+            ("rerun both nav2 closer", 47, pc["nav2_closer"]),
+            ("rerun both stack closer", 40, pc["this_stack_closer"]),
+            ("rerun both sign p", 0.52, round(pc["sign_p"], 2)),
+            ("rerun primary UNRESOLVED", 1.0, float(pc["decision"] == "UNRESOLVED")),
+        ]
+        # Success against this stack on the same worlds.
+        hs = {e["seed"]: e["success"] for e in mine}
+        s_nav = [bool(e["success"]) for e in raw["slam360"]["per_episode"]]
+        s_hw = [bool(hs[e["world_seed"]]) for e in raw["slam360"]["per_episode"]]
+        won = sum(1 for x, y in zip(s_hw, s_nav, strict=True) if y and not x)
+        lost = sum(1 for x, y in zip(s_hw, s_nav, strict=True) if x and not y)
+        n = won + lost
+        p = min(1.0, 2 * sum(math.comb(n, i) for i in range(min(won, lost) + 1)) / 2**n)
+        out += [("rerun success this stack", 0.890, st.mean(s_hw)),
+                ("rerun success won", 8, won), ("rerun success lost", 2, lost),
+                ("rerun success mcnemar p", 0.11, round(p, 2))]
+        # The addendum: the full arm at 5x, and a clean control on the same worlds.
+        ar = ad["runs"]
+        out += [
+            ("addendum run1", 0.980, ar["run1"]["success"]),
+            ("addendum run2", 0.990, ar["run2"]["success"]),
+            ("addendum nominal", 1.000, ar["nominal"]["success"]),
+            ("addendum abandoned", 0, max(r["abandoned"] for r in ar.values())),
+            ("addendum run1 spl", 0.966, round(raw["rtf1"]["spl"], 3)),
+            ("addendum run2 spl", 0.976, round(raw["rtf2"]["spl"], 3)),
+            ("addendum noise run1", -0.020, round(ad["noise_vs_nominal"]["run1"]["delta"], 3)),
+            ("addendum noise run2", -0.010, round(ad["noise_vs_nominal"]["run2"]["delta"], 3)),
+            ("addendum noise run1 p", 0.50, round(ad["noise_vs_nominal"]["run1"]["p"], 2)),
+            ("addendum noise run2 p", 1.00, round(ad["noise_vs_nominal"]["run2"]["p"], 2)),
+            # What Nav2 now pays under noise, with SLAM, at each beam count.
+            ("addendum nav2 noise cost 360 low", 0.03,
+             round(min(ar[q]["success"] for q in ("run1", "run2")) - runs["slam360"]["success"], 2)),
+            ("addendum nav2 noise cost 360 high", 0.04,
+             round(max(ar[q]["success"] for q in ("run1", "run2")) - runs["slam360"]["success"], 2)),
+            ("addendum nav2 noise cost 32 low", 0.34,
+             round(min(ar[q]["success"] for q in ("run1", "run2")) - runs["slam32"]["success"], 2)),
+            ("addendum nav2 noise cost 32 high", 0.35,
+             round(max(ar[q]["success"] for q in ("run1", "run2")) - runs["slam32"]["success"], 2)),
+        ]
+        # The pooled differences re-scored with the corrected cells.
+        rs = ad["rescored"]
+        for name, rows, label in (
+            ("6g_32", ((-0.078, -0.130, -0.027), (-0.070, -0.120, -0.018)), "UNRESOLVED"),
+            ("6g_360", ((0.233, 0.193, 0.273), (0.242, 0.202, 0.282)), "IMPLEMENTATION"),
+            ("6h_360", ((0.102, 0.065, 0.137), (0.110, 0.073, 0.147)), "IMPLEMENTATION"),
+            ("6i_corroborated", ((0.080, 0.047, 0.113), (0.088, 0.057, 0.122)), "UNRESOLVED"),
+        ):
+            out.append((f"corrected {name} decision {label}", 1.0,
+                        float(rs[name]["decision"] == label)))
+            for q, (did, lo, hi) in zip(("run1", "run2"), rows, strict=True):
+                v = rs[name]["passes"][q]
+                out += [(f"corrected {name} {q} did", did, round(v["did"], 3)),
+                        (f"corrected {name} {q} ci lo", lo, round(v["ci95"][0], 3)),
+                        (f"corrected {name} {q} ci hi", hi, round(v["ci95"][1], 3))]
+        g360, g32 = rs["6g_360"]["passes"], rs["6g_32"]["passes"]
+        out += [("corrected nav2 cost 360 run1", 0.057, round(g360["run1"]["nav2_cost"], 3)),
+                ("corrected nav2 cost 360 run2", 0.048, round(g360["run2"]["nav2_cost"], 3)),
+                ("corrected nav2 cost 32 run1", 0.368, round(g32["run1"]["nav2_cost"], 3)),
+                ("corrected nav2 cost 32 run2", 0.360, round(g32["run2"]["nav2_cost"], 3)),
+                ("corrected hand-written cost", 0.290, round(g360["run1"]["handwritten_cost"], 3)),
+                ("corrected 32 intervals below zero", 1.0,
+                 float(all(g32[q]["ci95"][1] < 0 for q in ("run1", "run2"))))]
+        # "under a fifth of it" -- and more than a sixth.
+        ratio = (st.mean(g360[q]["nav2_cost"] for q in ("run1", "run2"))
+                 / g360["run1"]["handwritten_cost"])
+        out.append(("corrected 360 cost is under a fifth", 1.0, float(1 / 6 < ratio < 1 / 5)))
+        # "from 0.36 to 0.05": Nav2's own cost at 32 and at 360, lower pass.
+        out += [("corrected nav2 own cost 32", 0.36,
+                 round(min(g32[q]["nav2_cost"] for q in ("run1", "run2")), 2)),
+                ("corrected nav2 own cost 360", 0.05,
+                 round(min(g360[q]["nav2_cost"] for q in ("run1", "run2")), 2))]
+        hper = [rs["6h_360"]["passes"][q]["per_condition"] for q in ("run1", "run2")]
+        out += [("corrected noise residual low", 0.21, round(min(x["noisy_lidar"] for x in hper), 2)),
+                ("corrected noise residual high", 0.22, round(max(x["noisy_lidar"] for x in hper), 2)),
+                ("corrected clutter residual low", 0.14,
+                 round(min(min(x["dense"], x["narrow"]) for x in hper), 2)),
+                ("corrected clutter residual high", 0.18,
+                 round(max(max(x["dense"], x["narrow"]) for x in hper), 2)),
+                ("corrected noise largest both passes", 1.0,
+                 float(all(rs["6h_360"]["passes"][q]["largest"] == "noisy_lidar"
+                           for q in ("run1", "run2"))))]
+        shares = [(x["noisy_lidar"] + x["dense"] + x["narrow"]) / sum(x.values()) for x in hper]
+        out += [("corrected noise and clutter share low", 0.83, round(min(shares), 2)),
+                ("corrected noise and clutter share high", 0.84, round(max(shares), 2))]
+        # §9.5's median pose error range for Nav2, with the corrected cell.
+        if os.path.exists("results/nav2_slam_comparison.json"):
+            nc = load("results/nav2_slam_comparison.json")["conditions"]
+            npe = [nc[c]["nav2_without"]["360"]["pose_error_median"]
+                   for c in nc if c != "noisy_lidar"] + [runs["slam360"]["pose_error_median"]]
+            out += [("corrected nav2 pose error low", 0.07, round(min(npe), 2)),
+                    ("corrected nav2 pose error high", 0.23, round(max(npe), 2))]
+        # The val diagnosis the addendum was made from, and the published passes.
+        vd = f"{rd}/val_diagnosis"
+        for f, succ, ab in (("unthrottled_noisy_lidar", 0.767, 7), ("unthrottled_nominal", 0.733, 8),
+                            ("rtf5_noisy_lidar", 1.000, 0)):
+            v = load(f"{vd}/{f}__nav2_val.json")
+            out += [(f"val diagnosis {f} success", succ, round(v["success_rate"], 3)),
+                    (f"val diagnosis {f} abandoned", ab, v["nav2_aborted_episodes"])]
+        pub = [load(p)["zero_command_episodes"] for p in glob.glob("results/nav2_runs/run*/*__nav2.json")]
+        out += [("published passes", 12, len(pub)),
+                ("published passes command-less episodes", 1, sum(pub))]
     # Graph density: slam_toolbox's linking against this back end's closures.
     if os.path.exists(sy):
         from vision_nav.mapping.posegraph import PoseGraphConfig
@@ -1730,7 +1876,10 @@ def claims():
         for cond, row in table.items():
             s = hc[cond]["success"]
             out += [(f"sensor {cond} {arm}", v, s[arm]) for arm, v in zip(arms, row[:5], strict=True)]
-            out.append((f"sensor {cond} nav2 slam360", row[5], hc[cond]["nav2"]["slam360"]))
+            # The noisy_lidar Nav2 cell the report prints is the corrected one,
+            # pinned with the rerun below; this file holds the clean-scan run.
+            if cond != "noisy_lidar":
+                out.append((f"sensor {cond} nav2 slam360", row[5], hc[cond]["nav2"]["slam360"]))
         for i, (did, lo, hi) in enumerate(((0.112, 0.077, 0.147), (0.120, 0.085, 0.155))):
             v = hpool["did_vs_nav2_360"][hpasses[i]]
             out += [(f"sensor did pass{i + 1}", did, v["did"]),
@@ -1797,8 +1946,10 @@ def claims():
         for cond, (hw_w, hw_wo, n1, n2, s360, s32) in table.items():
             e = sc[cond]
             out += [(f"slam {cond} hw with", hw_w, e["handwritten"]["with"]),
-                    (f"slam {cond} hw without", hw_wo, e["handwritten"]["without"]),
-                    (f"slam {cond} nav2 with pass1", n1, e["nav2_with"][passes[0]]),
+                    (f"slam {cond} hw without", hw_wo, e["handwritten"]["without"])]
+            # The noisy_lidar Nav2 cells, as first published on a clean scan;
+            # §9.20 quotes them beside the corrected ones pinned below.
+            out += [(f"slam {cond} nav2 with pass1", n1, e["nav2_with"][passes[0]]),
                     (f"slam {cond} nav2 with pass2", n2, e["nav2_with"][passes[1]]),
                     (f"slam {cond} 360", s360, e["nav2_without"]["360"]["success"]),
                     (f"slam {cond} 32", s32, e["nav2_without"]["32"]["success"])]
@@ -1814,7 +1965,9 @@ def claims():
                         (f"slam {label} pass{i + 1} ci lo", lo, v["ci95"][0]),
                         (f"slam {label} pass{i + 1} ci hi", hi, v["ci95"][1])]
         out.append(("slam hand-written pooled cost", -0.290, p360[passes[0]]["handwritten_cost"]))
-        # "a seventh of it": Nav2's pooled cost at 360 over the hand-written one.
+        # "a seventh of it": Nav2's pooled cost at 360 over the hand-written one,
+        # as first published; the plan records it. The corrected ratio is
+        # pinned with the rerun below.
         ratio = st.mean([p360[p]["nav2_cost"] for p in passes]) / p360[passes[0]]["handwritten_cost"]
         out.append(("slam 360 cost is about a seventh", 1.0, float(1 / 8 < ratio < 1 / 6)))
         # Clutter at 360: timeouts, not collisions, with pose error under 8 cm.

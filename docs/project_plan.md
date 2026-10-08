@@ -52,8 +52,8 @@ Phases are numbered as in the roadmap's Section 3.
 | 5w | Cap the estimate's extrapolation at 2 s and 1 s | **Done** — **UNRESOLVED: +0.010 on dense**; a 1 s cap costs sparse 0.085 (p = 0.0005) |
 | 6j | Clutter is indecision: diagnosed, and two repairs rejected on val | **Done** — **not registered**: failures reverse 46 times against a success's 1; commitment gated on distance and on time both failed, so the reversals are a symptom |
 | 6i | A mapper for dense scans: corroborate a cell's returns before believing them | **Done** — **UNRESOLVED at p = 0.0574**, but +0.140 (p = 0.0005) on the arm the stack actually runs |
-| 6h | Fill the missing cell: this stack, without map or pose, at 360 beams | **Done** — **IMPLEMENTATION (+0.112, +0.120)**: the sensor fixes the pose, not the map |
-| 6g | Ask a production stack the same question: Nav2 with slam_toolbox, no map, no pose | **Done** — **UNRESOLVED at 32 beams, IMPLEMENTATION at 360**: the same sensor, the same cost; a dense one, a seventh |
+| 6h | Fill the missing cell: this stack, without map or pose, at 360 beams | **Done** — **IMPLEMENTATION (+0.102, +0.110; +0.112, +0.120 before 6x corrected Nav2's noisy cell)**: the sensor fixes the pose, not the map |
+| 6g | Ask a production stack the same question: Nav2 with slam_toolbox, no map, no pose | **Done** — **UNRESOLVED at 32 beams, IMPLEMENTATION at 360**: the same sensor, the same cost; a dense one, under a fifth (a seventh before 6x corrected Nav2's noisy cell) |
 | 6f | Take away the pose: wheel odometry, and scan matching against the robot's own map | **Done** — **COSTLY, and matching PAYS**: free in clutter (−0.010, +0.040), ruinous in the open (−0.460 `large`) |
 | 6e | The repaired mapping stack, re-run | **Done** — **COSTLY: −0.240 dense, −0.260 narrow**; Result 1's clutter margin was the map |
 | 6d | The classical planner builds its own map (registered run) | **Recorded** — **COSTLY, from two bugs of mine**: every collision was into an obstacle mapped ≥1 s earlier |
@@ -3491,10 +3491,58 @@ to 0.377 m.
   `tests/test_bridge_sensor.py` checks the delivered scan (noise of the
   configured size under `noisy_lidar`, none under `nominal`) and pins the bridge
   to that scanner at the source. The source pin fails on the old bridge.
-- **Next**: repeat the four runs with the fixed bridge.
+- **Next**: repeat the four runs with the fixed bridge (Phase 6x).
 - **Lesson**: a fairness check on a configured value is a check on the
   configuration. The test that would have caught this asks what reaches the
   other side.
+
+## Phase 6x — The noise, delivered: Nav2 re-run on `noisy_lidar`
+
+`scripts/nav2_noise_rerun.py`. Registered before any Nav2 run with the noise had
+been seen (PREDICTION, commit 30b3366); a three-episode val smoke test had been
+started, unread, and is disclosed there. The bridge now audits every published
+scan against the same scan cast without noise; all runs delivered 0.100 m.
+Identity control: with the original files the script reproduces every published
+pooled point and verdict, and §9.19's 89 worlds / 0.074 m / 0.228 m. Full
+treatment in report §9.20.
+
+| held-out `noisy_lidar` | clean scan (published) | noise delivered | pose median |
+|---|---|---|---|
+| full privileges, unthrottled (registered) | 0.970 / 0.980 | 0.720 / 0.730 | — |
+| full privileges, 5× (addendum) | — | 0.980 / 0.990 | — |
+| `nominal` control, 5× (addendum) | — | 1.000 | — |
+| Nav2 + SLAM, 360 | 1.000 | 0.950 | 0.075 → 0.225 m |
+| Nav2 + SLAM, 32 | 0.750 | 0.640 | 0.226 → 0.400 m |
+
+- **Primary: UNRESOLVED, predicted BETTER.** On the 87 worlds both complete,
+  slam_toolbox 0.220 m from the truth, this stack 0.228 m (ratio 0.97), closer on
+  47 against 40, sign test p = 0.52. The factor of three was the bug.
+- **Success**: Nav2 + SLAM 0.950 against this stack's 0.890, 8 won / 2 lost,
+  McNemar p = 0.11 — not resolved.
+- **The registered full-privilege passes measured the harness**: 27 episodes
+  abandoned in each without moving, mostly on different worlds (2 shared of 16
+  and 19 command-less). Val diagnosis, each run alone, 30 worlds: unthrottled
+  `noisy_lidar` 0.767 (7 abandoned), unthrottled `nominal` 0.733 (8), `noisy_lidar`
+  at 5× 1.000 (0). The published passes: one command-less episode in twelve runs.
+- **Addendum** (ADDENDUM, commit 103d159, before its runs, disclosing all of
+  the above): full arm at 5× plus a `nominal` control at 5×. Every clause held;
+  noise worth −0.020 (p = 0.50) and −0.010 (p = 1.00).
+- **Re-scored with the corrected cells**: §9.4 32 beams −0.078 / −0.070
+  UNRESOLVED (both CIs below zero), 360 +0.233 / +0.242 IMPLEMENTATION; §9.5
+  +0.102 / +0.110 IMPLEMENTATION; §9.6 +0.080 / +0.088 UNRESOLVED. No verdict
+  changes; noise residual 0.21–0.22, not 0.27–0.28.
+
+### Calibration
+
+- Registration: partial. Primary failed; SLAM success (both), 32-beam pose held;
+  360-beam pose (0.08–0.18 m) failed; full-arm clause failed as registered, for
+  the harness's reason; re-scored verdicts off the registered passes moved the
+  wrong way.
+- Addendum: held, every clause — forecast from a val measurement of the same arm
+  at the same cap.
+- Phase 6g's prediction re-scored: loses its pose clause (Nav2 ≤ 0.20 m on every
+  condition at 360; `noisy_lidar` 0.225 m). Phase 6h's unchanged.
+- Tally: 58 predictions, 15 held, 26 failed, 17 partial.
 
 ## Hardware notes
 

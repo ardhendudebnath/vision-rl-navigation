@@ -5,7 +5,11 @@
 | sparse | 1.000 / 1.000 | 0.990-0.990 / 0.982-0.985 | -0.010 to -0.010 | parity |
 | large | 1.000 / 0.990 | 0.990-0.990 / 0.983-0.985 | -0.010 to -0.010 | parity |
 | narrow | 0.850 / 0.795 | 0.910-0.930 / 0.878-0.898 | +0.060 to +0.080 | Nav2 better |
-| noisy_lidar | 1.000 / 0.985 | 0.970-0.980 / 0.953-0.964 | -0.030 to -0.020 | parity |
+| noisy_lidar | 1.000 / 0.985 | 0.980-0.990 / 0.966-0.976 ‡ | -0.020 to -0.010 | parity |
+
+‡ Corrected by hand from `results/nav2_noise_rerun/run*_rtf5/`. The script that
+writes this table reads `results/nav2_runs/`, whose `noisy_lidar` passes had
+Nav2 on a clean sensor (0.970-0.980 / 0.953-0.964); see report §9.20.
 
 ## Moving obstacles
 

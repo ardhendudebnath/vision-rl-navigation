@@ -60,13 +60,13 @@ decision below follows from wanting that comparison to be trustworthy.
 | Seeing only what a sensor could: a 360° scanner costs little, a 90° camera nearly everything | Done |
 | The planner builds its own map: open worlds unchanged, and the clutter margin over the policy gone | Done |
 | And estimates its own pose: free in clutter, ruinous in open worlds — the exact inverse of the map | Done |
-| Nav2 with SLAM, asked the same: as costly with the same scanner, a seventh of it with a dense one | Done |
+| Nav2 with SLAM, asked the same: as costly with the same scanner, under a fifth of it with a dense one | Done |
 | And this stack at 360 beams: the sensor fixes its pose, not its map | Done |
 | A mapper that asks a cell's returns to corroborate each other: the noise regression repaired | Done |
 | Encoder cost re-priced at 1:1: survives (−0.180 narrow), and still fails by stalling | Done |
 | Why the pixel policy stalls: the image carries the depth, and a velocity latch holds the stall — released, it crashes | Done |
 | And what its features lack: the clearance ahead is there, the width of the gap past it is not | Done |
-| Bridge bug found: Nav2 never received `noisy_lidar`'s noise — fixed and tested; the four affected runs are being repeated | In progress |
+| Bridge bug found: Nav2 never received `noisy_lidar`'s noise — fixed, re-run: on the same scans slam_toolbox localises no better than this stack | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
 Sixty-one experiments, each pre-registered where it tests a hypothesis. The
@@ -114,14 +114,13 @@ asynchronous and does not reproduce itself exactly.
 | nominal | 1.000 | 0.970–0.980 | −0.030 to −0.020 |
 | sparse | 1.000 | 0.990 | −0.010 |
 | large | 1.000 | 0.990 | −0.010 |
-| noisy_lidar | 1.000 | 0.970–0.980 † | −0.030 to −0.020 † |
+| noisy_lidar | 1.000 | 0.980–0.990 ‡ | −0.020 to −0.010 ‡ |
 | dense | 0.890 | 0.910–0.940 | +0.020 to +0.050 |
 | narrow | 0.850 | 0.910–0.930 | +0.060 to +0.080 |
 
-† Nav2 was scored here on a clean sensor: the bridge configured the condition's
-range noise and never applied it. That row is two more passes of `nominal`'s
-worlds, and is being re-run with the noise delivered — see the correction at the
-head of the [report](docs/report.md).
+‡ Corrected. As first published this row read 0.970–0.980, with Nav2 on a clean
+sensor: the bridge configured the condition's range noise and never applied it.
+Re-run with the noise delivered and measured (report §9.20).
 
 The two agree to within 0.03 wherever clutter is not the binding constraint.
 On `narrow` Nav2 is ahead in both passes, so the `narrow` gap above is a

@@ -7,25 +7,20 @@ Ardhendu Debnath — [vision-rl-navigation](https://github.com/ardhendudebnath/v
 
 ---
 
-> **Correction, 6 October 2026: every Nav2 result on `noisy_lidar` was measured
-> on a clean sensor.** The ROS bridge built its scanner from the condition's
-> settings, so the 0.10 m of range noise was *configured* — which is what the
-> fairness check in [`ros2_bridge/README.md`](../ros2_bridge/README.md) looked
-> at, and it passed — and then called that scanner without a random generator,
-> and the sensor adds noise only when it is handed one. The hand-written stack
-> read the noisy sensor throughout; Nav2, with and without SLAM, never did.
-> `noisy_lidar` and `nominal` are the same held-out worlds, so each affected Nav2
-> run was in effect one more pass of `nominal`. Four runs are affected: §4.1's two
-> full-privilege passes and §9.4's two SLAM arms. Their `noisy_lidar` cells are
-> marked † below, and so is every Nav2 comparison pooled over them (§9.4, §9.5,
-> §9.6, and the abstract's summary of them). Two claims are withdrawn outright,
-> because they rest on the two stacks having read the same sensor: that this
-> stack loses 0.27 to 0.28 more than Nav2 under noise (§9.5, and the abstract's
-> "under noise"), and §9.19's conclusion that slam_toolbox localises three times
-> better "from the same odometry and the same scans". The bridge is fixed
-> ([`bridge_sensor.py`](../ros2_bridge/bridge_sensor.py)), with a test of the scan
-> it delivers rather than the setting it inherits, and the four runs are being
-> repeated.
+> **Correction, 6–8 October 2026: until then, every Nav2 result on `noisy_lidar`
+> had been measured on a clean sensor.** The ROS bridge built its scanner from the
+> condition's settings, so the 0.10 m of range noise was *configured* — which is
+> what the fairness check in [`ros2_bridge/README.md`](../ros2_bridge/README.md)
+> looked at, and it passed — and then called that scanner without a random
+> generator, and the sensor adds noise only when it is handed one. The
+> hand-written stack read the noisy sensor throughout; Nav2, with and without
+> SLAM, never did. Four runs were affected — §4.1's two full-privilege passes and
+> §9.4's two SLAM arms — and all four have been repeated with the noise delivered
+> and measured, under a registration committed first (§9.20). The `noisy_lidar`
+> cells marked ‡ below are the corrected ones. No pooled verdict changes. One
+> conclusion does: §9.19 had slam_toolbox localising three times better "from the
+> same odometry and the same scans", and on the same scans it localises no better
+> than this stack (0.220 m against 0.228 m, p = 0.52).
 
 ## Abstract
 
@@ -42,12 +37,12 @@ clutter (0.630 in tight corridors) and most of what is left in open worlds
 (0.530 on the largest arenas, against 0.990 with the pose given). The two
 privileges are worth opposite things, and structure is why. A production
 stack — Nav2 with SLAM — pays at least as much given the same sparse
-scanner, and a seventh of it given a dense one; given that dense scanner
+scanner, and under a fifth of it given a dense one; given that dense scanner
 too, this project's stack halves its cost, all of it in localisation. The
 pose was standing in for the sensor. The map was standing in for the
-implementation: in clutter, this stack loses 0.14 to 0.18 more than Nav2 with
-slam_toolbox. (A figure under sensor noise stood here; Nav2 never received the
-noise, and it is withdrawn — see the correction above.)
+implementation: in clutter and under noise, this stack loses 0.14 to 0.22 more
+than Nav2 with slam_toolbox — and under noise that is not localisation, where the
+two stacks end episodes equally far from the truth.
 
 We then eliminate the standard explanations for a losing RL result —
 insufficient data, wrong training distribution, insufficient compute (tested
@@ -220,8 +215,8 @@ handed over — and on `large` it is ruinous, 0.530 against 0.990. The two
 privileges are worth opposite things, for one reason: clutter is structure, and
 structure is both what a map is needed for and what a pose can be recovered
 from. §9.4 asks whether that cost belongs to this implementation: Nav2 with
-SLAM pays at least as much given the same 32-beam scanner, and a seventh of it
-given 360 beams. §9.5 gives this stack 360 beams too: the pose's cost all but
+SLAM pays at least as much given the same 32-beam scanner, and under a fifth of
+it given 360 beams. §9.5 gives this stack 360 beams too: the pose's cost all but
 vanishes, and the map's does not.
 
 A caution on reading the last column against the first three, stronger than the
@@ -270,13 +265,15 @@ band.
 | nominal | 1.000 / 0.985 | 0.970–0.980 / 0.955–0.963 | −0.030 to −0.020 |
 | sparse | 1.000 / 1.000 | 0.990 / 0.982–0.985 | −0.010 |
 | large | 1.000 / 0.990 | 0.990 / 0.983–0.985 | −0.010 |
-| noisy_lidar | 1.000 / 0.985 | 0.970–0.980 / 0.953–0.964 † | −0.030 to −0.020 † |
+| noisy_lidar | 1.000 / 0.985 | 0.980–0.990 / 0.966–0.976 ‡ | −0.020 to −0.010 ‡ |
 | dense | 0.890 / 0.841 | 0.910–0.940 / 0.881–0.901 | +0.020 to +0.050 |
 | **narrow** | 0.850 / 0.795 | **0.910–0.930** / **0.878–0.898** | +0.060 to +0.080 |
 
-† Nav2 received a clean scan on `noisy_lidar` (see the correction at the head of
-this report). Those are `nominal`'s worlds, so this row is two more passes of
-`nominal` under another name; it is being re-run with the noise delivered.
+‡ Re-measured with the noise delivered (§9.20). As first published this row read
+0.970–0.980 / 0.953–0.964, measured on a clean scan. The corrected passes ran at
+5× real time, because the unthrottled harness now abandons episodes on a clean
+sensor too; a clean `nominal` pass at the same cap on the same worlds scored
+1.000, so with its privileges Nav2 does not notice the noise.
 
 **The hand-written baseline understates classical planning in tight
 corridors.** On the four conditions where clutter is not the binding
@@ -1001,32 +998,33 @@ against both.
 | sparse | 1.000 / 0.570 | 0.990 / 0.990 | 0.960 | 0.690 |
 | large | 1.000 / 0.530 | 0.990 / 0.990 | 0.960 | 0.400 |
 | nominal | 1.000 / 0.850 | 0.980 / 0.970 | 0.970 | 0.800 |
-| noisy_lidar | 1.000 / 0.780 | 0.970 / 0.980 † | 1.000 † | 0.750 † |
+| noisy_lidar | 1.000 / 0.780 | 0.980 / 0.990 ‡ | 0.950 ‡ | 0.640 ‡ |
 | dense | 0.890 / 0.640 | 0.940 / 0.910 | 0.820 | 0.620 |
 | narrow | 0.850 / 0.630 | 0.930 / 0.910 | 0.810 | 0.450 |
 
-† Measured with Nav2 reading a clean scan (see the correction at the head of
-this report). Every pooled difference below includes this row, so those
-differences are provisional until it is re-run with the noise delivered; the
-per-condition statements about the other five conditions stand.
+‡ Re-measured with the noise delivered (§9.20); as first published, on a clean
+scan, 0.970 / 0.980, 1.000 and 0.750. The pooled figures below use the corrected
+row, and §9.20 gives the published ones beside them.
 
 **Given a dense scanner, a production stack keeps almost everything.** Pooled
 over the six conditions, the hand-written stack loses 0.290 to losing the map
-and the pose; Nav2 with slam_toolbox at 360 beams loses 0.047 against the first
-pass and 0.038 against the second. The difference in costs is +0.243
-[+0.203, +0.285] and +0.252 [+0.212, +0.292] — IMPLEMENTATION, the registered
-secondary decision. In open worlds Nav2 barely notices (0.960 to 1.000);
+and the pose; Nav2 with slam_toolbox at 360 beams loses 0.057 against the first
+pass and 0.048 against the second. The difference in costs is +0.233
+[+0.193, +0.273] and +0.242 [+0.202, +0.282] — IMPLEMENTATION, the registered
+secondary decision. In open worlds Nav2 barely notices (0.950 to 0.970);
 in clutter it pays 0.09 to 0.12, and pays it in timeouts (0.140 on `dense`,
 0.180 on `narrow`) rather than collisions (0.040, 0.010), with a median pose
 error under 8 cm. It is the map that costs it in clutter, not the pose — §9.2's
 finding, in a different stack.
 
-**Given the same 32-beam scanner, it pays at least as much.** Nav2 loses 0.348
-and 0.340; the difference in costs is −0.058 [−0.108, −0.008] and −0.050
-[−0.100, +0.000]. The registered primary decision is UNRESOLVED: the intervals
-reach a hair past the ±0.10 band a bounded null needed. What they exclude is
-Nav2 paying materially *less* — a pose graph, loop closure and a production
-controller do not buy back what a sparse scanner costs. Per condition the two
+**Given the same 32-beam scanner, it pays at least as much.** Nav2 loses 0.368
+and 0.360; the difference in costs is −0.078 [−0.130, −0.027] and −0.070
+[−0.120, −0.018]. The registered primary decision is UNRESOLVED: the intervals
+reach past the ±0.10 band a bounded null needed. What they exclude is Nav2
+paying the same or less — both lie wholly below zero — so a pose graph, loop
+closure and a production controller do not buy back what a sparse scanner
+costs; they cost a little more, though not by the 0.10 the rule calls
+material. Per condition the two
 stacks fail in different places: Nav2 does better on `sparse` (0.690 against
 0.570) and markedly worse in tight corridors (0.450 against 0.630, −0.180,
 p = 0.0039), where its costmap, built from 32 beams, both collides (0.180) and
@@ -1035,7 +1033,7 @@ stalls (0.370).
 **So, from Nav2 alone, what the privileges stood in for looked like the
 sensor.** Holding the sensor fixed and changing the implementation to a
 production one buys nothing; holding the implementation fixed and giving it a
-dense sensor cuts its cost from 0.34 to 0.04. That rested on one cell inferred
+dense sensor cuts its cost from 0.36 to 0.05. That rested on one cell inferred
 rather than measured — this project's own stack at 360 beams — and §9.5 ran
 it: the sensor explains the pose, and not the map.
 
@@ -1071,7 +1069,7 @@ run again alongside, and reproduce Phase 6f episode for episode.
 | sparse | 1.000 | 1.000 | 0.570 | 1.000 | 0.970 | 0.960 |
 | large | 1.000 | 0.990 | 0.530 | 0.990 | 0.900 | 0.960 |
 | nominal | 1.000 | 0.970 | 0.850 | 0.970 | 0.960 | 0.970 |
-| noisy_lidar | 1.000 | 0.940 | 0.780 | 0.830 | 0.750 | 1.000 † |
+| noisy_lidar | 1.000 | 0.940 | 0.780 | 0.830 | 0.750 | 0.950 ‡ |
 | dense | 0.890 | 0.650 | 0.640 | 0.640 | 0.620 | 0.820 |
 | narrow | 0.850 | 0.590 | 0.630 | 0.590 | 0.590 | 0.810 |
 
@@ -1091,23 +1089,22 @@ for surfaces that are not there, on log-odds weights set for a sparse scanner
 (§9.2).
 
 **Against Nav2 with the same scanner, the implementation does matter.** The
-difference in costs is +0.112 [+0.077, +0.147] and +0.120 [+0.085, +0.155]
-against the two passes — IMPLEMENTATION, the registered decision. Very little of
-it is localisation: in open, noise-free worlds the two stacks lose nearly the
-same (0.000 on `sparse`, +0.03 to +0.04 on `nominal`, +0.07 on `large`). It is
-mapping: in clutter this stack loses 0.14 to 0.18 more than Nav2 does. As first
-published, this sentence also said that under noise it loses 0.27 to 0.28 more,
-and that those three conditions carry 85% of the residual. Nav2 never received
-the noise (†, and the correction at the head of this report), so that comparison
-is withdrawn, and both pooled differences above are provisional, until the
-re-run.
+difference in costs is +0.102 [+0.065, +0.137] and +0.110 [+0.073, +0.147]
+against the two passes — IMPLEMENTATION, the registered decision, and only just:
+the rule asks for +0.100. Very little of it is localisation: in open,
+noise-free worlds the two stacks lose nearly the same (0.000 on `sparse`, +0.03
+to +0.04 on `nominal`, +0.07 on `large`). It is mapping: under noise this stack
+loses 0.21 to 0.22 more than Nav2 does, and in clutter 0.14 to 0.18 more, and
+those three conditions carry 83% to 84% of the residual. (As first published,
+with Nav2 on a clean scan, the difference was +0.112 and +0.120 and the noise
+residual 0.27 to 0.28; §9.20.)
 
 **So §9.4's conclusion was half right.** What the pose stood in for was the
 sensor: given a dense one, the median final pose error is 0.07 to 0.22 m for
-this stack and 0.07 to 0.17 m for Nav2, and the pose costs this stack 0.038.
-What the map stood in for was the implementation: given the same dense scanner,
-this stack loses 0.14 to 0.18 more than Nav2 with slam_toolbox wherever there
-is clutter to map. Whether the same holds under noise waits on the re-run.
+this stack and 0.07 to 0.23 m for Nav2 — the top of both ranges is `noisy_lidar`
+— and the pose costs this stack 0.038. What the map stood in for was the
+implementation: given the same dense scanner, this stack loses 0.14 to 0.22 more
+than Nav2 with slam_toolbox wherever there is clutter or noise to map.
 
 ### 9.6 Repairing the dense-scan map
 
@@ -1155,14 +1152,13 @@ repair worth twice as much when the robot has to localise on the map it is
 building.
 
 **What it is worth against Nav2.** §9.5's difference in costs at 360 beams was
-+0.112 [+0.077, +0.147] and +0.120 [+0.085, +0.155] — IMPLEMENTATION. With the
-repaired mapper it is +0.090 [+0.058, +0.123] and +0.098 [+0.065, +0.133]:
++0.102 [+0.065, +0.137] and +0.110 [+0.073, +0.147] — IMPLEMENTATION. With the
+repaired mapper it is +0.080 [+0.047, +0.113] and +0.088 [+0.057, +0.122]:
 UNRESOLVED, no longer materially above the 0.10 band, though still above zero.
 One rule in the mapper closed about a fifth of the gap a production stack had
-opened. † All four differences pool the `noisy_lidar` cell, where Nav2 read a
-clean sensor, so their level against Nav2 is provisional until the re-run. The
-change between them is this stack's own, measured on the noisy sensor, and
-stands.
+opened. (As first published, against a Nav2 on a clean scan: +0.112 and +0.120
+before the repair, +0.090 [+0.058, +0.123] and +0.098 [+0.065, +0.133] after,
+the same verdicts; §9.20.)
 
 **The mechanism is not the one the rule was designed around**, which the
 registration said in advance. On val the phantom cells barely move — 370 to 309
@@ -1683,9 +1679,9 @@ true, which is the calibration lesson of §10 in miniature.
 ### 9.14 The noisy map, repaired at its source — and it was not what limited `noisy_lidar`
 
 §9.6 left `noisy_lidar` as this stack's worst open condition at 360 beams, 0.890
-on the held-out worlds against Nav2's 1.000 (†, on a clean sensor), with 309
-phantom cells still standing and 28% of the free floor lost to inflation around
-them. §12 proposed
+on the held-out worlds against Nav2's 0.950 (‡, with the noise delivered;
+1.000 as first published), with 309 phantom cells still standing and 28% of the
+free floor lost to inflation around them. §12 proposed
 the next thing to try: count a miss once per *beam* that passes through a cell,
 not once per cell per scan. The code's own comment says that vote exists to stop
 the samples of one beam voting several times; collapsing separate beams as well
@@ -2016,43 +2012,138 @@ was built for, and it costs pose accuracy everywhere else. It stays in the code,
 off by default, with an identity control pinning the published arm. Nothing was
 registered, and the calibration tally is unchanged.
 
-**Is slam_toolbox's pose even better? Measured — on the wrong sensor.** Six
+**Is slam_toolbox's pose even better? Measured — first on the wrong sensor.** Six
 levers were aimed at localisation on the premise that localisation is why Nav2
-reaches 1.000 on `noisy_lidar`. The Nav2 runs recorded each episode's final
-believed-against-true pose error, so the premise could be checked on the same
+reaches 1.000 on `noisy_lidar`. The Nav2 runs record each episode's final
+believed-against-true pose error, so the premise can be checked on the same
 held-out worlds, and the odometry is identical: the ROS bridge drifts its `odom`
 frame with this stack's own `DeadReckoning` and default `OdometryConfig`, seeded
 the same way.
 
 | held-out `noisy_lidar`, 360 beams | success | final pose error, median | max |
 |---|---|---|---|
-| Nav2 + slam_toolbox † | 1.00 | 0.075 m | 0.294 m |
+| Nav2 + slam_toolbox, clean scan (as first published) | 1.00 | 0.075 m | 0.294 m |
+| Nav2 + slam_toolbox, noise delivered (§9.20) | 0.95 | 0.225 m | 0.826 m |
 | this stack | 0.89 | 0.238 m | 1.043 m |
 
-On the 89 worlds where both arrived — so that this stack's 500-step failures
-cannot inflate its figure — slam_toolbox ends 0.074 m from the truth and this stack
-0.228 m, worse on 90% of them. Episodes here run 178 steps against 140, which does
-not make a factor of three.
+As first published, this paragraph compared the first row with the third: on the
+89 worlds where both arrived — so that this stack's 500-step failures cannot
+inflate its figure — slam_toolbox ended 0.074 m from the truth and this stack
+0.228 m, worse on 90% of them, and it concluded that slam_toolbox localises three
+times better "from the same odometry and the same scans". The odometry was the
+same. The scans were not: the bridge had delivered every `noisy_lidar` scan
+without its noise (§9.20), and I had taken "the same scans" from the bridge's
+configuration — the check that missed the bug — rather than from a scan it
+published.
 
-**Withdrawn: the scans were not the same.** As first published, this paragraph
-concluded that slam_toolbox localises three times better "from the same odometry
-and the same scans". The odometry was the same. The scans were not: the bridge
-delivered every `noisy_lidar` scan without its noise (the correction at the head
-of this report), so the † row is slam_toolbox on a clean sensor, and its 0.075 m
-is of a size with this stack's own clean-sensor figure — 0.068 m on `nominal` in
-the val table above, on other worlds, so only indicative. The comparison set a
-stack reading a noisy sensor against one reading a clean sensor, and says nothing
-about noise. I took "the same scans" from the bridge's configuration — the check
-that missed the bug — rather than from a scan it published. It is being repeated
-with the noise delivered.
+**On the same scans, slam_toolbox localises no better than this stack.** With the
+noise delivered, on the 87 worlds both complete, slam_toolbox ends 0.220 m from
+the truth and this stack 0.228 m; slam_toolbox is the closer on 47 and this stack
+on 40 (sign test p = 0.52). Noise triples slam_toolbox's final pose error, 0.075 m
+to 0.225 m. The factor of three was the sensor bug, all of it, and the front end
+copied here was being measured against a target that did not exist.
 
-**What that leaves.** In slam_toolbox every new scan is linked to every earlier
-scan within 1.5 m (`link_scan_maximum_distance`) whose match clears a response of
-0.1 (`link_match_minimum_response_fine`); this back end links consecutive
-keyframes and adds a closure only between keyframes at least six apart whose match
-clears 0.55. That is a fact about the two configurations and stands. As first
-published it was offered as the explanation of a localisation gap under noise;
-whether there is such a gap is not known until the re-run.
+**What that leaves.** The six levers of §9.14–§9.19 were aimed at a localisation
+gap that a production stack does not close either. What separates the two under
+noise is arrival — 0.950 against 0.890, eight worlds won and two lost
+(McNemar p = 0.11), not resolved at a hundred worlds — and if it is real, it is
+not localisation, because the pose error is the same. It would be in what each
+stack does with a fifth of a metre of pose error: the planner and the controller,
+where §9.11's tight gaps already point. slam_toolbox does link every new scan to
+every earlier scan within 1.5 m (`link_scan_maximum_distance`) at a response of
+0.1 (`link_match_minimum_response_fine`), where this back end links consecutive
+keyframes and adds rare closures six apart behind 0.55; that is a fact about the
+two configurations, and no longer the explanation of anything.
+
+### 9.20 The noise, delivered: what Nav2 does with the sensor it was meant to have
+
+Building the dense graph §9.19 first proposed began with checking what Nav2
+receives, and Nav2 had never received the noise. The ROS bridge built its scanner
+from the condition's `LidarConfig`, so `noise_std` was 0.10 m — which is what the
+fairness check in [`ros2_bridge/README.md`](../ros2_bridge/README.md) looked at —
+and then called it without a random generator, and `Lidar2D` adds noise only when
+it is handed one. At runtime the bridge's scans were identical to a noise-free
+scanner's; given a generator, the same scanner delivers the configured noise,
+which is what its test now checks.
+Every Nav2 run on `noisy_lidar` — §4.1's two passes and §9.4's two SLAM arms — had
+been scored on a clean sensor, and since `noisy_lidar` shares `nominal`'s worlds,
+each was one more pass of `nominal`.
+
+[`bridge_sensor.py`](../ros2_bridge/bridge_sensor.py) applies the noise, seeded
+from the world as this stack seeds its own sensor, and audits every scan against
+the same scan cast without noise; a run whose delivered noise disagrees with its
+configuration stops after its first episode. Its test checks the delivered scan
+and fails on the old bridge. Every run below delivered 0.100 m. The four runs
+were repeated under a registration committed first
+([`nav2_noise_rerun.py`](../scripts/nav2_noise_rerun.py)), whose primary was that
+slam_toolbox, on the worlds both stacks complete, ends closer to the truth by a
+factor of 1.5 to 2.5 — less than the three §9.19 had reported, and BETTER.
+
+| held-out `noisy_lidar` | success, clean scan (as published) | success, noise delivered | final pose error, median |
+|---|---|---|---|
+| Nav2, full privileges, 2 passes | 0.970 / 0.980 | 0.980 / 0.990 (5× real time) | — |
+| Nav2 + slam_toolbox, 360 beams | 1.000 | 0.950 | 0.075 → 0.225 m |
+| Nav2 + slam_toolbox, 32 beams | 0.750 | 0.640 | 0.226 → 0.400 m |
+
+**On the same sensor, slam_toolbox localises no better than this stack.** On the
+87 worlds both complete it ends 0.220 m from the truth and this stack 0.228 m, a
+ratio of 0.97; slam_toolbox is the closer on 47 worlds and this stack on 40, sign
+test p = 0.52. UNRESOLVED, where the registration said BETTER. Its success edge,
+0.950 against 0.890, does not resolve either (8 worlds won, 2 lost,
+McNemar p = 0.11).
+
+**The full-privilege arm, as registered, measured the harness.** Its two passes
+ran unthrottled, as §4.1's had, and scored 0.720 and 0.730: Nav2 abandoned 27
+episodes in each without the robot moving, on worlds that mostly differed between
+the passes — of the 16 and 19 episodes that never received a command, two were
+the same world. Read at face value, that is the noise costing Nav2 a quarter of
+its success with the true map and pose in hand. A clean control said otherwise.
+On 30 val worlds, each run alone: unthrottled `noisy_lidar` 0.767 with 7
+abandoned; unthrottled `nominal`, with no noise at all, 0.733 with 8;
+`noisy_lidar` held to the SLAM arm's 5× real time, 1.000 with none. The
+unthrottled loop now abandons episodes on a clean sensor too — the fault
+`run_nav2_eval.py` documents for unthrottled runs, which can outrun the global
+costmap's switch to a new world's map. §4.1's twelve published passes recorded one
+episode without a command between them, so they were not touched by it. An
+addendum, committed before its runs and disclosing all of this, repeated the arm
+at 5× with a clean `nominal` pass at the same cap on the same worlds: 0.980 and
+0.990 against 1.000, the noise worth −0.020 (McNemar p = 0.50) and −0.010
+(p = 1.00). With its privileges, Nav2 does not notice the noise.
+
+**No pooled verdict changes.** With the corrected cells — the throttled passes for
+the full arm — every difference in costs moves by 0.010 or 0.020, because Nav2 now
+pays something under noise (0.03 to 0.04 with SLAM at 360 beams, 0.34 to 0.35 at
+32) where on a clean scan it paid nothing:
+
+| difference in costs, two passes | as published | corrected | verdict |
+|---|---|---|---|
+| §9.4, 32 beams | −0.058 / −0.050 | −0.078 [−0.130, −0.027] / −0.070 [−0.120, −0.018] | UNRESOLVED |
+| §9.4, 360 beams | +0.243 / +0.252 | +0.233 [+0.193, +0.273] / +0.242 [+0.202, +0.282] | IMPLEMENTATION |
+| §9.5, 360 beams | +0.112 / +0.120 | +0.102 [+0.065, +0.137] / +0.110 [+0.073, +0.147] | IMPLEMENTATION |
+| §9.6, repaired mapper | +0.090 / +0.098 | +0.080 [+0.047, +0.113] / +0.088 [+0.057, +0.122] | UNRESOLVED |
+
+Under noise this stack loses 0.21 to 0.22 more than Nav2, not 0.27 to 0.28. At
+32 beams both intervals now lie wholly below zero: with the same sparse scanner
+Nav2 pays a little more than this stack for losing the map and the pose. §9.5's
+IMPLEMENTATION now clears its +0.100 threshold by 0.002 and 0.010. Re-scoring the
+registered predictions those sections made changes one clause: §9.4 had Nav2's
+median final pose error at most 0.20 m on every condition at 360 beams, and on
+`noisy_lidar` it is 0.225 m.
+
+**What the registration got right and wrong.** The primary failed. The SLAM arms'
+success held at both beam counts, and the 32-beam pose clause held; the 360-beam
+pose clause (0.08 to 0.18 m) failed; the full-arm clause failed as registered, for
+the harness's reason; and the re-scored verdicts, read off the registered passes,
+moved in directions it had not predicted. The addendum held on every clause — and
+it was forecast from a val measurement of the same quantity at the same cap,
+which is the easiest kind of prediction to get right.
+
+**Two lessons, one per fault.** A fairness check on a configured value is a check
+on the configuration; the one that would have caught this asks what reaches the
+other side, and the bridge now asks it of every scan. And the clean control is
+what kept the harness's failure from being published as a finding about noise:
+without the unthrottled `nominal` run, 0.72 would have read as the noise costing
+Nav2 a quarter of its success with the map in hand.
 
 ## 10. Discussion
 
@@ -2102,11 +2193,12 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of fifty-six predictions made in advance, fourteen held. Seven
+**Calibration.** Of fifty-eight predictions made in advance, fifteen held. Eight
 were derived from a *measurement* of the same quantity — two to within 0.021 and
 0.001, one on both magnitude and mechanism, one whose magnitude came from
-measuring the estimator it was about, and three of §9.13's four, each forecast
-from the val result for the same condition and sensor. Two more are weaker in
+measuring the estimator it was about, three of §9.13's four, each forecast
+from the val result for the same condition and sensor, and §9.20's addendum,
+forecast from a val run of the same arm at the same cap. Two more are weaker in
 kind and are counted as held anyway: §9.8 and §9.10 each registered a *bound* on
 what a treatment would cost rather than a direction, and both came in at zero. A
 bound is the easiest form of prediction to satisfy, which is worth saying plainly
@@ -2115,7 +2207,9 @@ in a tally that otherwise counts point forecasts. Two more are §9.12's: the onl
 gaps — which held for the arithmetic it was made from, and a pose threshold set
 from a train-band check. The last three are §9.16's third claim, §9.17's second
 and §9.18's third. Twenty-six from extrapolation, intuition, arithmetic or a post
-hoc description failed outright; sixteen got part right and part wrong. One of
+hoc description failed outright; seventeen got part right and part wrong, the
+last of them §9.20's registration, whose primary was among the parts it got
+wrong. One of
 those twenty-six
 failed by helping: §9.12 registered `nominal` to stay inside ±0.03 and it
 improved by 0.040. Another failed on a fact: §9.13's collision bound rested on my
@@ -2134,10 +2228,10 @@ as an interval including zero, which intervals of ±0.4 satisfy whatever is
 true, so its conclusion rests on a sharper test added afterwards and labelled
 as such. The sixteenth was committed to the repository before its data existed,
 so its timing is checkable rather than asserted. Two were scored in part on a
-Nav2 `noisy_lidar` cell that had no noise in it (†): §9.4's, which pools that cell
-and set a floor on it, and §9.5's, which pools it and named it the largest
-contributor. Both are re-scored after the re-run; until then they are counted as
-first scored.
+Nav2 `noisy_lidar` cell that had no noise in it: §9.4's, which pools that cell,
+and §9.5's, which pools it and named it the largest contributor. Re-scored on the
+corrected cell (§9.20), §9.4's loses one clause — Nav2's pose error under 0.20 m
+on every condition — and §9.5's is unchanged; both stay where they were counted.
 
 **A measurement predicts only where something has been measured.** Carried
 into regimes nothing had measured, measurement-derived forecasts failed like
@@ -2209,13 +2303,15 @@ enough.**
   `dynamic_dense` margin (+0.150 to +0.170) is far outside that spread but the
   `dynamic` result (−0.020 to +0.010) sits inside it and is read as parity
   rather than as a measured equality.
-- **Nav2's `noisy_lidar` cells were measured without the noise.** The bridge
-  configured the condition's range noise and never applied it, so four runs —
-  §4.1's two passes and §9.4's two SLAM arms — scored Nav2 on a clean sensor
-  while the hand-written stack read a noisy one. Those cells are marked †, the
-  claims resting on them are withdrawn or marked provisional, and the runs are
-  being repeated. A check of the configured value passed for every one of them;
-  the bridge's test now checks the scan it delivers.
+- **Nav2's `noisy_lidar` cells were first measured without the noise.** The
+  bridge configured the condition's range noise and never applied it, so four
+  runs scored Nav2 on a clean sensor while the hand-written stack read a noisy
+  one. All four were repeated with the noise delivered (§9.20), and the bridge
+  now measures what it delivers. The corrected full-privilege passes ran at 5×
+  real time while §4.1's other ten ran unthrottled, because the unthrottled
+  harness now abandons episodes on a clean sensor; the published passes show no
+  sign of that fault, but the protocol behind them is fragile and any re-run
+  should use the cap.
 - **§9.4's SLAM arms ran one pass each**, held to 5× real time, against the
   full-privilege arm's two unthrottled passes. And §9.5 ran this stack at 360
   beams on parameters tuned for 32, deliberately: its mapper's log-odds
@@ -2259,29 +2355,20 @@ In order of expected information per GPU-hour:
    them 0.96 of the way to the goal — a limit this comparison has never
    varied. None of this touches the seven clutter failures on worlds that had
    a margin-safe route all along, which remain unexplained.
-2. **Re-run Nav2 on `noisy_lidar` with the noise delivered — then, only if a
-   gap survives, a denser graph.** The two places this stack was read as losing
-   to Nav2 in the open were the tight gaps, which fail on pose error (§9.11),
-   and `noisy_lidar`. The second was measured against a Nav2 that never received
-   the noise (the correction at the head of this report): slam_toolbox's 1.000,
-   and its 0.074 m against this stack's 0.228 m (§9.19), are clean-sensor
-   figures. What §9.14–§9.19 measured about this stack stands, because this
-   stack read the noisy sensor throughout: under noise it drifts, the back end
-   cannot see the drift (§9.17), the motion prior cannot stop it (§9.18), and
-   slam_toolbox's own front end, rebuilt here with the parameters in
-   [`slam_params.yaml`](../ros2_bridge/slam_params.yaml), smoothed it and left
-   the final pose error where it was (0.251 m to 0.252 m, §9.19). What does not
-   stand is that a production stack does better on the same sensor. So the next
-   run is Nav2's own: the four affected runs repeated with the fixed bridge, on
-   the same held-out worlds. If slam_toolbox still ends much closer to the
-   truth, what its configuration shows and this stack lacks is a dense graph —
-   every new scan linked to every earlier scan within 1.5 m at a response gate
-   of 0.1 (`link_scan_maximum_distance`, `link_match_minimum_response_fine`),
-   where this back end links consecutive keyframes and adds rare closures six
-   keyframes apart behind a 0.55 gate. Spent on the way: clearing scaled by beam
-   count (§9.14), a cleaner map for closures that never read it, a noise-aware
-   closure match (§9.15), closures reweighted or filtered in the solve (§9.17),
-   the motion prior (§9.18), and slam_toolbox's front end (§9.19).
+2. **Under noise, what a stack does with the pose error it cannot remove.**
+   Localisation under noise is no longer a gap to close: with the noise
+   delivered, slam_toolbox ends episodes 0.220 m from the truth and this stack
+   0.228 m (§9.20), and the six levers spent on this stack's drift — clearing
+   scaled by beam count (§9.14), a cleaner map for closures that never read it,
+   a noise-aware closure match (§9.15), closures reweighted or filtered in the
+   solve (§9.17), the motion prior (§9.18), and slam_toolbox's own front end
+   (§9.19) — were aimed at a gap a production stack does not close either.
+   What remains is arrival: 0.950 for Nav2 against 0.890, eight worlds to two,
+   not resolved at a hundred worlds (p = 0.11). More worlds would say whether
+   it exists; if it does, it lies in the planner and
+   the controller tolerating a fifth of a metre of error, which is item 1's
+   question asked in open space, and the same cross-track diagnostic answers
+   both.
 3. **A better front end for the sparse sensor.** The back end is done and
    measured on the held-out worlds (§9.13): pooled +0.010 over 600 paired
    episodes, 14 won and 8 lost, clutter pose error down 20%, not enough to

@@ -50,7 +50,17 @@ Nav2 row, so both are checked at runtime rather than trusted:
   ROS imports, seeded per episode from the world as the hand-written stack seeds
   its own, and [`tests/test_bridge_sensor.py`](../tests/test_bridge_sensor.py)
   checks the scan it *delivers*: noise of the configured size under
-  `noisy_lidar`, none under `nominal`.
+  `noisy_lidar`, none under `nominal`. Every run now records
+  `delivered_noise_std`, measured against the same scans cast without noise,
+  and stops after the first episode if that disagrees with the condition.
+- **Run the full-privilege arm at 5× real time.** Re-run in October 2026, the
+  unthrottled full arm abandoned about a quarter of its episodes, on a clean
+  sensor as well as a noisy one (30 val worlds: 0.733 on `nominal`, 8
+  abandoned; `noisy_lidar` at 5×, 1.000) —
+  the global-costmap race described in `run_nav2_eval.py`. The published
+  unthrottled passes show one command-less episode in twelve runs and were not
+  affected, but set `NAV2_FULL_RTF=5` for any new run, and read the
+  "episodes Nav2 abandoned" line every run prints.
 - **Control-loop starvation.** The simulator runs faster than real time. If
   Nav2's 10 Hz controller could not keep up, the robot would coast on stale
   commands and Nav2 would lose to a scheduling artefact. Every run reports
