@@ -1878,6 +1878,57 @@ def claims():
                 # "about two steps in every three": rebuilds per step spent inside.
                 ("stale two in three", 1.0, float(0.6 <= rs["pre_existing_per_100_steps"] / 100
                                                   / rs["inside_margin_share"] <= 0.7))]
+    # A virtual TurtleBot3 and the transfer test, report §9.23.
+    tt, tf = "results/transfer_test.json", "results/transfer_odometry_followup.json"
+    if os.path.exists(tt) and os.path.exists(tf):
+        tj, fj = load(tt), load(tf)
+        sc = [load(f"results/gazebo_tb3/sensor_check_{c}.json")["scan"] for c in ("dense", "narrow")]
+        out += [("tb3 sensor hit agreement low", 0.992, round(min(s["hit_agreement"] for s in sc), 3)),
+                ("tb3 sensor hit agreement high", 0.997, round(max(s["hit_agreement"] for s in sc), 3)),
+                ("tb3 sensor median diff", 0.008, round(max(s["median_abs_diff"] for s in sc), 3))]
+        table = {"project": (0.96, 0.81, 0.69), "tb3_2d": (0.83, 0.57, 0.45),
+                 "tb3_2d_6m": (0.92, 0.69, 0.57), "gazebo": (0.97, 0.68, 0.60)}
+        for arm, row in table.items():
+            for cond, v in zip(("nominal", "dense", "narrow"), row, strict=True):
+                out.append((f"transfer {arm} {cond}", v, tj["conditions"][cond][arm]["success"]))
+        for arm, lo, hi in (("project", 0.046, 0.058), ("tb3_2d", 0.065, 0.079),
+                            ("tb3_2d_6m", 0.047, 0.054), ("gazebo", 0.038, 0.042)):
+            pe = [tj["conditions"][c][arm]["pose_err_median"] for c in ("nominal", "dense", "narrow")]
+            out += [(f"transfer {arm} pose low", lo, round(min(pe), 3)),
+                    (f"transfer {arm} pose high", hi, round(max(pe), 3))]
+        tp = tj["pairs"]
+        for name, deltas, won, lost in (("tb3_2d - project", (-0.13, -0.24, -0.24), 0, 61),
+                                        ("tb3_2d_6m - tb3_2d", (0.09, 0.12, 0.12), 34, 1),
+                                        ("gazebo - tb3_2d", (0.14, 0.11, 0.15), 44, 4)):
+            for cond, d in zip(("nominal", "dense", "narrow"), deltas, strict=True):
+                out.append((f"transfer {name} {cond}", d, round(tp[name][cond]["delta"], 3)))
+            out += [(f"transfer {name} pooled won", won, tp[name]["pooled"]["won"]),
+                    (f"transfer {name} pooled lost", lost, tp[name]["pooled"]["lost"])]
+        g = tp["gazebo - tb3_2d"]["pooled"]
+        out += [("transfer gazebo pooled", 0.133, round(g["delta"], 3)),
+                ("transfer gazebo pooled ci lo", 0.090, round(g["ci95"][0], 3)),
+                ("transfer gazebo pooled ci hi", 0.177, round(g["ci95"][1], 3)),
+                ("transfer decision BETTER IN GAZEBO", 1.0, float(tj["decision"] == "BETTER IN GAZEBO")),
+                ("transfer missed scans", 0, tj["missed_scans"]),
+                ("transfer nominal pose ratio", 1.4,
+                 round(tj["conditions"]["nominal"]["tb3_2d"]["pose_err_median"]
+                       / tj["conditions"]["nominal"]["tb3_2d_6m"]["pose_err_median"], 1))]
+        gz_rows = load("results/gazebo_tb3/transfer_gazebo.json")["episodes"]
+        out += [("transfer gazebo episodes", 300, len(gz_rows)),
+                ("transfer gazebo reruns", 14, sum(1 for r in gz_rows if r.get("attempts", 1) > 1))]
+        fc, fp = fj["conditions"], fj["pairs"]
+        for cond, v in zip(("nominal", "dense", "narrow"), (0.96, 0.70, 0.61), strict=True):
+            out.append((f"followup exact odom {cond}", v, fc[cond]["tb3_2d_exact_odom"]["success"]))
+        e = fp["tb3_2d_exact_odom - gazebo"]["pooled"]
+        o = fp["tb3_2d_exact_odom - tb3_2d"]
+        out += [("followup vs gazebo pooled", 0.007, round(e["delta"], 3)),
+                ("followup vs gazebo ci lo", -0.017, round(e["ci95"][0], 3)),
+                ("followup vs gazebo ci hi", 0.030, round(e["ci95"][1], 3)),
+                ("followup vs gazebo won", 8, e["won"]), ("followup vs gazebo lost", 6, e["lost"]),
+                ("followup odometry effect low", 0.13,
+                 round(min(o[c]["delta"] for c in ("nominal", "dense", "narrow")), 2)),
+                ("followup odometry effect high", 0.16,
+                 round(max(o[c]["delta"] for c in ("nominal", "dense", "narrow")), 2))]
     # Graph density: slam_toolbox's linking against this back end's closures.
     if os.path.exists(sy):
         from vision_nav.mapping.posegraph import PoseGraphConfig

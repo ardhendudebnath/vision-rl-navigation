@@ -70,7 +70,7 @@ decision below follows from wanting that comparison to be trustworthy.
 | The clutter gap on held-out worlds: where no route clears the planner's margin, the robot arrives on 1 of 42 | Done |
 | Why it stalls where a route exists: inside a wall's margin the plan is rebuilt from scratch on two steps in three | Done |
 | A virtual TurtleBot3 in Gazebo ([`gazebo_tb3/`](gazebo_tb3/)): built to a real Waffle Pi's limits, its lidar checked against the 2-D simulator's | Done |
-| Transfer test: the same worlds driven by the TurtleBot3 in Gazebo | Next |
+| Transfer test: with matching odometry, the 2-D simulator predicts the Gazebo TurtleBot3 within two points; its specification costs 0.13–0.24 | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
 Sixty-one experiments, each pre-registered where it tests a hypothesis. The

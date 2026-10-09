@@ -1,0 +1,178 @@
+{
+  "prediction": "a TurtleBot3's specification costs this stack open worlds, not clutter, and the physics simulator costs it nothing more. tb3_2d against project: on nominal at least 0.10 lower with McNemar p < 0.05; on dense and narrow each within 0.08 either way. tb3_2d_6m against tb3_2d: on nominal at least 0.08 higher; on dense and narrow each within 0.05 either way; and tb3_2d's median pose error on nominal is at least twice tb3_2d_6m's. gazebo against tb3_2d: on each condition within 0.10 either way, and gazebo's median pose error is lower than tb3_2d's on all three conditions, because physical wheel slip is a gentler odometry error than the published model's bias. The gazebo arm misses no lidar scan in any episode. Decision on the pooled gazebo - tb3_2d difference over the 300 paired worlds -- TRANSFERS: within 0.05 either way with its 95% interval inside 0.10 either way. WORSE IN GAZEBO: at most -0.05 with the interval below zero. BETTER IN GAZEBO: at least +0.05 with the interval above zero. Otherwise UNRESOLVED. Prediction: TRANSFERS.",
+  "worlds": 300,
+  "conditions": {
+    "nominal": {
+      "project": {
+        "success": 0.96,
+        "collision": 0.0,
+        "pose_err_median": 0.045906545347580055,
+        "steps_median": 159.0
+      },
+      "tb3_2d": {
+        "success": 0.83,
+        "collision": 0.0,
+        "pose_err_median": 0.06537014877849409,
+        "steps_median": 367.5
+      },
+      "tb3_2d_6m": {
+        "success": 0.92,
+        "collision": 0.0,
+        "pose_err_median": 0.04735492072108363,
+        "steps_median": 364.5
+      },
+      "gazebo": {
+        "success": 0.97,
+        "collision": 0.0,
+        "pose_err_median": 0.04033814437967906,
+        "steps_median": 368.0
+      }
+    },
+    "dense": {
+      "project": {
+        "success": 0.81,
+        "collision": 0.02,
+        "pose_err_median": 0.051163941454739,
+        "steps_median": 233.0
+      },
+      "tb3_2d": {
+        "success": 0.57,
+        "collision": 0.01,
+        "pose_err_median": 0.06733275561102905,
+        "steps_median": 649.5
+      },
+      "tb3_2d_6m": {
+        "success": 0.69,
+        "collision": 0.01,
+        "pose_err_median": 0.05440621412332867,
+        "steps_median": 591.0
+      },
+      "gazebo": {
+        "success": 0.68,
+        "collision": 0.02,
+        "pose_err_median": 0.04153087850593369,
+        "steps_median": 551.0
+      }
+    },
+    "narrow": {
+      "project": {
+        "success": 0.69,
+        "collision": 0.02,
+        "pose_err_median": 0.057920799420764474,
+        "steps_median": 367.5
+      },
+      "tb3_2d": {
+        "success": 0.45,
+        "collision": 0.02,
+        "pose_err_median": 0.07854028038368455,
+        "steps_median": 1200.0
+      },
+      "tb3_2d_6m": {
+        "success": 0.57,
+        "collision": 0.0,
+        "pose_err_median": 0.05218217864672628,
+        "steps_median": 810.5
+      },
+      "gazebo": {
+        "success": 0.6,
+        "collision": 0.01,
+        "pose_err_median": 0.03761882773587624,
+        "steps_median": 626.5
+      }
+    }
+  },
+  "pairs": {
+    "tb3_2d - project": {
+      "nominal": {
+        "delta": -0.13,
+        "p": 0.000244140625,
+        "won": 0,
+        "lost": 13
+      },
+      "dense": {
+        "delta": -0.2400000000000001,
+        "p": 1.1920928955078125e-07,
+        "won": 0,
+        "lost": 24
+      },
+      "narrow": {
+        "delta": -0.23999999999999994,
+        "p": 1.1920928955078125e-07,
+        "won": 0,
+        "lost": 24
+      },
+      "pooled": {
+        "delta": -0.20333333333333325,
+        "p": 8.673617379884035e-19,
+        "won": 0,
+        "lost": 61,
+        "ci95": [
+          -0.25,
+          -0.16
+        ]
+      }
+    },
+    "tb3_2d_6m - tb3_2d": {
+      "nominal": {
+        "delta": 0.09000000000000008,
+        "p": 0.01171875,
+        "won": 10,
+        "lost": 1
+      },
+      "dense": {
+        "delta": 0.12,
+        "p": 0.00048828125,
+        "won": 12,
+        "lost": 0
+      },
+      "narrow": {
+        "delta": 0.11999999999999994,
+        "p": 0.00048828125,
+        "won": 12,
+        "lost": 0
+      },
+      "pooled": {
+        "delta": 0.10999999999999999,
+        "p": 2.0954757928848267e-09,
+        "won": 34,
+        "lost": 1,
+        "ci95": [
+          0.07333333333333333,
+          0.14666666666666667
+        ]
+      }
+    },
+    "gazebo - tb3_2d": {
+      "nominal": {
+        "delta": 0.14,
+        "p": 0.0001220703125,
+        "won": 14,
+        "lost": 0
+      },
+      "dense": {
+        "delta": 0.1100000000000001,
+        "p": 0.012725830078125,
+        "won": 14,
+        "lost": 3
+      },
+      "narrow": {
+        "delta": 0.14999999999999997,
+        "p": 0.000274658203125,
+        "won": 16,
+        "lost": 1
+      },
+      "pooled": {
+        "delta": 0.1333333333333333,
+        "p": 1.5138326148189662e-09,
+        "won": 44,
+        "lost": 4,
+        "ci95": [
+          0.09,
+          0.17666666666666667
+        ]
+      }
+    }
+  },
+  "decision": "BETTER IN GAZEBO",
+  "missed_scans": 0
+}

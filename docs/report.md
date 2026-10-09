@@ -2271,6 +2271,66 @@ be where a stalling robot ends up rather than why it stalls. The test is a
 repair: a validity check that, like the planner, does not count the robot's own
 footprint, registered before it runs.
 
+### 9.23 A virtual TurtleBot3: what survives the move to a physics simulator
+
+With no hardware, the nearest test of sim-to-real is sim-to-sim: the same worlds,
+driven by a TurtleBot3 in Gazebo Harmonic, a standard robotics simulator with a
+physics engine. [`gazebo_tb3/`](../gazebo_tb3/) builds it from Nav2's own
+Gazebo model of the TurtleBot3 Waffle, set to the limits ROBOTIS publishes for a
+real Waffle Pi — 0.26 m/s, 1.82 rad/s, an LDS-01 lidar reading 0.12 to 3.5 m at
+5 Hz — and keeps the real robot's inconveniences: the lidar 0.064 m behind the
+axle, a square body, wheel odometry that slips. Each world is rebuilt in Gazebo
+exactly, and the two simulators' lidars agree on which beams hit something on
+99.2% to 99.7% of beams, with a median range difference of 0.008 m, inside the
+lidar's own noise. Gazebo is stepped one control period at a time and is exactly
+reproducible: two runs of the same episodes match in every field.
+
+The robot is driven by the published stack through a thin adapter that feeds it
+the robot's own scans and odometry; configured as published and handed the
+scans the published agent casts for itself, it chooses the same action at every
+step. Four arms ran on 100 val worlds each of `nominal`, `dense` and `narrow`,
+with the same agent, worlds, rules and a 1200-step budget, under a registration
+committed first ([`transfer_test.py`](../scripts/transfer_test.py)):
+
+| val success | nominal | dense | narrow | pose error, median |
+|---|---|---|---|---|
+| the published configuration, 2-D | 0.96 | 0.81 | 0.69 | 0.046–0.058 m |
+| a Waffle Pi's specification, 2-D | 0.83 | 0.57 | 0.45 | 0.065–0.079 m |
+| the same with a 6 m lidar | 0.92 | 0.69 | 0.57 | 0.047–0.054 m |
+| the TurtleBot3 in Gazebo | 0.97 | 0.68 | 0.60 | 0.038–0.042 m |
+
+**The robot's specification is what costs.** Given a Waffle Pi's limits and
+lidar, the stack loses 0.13 on `nominal` and 0.24 on each clutter condition, and
+on all 300 worlds it never arrives where the published configuration did not —
+0 won, 61 lost. About half of that is the LDS-01's 3.5 m range: a 6 m lidar wins
+back 0.09, 0.12 and 0.12. The prediction had the specification costing open
+worlds only; it costs clutter more.
+
+**The physics simulator does not cost anything — and that had to be shown, not
+read off the registered result.** The registered decision is BETTER IN GAZEBO,
+where the prediction said TRANSFERS: in Gazebo the TurtleBot3 arrives more often
+than its 2-D twin on every condition, +0.14, +0.11 and +0.15, pooled +0.133
+[+0.090, +0.177], 44 worlds won and 4 lost. Its pose error is lower on all three,
+as the registration predicted, and for the reason it named in advance: the 2-D
+arm drifts with the published stack's odometry model, a random walk plus a
+per-robot scale and heading bias, while Gazebo's odometry errs only by its
+wheels' physical slip. A follow-up, added afterwards and not registered
+([`transfer_odometry_followup.py`](../scripts/transfer_odometry_followup.py)),
+switches that model off in 2-D. The result lands on Gazebo: 0.96, 0.70 and 0.61
+against Gazebo's 0.97, 0.68 and 0.60, pooled +0.007 [−0.017, +0.030], 8 worlds
+won and 6 lost. With odometry of matching quality, the 2-D simulator predicts the
+Gazebo TurtleBot3 to within two points on every condition; the physics engine,
+the rendered lidar, the body and the sensor offset together cost nothing this
+resolves.
+
+**What it does not settle.** Which odometry a real TurtleBot3 has. Gazebo's
+wheels roll on a perfect floor, so its odometry is probably kinder than a real
+robot's; the published model may be about right or too harsh, and that choice
+alone moved success by 0.13 to 0.16 here — more than the lidar's range. That is
+the one question in this section only hardware can answer. 14 of the 300 Gazebo
+episodes had to be rerun on a fresh server after one failed to start; runs are
+deterministic, so each rerun is the same episode.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -2527,7 +2587,12 @@ In order of expected information per GPU-hour:
 6. **Harder perception** — texture, lighting variation, sensor artefacts — to
    turn the encoder-cost lower bound into an estimate.
 7. **Sim-to-real** on a TurtleBot-class base. The action space is already
-   `Twist`, so the policy transfers without modification.
+   `Twist`, so the policy transfers without modification. Sim-to-sim is done
+   for the classical stack (§9.23): with odometry of matching quality the 2-D
+   simulator predicts a TurtleBot3 in Gazebo to within two points, and the
+   question left for hardware is narrow — how much a real TurtleBot3's
+   odometry drifts. The next step without hardware is the learned policy in
+   the same Gazebo worlds, which meets a lidar it was never trained on.
 
 ## 13. Reproducing
 

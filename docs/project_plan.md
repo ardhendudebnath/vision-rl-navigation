@@ -3594,6 +3594,47 @@ outcome and replan count matches. Full treatment in report §9.22.
 
 - Partial; primary failed.
 
+## Phase 7a — A virtual TurtleBot3, and the transfer test
+
+`gazebo_tb3/`: a TurtleBot3 in Gazebo Harmonic, built from Nav2's Gazebo Waffle
+at a real Waffle Pi's limits (0.26 m/s, 1.82 rad/s, LDS-01 0.12–3.5 m at 5 Hz,
+lidar 0.064 m behind the axle, square body, slipping wheels), in its own
+RoboStack env `ros_tb3`. Worlds exported exactly; sensor agreement with the 2-D
+lidar 99.2–99.7% of beams, median 0.008 m. Lockstep stepping, exactly
+reproducible. The adapter (`tb3_agent.py`) is the published stack fed external
+scans and odometry; configured as published it matches the published agent's
+actions step for step. Registered before any val arm ran
+(`scripts/transfer_test.py`, commit e365749). Full treatment in report §9.23.
+
+| val success | nominal | dense | narrow |
+|---|---|---|---|
+| project (published config, 2-D) | 0.96 | 0.81 | 0.69 |
+| tb3_2d (Waffle Pi spec, 2-D) | 0.83 | 0.57 | 0.45 |
+| tb3_2d_6m | 0.92 | 0.69 | 0.57 |
+| gazebo | 0.97 | 0.68 | 0.60 |
+| tb3_2d_exact_odom (follow-up) | 0.96 | 0.70 | 0.61 |
+
+- Spec cost −0.13 / −0.24 / −0.24 (0 won, 61 lost); the 6 m lidar wins back
+  +0.09 / +0.12 / +0.12.
+- **Decision BETTER IN GAZEBO** (predicted TRANSFERS): +0.133 pooled
+  [+0.090, +0.177], 44 won / 4 lost; Gazebo's pose error lower on all three, as
+  predicted.
+- Follow-up, unregistered (`scripts/transfer_odometry_followup.py`): tb3_2d with
+  its odometry model off lands on Gazebo, +0.007 pooled [−0.017, +0.030], 8 / 6.
+  The edge was the published odometry model; physics, rendering, body and offset
+  cost nothing this resolves. Which odometry a real TurtleBot3 has is the
+  question left for hardware.
+- 14 of 300 Gazebo episodes rerun on a fresh server after a start-up failure
+  (deterministic, so the same episode); no lidar scan missed.
+
+### Calibration
+
+- Partial; primary failed. Held: nominal spec cost ≥ 0.10 (0.13), 6 m wins back
+  ≥ 0.08 on nominal (0.09), Gazebo pose error lower on all three, no missed
+  scans. Failed: clutter spec cost within ±0.08 (−0.24), clutter range effect
+  within ±0.05 (+0.12), nominal pose ratio ≥ 2× (1.4×), Gazebo within ±0.10 per
+  condition, and the decision.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

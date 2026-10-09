@@ -29,11 +29,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import multiprocessing as mp
 import os
 import sys
 import time
 import xml.etree.ElementTree as ET
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import replace
 from pathlib import Path
 
@@ -58,7 +59,12 @@ from vision_nav.envs.splits import BENCHMARK_CONDITIONS  # noqa: E402
 from vision_nav.mapping.localisation import OdometryConfig  # noqa: E402
 from vision_nav.training.env_factory import build_env_config  # noqa: E402
 
-ARMS = ("project", "tb3_2d", "tb3_2d_6m", "gazebo")
+#: ``tb3_2d_exact_odom`` was added after the registered run, to test the one
+#: difference between ``tb3_2d`` and ``gazebo`` named before it: the 2-D arms
+#: drift with the published odometry model, Gazebo only by wheel slip. It is
+#: ``tb3_2d`` with that model switched off -- odometry integrates the true
+#: velocity, no drift at all -- so it brackets Gazebo from the other side.
+ARMS = ("project", "tb3_2d", "tb3_2d_6m", "gazebo", "tb3_2d_exact_odom")
 BUDGET = 1200
 NOISE = 0.01
 #: The published configuration's sensor: 360 beams over the full circle, 6 m.
@@ -70,10 +76,11 @@ def arm_spec(arm: str) -> dict:
     """Robot, sensor and timing of an arm."""
     if arm == "project":
         return {"robot": RobotConfig(), "lidar": PROJECT_LIDAR, "bearings": PROJECT_BEARINGS,
-                "lidar_x": 0.0, "scan_every": 1}
+                "lidar_x": 0.0, "scan_every": 1, "odometry": OdometryConfig()}
     lidar = replace(TB3_LIDAR, max_range=6.0) if arm == "tb3_2d_6m" else TB3_LIDAR
+    odometry = None if arm == "tb3_2d_exact_odom" else OdometryConfig()
     return {"robot": TB3_ROBOT, "lidar": lidar, "bearings": TB3_BEARINGS,
-            "lidar_x": TB3_LIDAR_X, "scan_every": 2}
+            "lidar_x": TB3_LIDAR_X, "scan_every": 2, "odometry": odometry}
 
 
 def add_noise(ranges: np.ndarray, max_range: float, rng: np.random.Generator) -> np.ndarray:
@@ -117,7 +124,7 @@ def analytic_episode(arm: str, cond: str, seed: int, split: str, n: int) -> dict
         return add_noise(caster.scan(world, s), spec["lidar"].max_range, rng)
 
     agent = TB3Agent(robot=spec["robot"], lidar=spec["lidar"], bearings=spec["bearings"],
-                     lidar_x=spec["lidar_x"], odometry=OdometryConfig())
+                     lidar_x=spec["lidar_x"], odometry=spec["odometry"])
     agent.start_episode_with_scan(world, env.robot.pose, scan_at(env.robot.pose))
     info: dict = {}
     pending = None
@@ -200,16 +207,38 @@ def gazebo_episode(cond: str, seed: int, split: str, n: int, profile: str = "rea
                    {"missed_scans": missed, "wall_seconds": time.monotonic() - started})
 
 
+_STAGGER = None
+
+
+def _stagger_start(counter, seconds: float) -> None:
+    """Pool initialiser: each worker waits its turn before its first server,
+    so the GPU renderer is never started by every worker at once -- six
+    simultaneous start-ups hung where two did not."""
+    global _STAGGER
+    with counter.get_lock():
+        turn = counter.value
+        counter.value += 1
+    _STAGGER = turn * seconds
+    time.sleep(_STAGGER)
+
+
 def _run(job: tuple) -> dict:
     arm, cond, seed, split, n, partition = job
-    if arm == "gazebo":
-        # Each worker's Gazebo instance on its own transport partition, so
-        # parallel servers never hear each other.
-        os.environ["GZ_PARTITION"] = f"transfer_{partition}"
-        out = gazebo_episode(cond, seed, split, n)
-    else:
-        out = analytic_episode(arm, cond, seed, split, n)
-    return {"arm": arm, "cond": cond, "seed": seed, **out}
+    if arm != "gazebo":
+        return {"arm": arm, "cond": cond, "seed": seed, **analytic_episode(arm, cond, seed, split, n)}
+    errors = []
+    # A run is deterministic, so an episode whose server failed to start is
+    # simply run again on a fresh one; the result is the same episode.
+    for attempt in range(2):
+        # Each server on its own transport partition, so parallel servers
+        # never hear each other.
+        os.environ["GZ_PARTITION"] = f"transfer_{partition}_{attempt}"
+        try:
+            out = gazebo_episode(cond, seed, split, n)
+            return {"arm": arm, "cond": cond, "seed": seed, "attempts": attempt + 1, **out}
+        except Exception as exc:  # noqa: BLE001 -- recorded, then retried once
+            errors.append(f"{type(exc).__name__}: {exc}")
+    return {"arm": arm, "cond": cond, "seed": seed, "error": errors}
 
 
 def main(argv=None) -> int:
@@ -236,14 +265,28 @@ def main(argv=None) -> int:
         rows = json.loads(out.read_text(encoding="utf-8")).get("episodes", [])
     done = {(r["cond"], r["seed"]) for r in rows}
     todo = [j for j in jobs if (j[1], j[2]) not in done]
-    with ProcessPoolExecutor(max_workers=args.workers) as pool:
-        for row in pool.map(_run, todo):
+    failed: list[dict] = []
+    counter = mp.Value("i", 0)
+    stagger = 20.0 if args.arm == "gazebo" else 0.0
+    with ProcessPoolExecutor(max_workers=args.workers, initializer=_stagger_start,
+                             initargs=(counter, stagger)) as pool:
+        futures = [pool.submit(_run, j) for j in todo]
+        for fut in as_completed(futures):
+            row = fut.result()
+            if "error" in row:
+                # Never written as an episode, never silently dropped.
+                failed.append(row)
+                print(f"{row['cond']:8s} {row['seed']} FAILED: {row['error']}", flush=True)
+                continue
             rows.append(row)
             out.write_text(json.dumps({"arm": args.arm, "split": args.split, "budget": BUDGET,
-                                       "episodes": rows}, indent=1), encoding="utf-8")
+                                       "episodes": rows, "failed": failed}, indent=1),
+                           encoding="utf-8")
             print(f"{row['cond']:8s} {row['seed']} success {row['success']} collision "
                   f"{row['collision']} steps {row['steps']} pose {row['pose_err_median']:.3f}",
                   flush=True)
+    out.write_text(json.dumps({"arm": args.arm, "split": args.split, "budget": BUDGET,
+                               "episodes": rows, "failed": failed}, indent=1), encoding="utf-8")
     for cond in args.conditions:
         sub = [r for r in rows if r["cond"] == cond]
         if sub:

@@ -1,0 +1,119 @@
+{
+  "registered": false,
+  "worlds": 300,
+  "conditions": {
+    "nominal": {
+      "tb3_2d": {
+        "success": 0.83,
+        "pose_err_median": 0.06537014877849409,
+        "pose_err_final_median": 0.14208584583711242
+      },
+      "gazebo": {
+        "success": 0.97,
+        "pose_err_median": 0.04033814437967906,
+        "pose_err_final_median": 0.059643185894891856
+      },
+      "tb3_2d_exact_odom": {
+        "success": 0.96,
+        "pose_err_median": 0.026204018369589743,
+        "pose_err_final_median": 0.036228031100522265
+      }
+    },
+    "dense": {
+      "tb3_2d": {
+        "success": 0.57,
+        "pose_err_median": 0.06733275561102905,
+        "pose_err_final_median": 0.1684059814831418
+      },
+      "gazebo": {
+        "success": 0.68,
+        "pose_err_median": 0.04153087850593369,
+        "pose_err_final_median": 0.07250982796027998
+      },
+      "tb3_2d_exact_odom": {
+        "success": 0.7,
+        "pose_err_median": 0.029784286062857785,
+        "pose_err_final_median": 0.04075260447868666
+      }
+    },
+    "narrow": {
+      "tb3_2d": {
+        "success": 0.45,
+        "pose_err_median": 0.07854028038368455,
+        "pose_err_final_median": 0.16837728502162974
+      },
+      "gazebo": {
+        "success": 0.6,
+        "pose_err_median": 0.03761882773587624,
+        "pose_err_final_median": 0.06134430576702688
+      },
+      "tb3_2d_exact_odom": {
+        "success": 0.61,
+        "pose_err_median": 0.024541327364132913,
+        "pose_err_final_median": 0.03269065591238515
+      }
+    }
+  },
+  "pairs": {
+    "tb3_2d_exact_odom - tb3_2d": {
+      "nominal": {
+        "delta": 0.13,
+        "p": 0.0009765625,
+        "won": 14,
+        "lost": 1
+      },
+      "dense": {
+        "delta": 0.13,
+        "p": 0.002349853515625,
+        "won": 15,
+        "lost": 2
+      },
+      "narrow": {
+        "delta": 0.15999999999999998,
+        "p": 3.0517578125e-05,
+        "won": 16,
+        "lost": 0
+      },
+      "pooled": {
+        "delta": 0.14,
+        "p": 1.312585595769633e-10,
+        "won": 45,
+        "lost": 3,
+        "ci95": [
+          0.09666666666666666,
+          0.18333333333333332
+        ]
+      }
+    },
+    "tb3_2d_exact_odom - gazebo": {
+      "nominal": {
+        "delta": -0.010000000000000009,
+        "p": 1.0,
+        "won": 0,
+        "lost": 1
+      },
+      "dense": {
+        "delta": 0.019999999999999907,
+        "p": 0.75390625,
+        "won": 6,
+        "lost": 4
+      },
+      "narrow": {
+        "delta": 0.010000000000000009,
+        "p": 1.0,
+        "won": 2,
+        "lost": 1
+      },
+      "pooled": {
+        "delta": 0.00666666666666671,
+        "p": 0.79052734375,
+        "won": 8,
+        "lost": 6,
+        "ci95": [
+          -0.016666666666666666,
+          0.03
+        ]
+      }
+    }
+  }
+}

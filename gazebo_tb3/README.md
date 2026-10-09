@@ -64,9 +64,23 @@ true distance. Results for one `dense` and one `narrow` val world are in
 beams hit something on more than 99% of beams, with a median range difference
 under a centimetre, inside the lidar's own noise.
 
-Known, and to be pinned before any experiment: Gazebo's lidar noise is not
-seeded, and a velocity command can reach the drive on a slightly different
-physics step, so repeated runs differ by millimetres.
+Repeatability: Gazebo's lidar noise cannot be seeded, so experiments switch it
+off and add the same 0.01 m noise from a seeded generator; the robot reports its
+odometry and true pose every physics step, so each control step reads the
+messages stamped at its end; and each command gets a moment to reach the drive
+before the step. Two runs of the same episodes then match in every field.
+
+## The transfer test
+
+[`transfer.py`](transfer.py) drives the same val worlds four ways with the same
+agent ([`tb3_agent.py`](tb3_agent.py), the published stack fed external scans
+and odometry): the published configuration in 2-D, a Waffle Pi's specification
+in 2-D, the same with a 6 m lidar, and the TurtleBot3 in Gazebo. Report §9.23
+has the result: the specification costs 0.13 to 0.24, about half of it the
+LDS-01's range, and with odometry of matching quality the 2-D simulator predicts
+the Gazebo TurtleBot3 to within two points. Parallel Gazebo instances run on
+separate `GZ_PARTITION`s with staggered start-ups; six starting at once hung the
+renderer where two did not.
 
 ## Files
 
@@ -78,3 +92,5 @@ physics step, so repeated runs differ by millimetres.
 | `expand_model.sh` | Regenerates `gz_waffle.sdf`. |
 | `gz_session.py` | One Gazebo server, stepped in lockstep from Python. |
 | `sensor_check.py` | The sensor and odometry agreement check. |
+| `tb3_agent.py` | The published stack, fed a robot's scans and odometry. ROS-free, tested. |
+| `transfer.py` | The transfer test's arms, 2-D and Gazebo, resumable. |
