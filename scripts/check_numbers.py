@@ -1832,6 +1832,52 @@ def claims():
                  round(min(e["final_remaining"] for e in rec if e["stall_fraction"] < 0.05))),
                 ("route class val believed arrival m", 0.2,
                  round(min(e["best_remaining"] for e in rec), 1))]
+    # Why it stalls where a route exists, report §9.22.
+    sd, sr = "results/stall_diagnostic.json", "results/stale_rebuild_diagnostic.json"
+    if os.path.exists(sd) and os.path.exists(sr):
+        dj, rj = load(sd), load(sr)
+        out += [(f"stall control {k}", 1.0, float(v)) for k, v in dj["checks"].items()
+                if isinstance(v, bool)]
+        out += [("stall control worlds compared", 50, dj["checks"]["forensic_worlds_compared"]),
+                ("stall decision MIXED", 1.0, float(dj["decision"] == "MIXED"))]
+        own, ex = dj["groups"]["own_pose"], dj["groups"]["exact_pose"]
+        for label, g, n, rate, shares, rev in (
+            ("stall", own["stall"], 32, 31.0, (0.02, 0.04, 0.10, 0.85), 0.04),
+            ("arrive", own["arrive"], 130, 14.9, (0.03, 0.02, 0.18, 0.77), 0.01),
+        ):
+            out += [(f"stall {label} n", n, g["n"]),
+                    (f"stall {label} rate", rate, round(g["per_100_steps"], 1)),
+                    (f"stall {label} reversals", rev, round(g["reversal_share"], 2))]
+            for cat, v in zip(("discovery", "flicker", "newly seen", "stale"), shares, strict=True):
+                out.append((f"stall {label} {cat}", v, round(g["shares"][cat], 2)))
+        out += [("stall real share", 0.84, round(own["stall"]["real_share"], 2)),
+                ("stall exact real share", 1.00, round(ex["stall"]["real_share"], 2)),
+                ("stall rate ratio", 2.1, round(own["stall"]["per_100_steps"]
+                                                / own["arrive"]["per_100_steps"], 1)),
+                ("stall exact n", 30, ex["stall"]["n"]),
+                ("stall exact stale", 0.85, round(ex["stall"]["shares"]["stale"], 2)),
+                ("stall unknown share", 0.50, round(own["stall"]["unknown_share_median"], 2)),
+                ("arrive unknown share", 0.17, round(own["arrive"]["unknown_share_median"], 2)),
+                ("stall exact same lead", 1.0, float(dj["lead"] == dj["exact_lead"]))]
+        out += [(f"stale control {k}", 1.0, float(v)) for k, v in rj["checks"].items()]
+        rs, ra, rn = rj["groups"]["stall"], rj["groups"]["arrive"], rj["groups"]["no_route_stall"]
+        out += [("stale stall pre-existing", 0.85, round(rs["shares"]["pre-existing"], 2)),
+                ("stale arrive pre-existing", 0.76, round(ra["shares"]["pre-existing"], 2)),
+                ("stale deferred under 1%", 1.0,
+                 float(all(g["shares"]["deferred"] < 0.01 for g in (rs, ra, rn)))),
+                ("stale deferred all cleared", 1.0,
+                 float(all(g["deferred_resolution"]["cleared"] == 1.0 for g in (rs, ra, rn)))),
+                ("stale within half metre", 0.99, round(rs["pre_within_half_metre_of_start"], 2)),
+                ("stale from plan start", 0.00, round(rs["pre_from_plan_start_median"], 2)),
+                ("stale robot along", 0.00, round(rs["pre_robot_along_median"], 2)),
+                ("stale depth", 0.039, round(rs["pre_depth_median"], 3)),
+                ("stale stall pre-existing rate", 26.2, round(rs["pre_existing_per_100_steps"], 1)),
+                ("stale inside margin stall", 0.41, round(rs["inside_margin_share"], 2)),
+                ("stale inside margin arrive", 0.15, round(ra["inside_margin_share"], 2)),
+                ("stale inside margin no route", 0.48, round(rn["inside_margin_share"], 2)),
+                # "about two steps in every three": rebuilds per step spent inside.
+                ("stale two in three", 1.0, float(0.6 <= rs["pre_existing_per_100_steps"] / 100
+                                                  / rs["inside_margin_share"] <= 0.7))]
     # Graph density: slam_toolbox's linking against this back end's closures.
     if os.path.exists(sy):
         from vision_nav.mapping.posegraph import PoseGraphConfig

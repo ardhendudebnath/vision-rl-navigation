@@ -68,6 +68,7 @@ decision below follows from wanting that comparison to be trustworthy.
 | And what its features lack: the clearance ahead is there, the width of the gap past it is not | Done |
 | Bridge bug found: Nav2 never received `noisy_lidar`'s noise — fixed, re-run: on the same scans slam_toolbox localises no better than this stack | Done |
 | The clutter gap on held-out worlds: where no route clears the planner's margin, the robot arrives on 1 of 42 | Done |
+| Why it stalls where a route exists: inside a wall's margin the plan is rebuilt from scratch on two steps in three | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
 Sixty-one experiments, each pre-registered where it tests a hypothesis. The

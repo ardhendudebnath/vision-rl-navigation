@@ -1,6 +1,6 @@
 """Nav2 on `noisy_lidar` with the noise delivered: the four runs the bridge voided.
 
-Until commit 233faae the ROS bridge built its scanner from the condition's
+Until commit 6bd6ccb the ROS bridge built its scanner from the condition's
 ``LidarConfig`` and called it without a random generator, and ``Lidar2D`` adds
 noise only when it is handed one. So every Nav2 run on `noisy_lidar` was scored
 on clean scans, while the hand-written stack read the noisy sensor. Those are

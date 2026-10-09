@@ -2210,6 +2210,69 @@ route exists at the planner's margin is the best predictor of it found here, and
 convert them. Nearly half the stalls — 33 of 72 — happen where a margin-safe
 route exists, and nothing in this report explains them yet.
 
+### 9.22 Why it stalls where a route exists: rebuilding inside the margin
+
+A plan is only ever rebuilt because the map has changed under it, so
+[`stall_diagnostic.py`](../scripts/stall_diagnostic.py) catches every rebuild
+before the old plan is discarded and classes the cells that forced it by their
+history — *discovery*, unknown when the plan was made; *flicker*, seen occupied
+before, free when the plan was made, occupied again; *newly seen*, free when the
+plan was made and occupied for the first time — and by their distance to a real
+surface. The published stack runs beside the same map built at the exact pose,
+on 100 val worlds per clutter condition. On the 50 worlds §9.9's forensic had
+driven it reproduces every outcome and every replan count. The prediction was
+committed before it drove any val world (commit bfc86f3): the stall would be the
+map changing its mind about surfaces it had already seen, with flicker the
+leading cause.
+
+| val, published stack | n | rebuilds per 100 steps | discovery | flicker | newly seen | none new since the plan | reversals |
+|---|---|---|---|---|---|---|---|
+| stalls, margin-safe worlds | 32 | 31.0 | 2% | 4% | 10% | **85%** | 4% |
+| arrivals, margin-safe worlds | 130 | 14.9 | 3% | 2% | 18% | **77%** | 1% |
+
+**The registered decision is MIXED, and the prediction failed where it
+mattered.** Flicker forces 4% of the stalls' rebuilds. What held: discovery
+stays under 30%, the trigger cells are real surfaces (84%, and 100% at the exact
+pose), and the exact-pose arm leads with the same category. What failed besides
+flicker: stalls rebuild 2.1 times as often per step as arrivals, not three, and
+turn their route's first metre past 90° on 4% of rebuilds, not a quarter. And
+85% of the stalls' rebuilds fell into the bucket the classifier kept for
+everything else: no cell new since the plan was made.
+
+**That bucket is one mechanism.** A follow-up written after seeing this, and not
+registered ([`stale_rebuild_diagnostic.py`](../scripts/stale_rebuild_diagnostic.py)),
+splits it. In the stalls, 85% of rebuilds are blocked by cells that were *already
+occupied* when the plan was made, and under 1% are a deferred blockage the map
+had cleared by the time it fired. Every rebuild of the first kind is blocked at
+the point the plan began — 99% within half a metre of it, a median of 0.00 m —
+with the robot not yet moved along it, and a median 0.039 m inside the
+planner's margin. The planner clears the robot's own footprint before it
+searches, so a plan made with the robot inside a wall's margin starts inside it.
+The check that decides whether a plan still holds does not clear it, so at the
+next change anywhere in the map it finds the plan's first point inside the
+margin and the plan is rebuilt from scratch. The stalls rebuild this way 26.2
+times per 100 steps.
+
+**And the stalls are where the robot is inside the margin.** Stalling episodes
+spend 41% of their steps inside the full margin of something mapped, against 15%
+for arrivals and 48% for stalls on worlds with no margin-safe route — §9.21's
+predictor, seen from inside the episode: a world whose routes pass closer than
+the margin keeps the robot there, and there the plan is rebuilt on about two
+steps in every three.
+
+**What it is not.** Not the pose: the exact-pose arm stalls on 30 worlds against
+32, with the same split (85% of its stalls' rebuilds in the same bucket, every
+trigger cell a real surface). Not the planner's optimism, though half of every
+route a stalling robot adopts runs through cells it has never seen (median
+0.50, against 0.17 for arrivals): those routes are rebuilt before the unseen
+part is reached. Not reversals, at 4%.
+
+**Stated as what it is.** An association on val, with a mechanism read off the
+code and confirmed in the counts — not yet a cause. Time inside the margin could
+be where a stalling robot ends up rather than why it stalls. The test is a
+repair: a validity check that, like the planner, does not count the robot's own
+footprint, registered before it runs.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -2258,7 +2321,7 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of fifty-nine predictions made in advance, fifteen held. Eight
+**Calibration.** Of sixty predictions made in advance, fifteen held. Eight
 were derived from a *measurement* of the same quantity — two to within 0.021 and
 0.001, one on both magnitude and mechanism, one whose magnitude came from
 measuring the estimator it was about, three of §9.13's four, each forecast
@@ -2272,10 +2335,11 @@ in a tally that otherwise counts point forecasts. Two more are §9.12's: the onl
 gaps — which held for the arithmetic it was made from, and a pose threshold set
 from a train-band check. The last three are §9.16's third claim, §9.17's second
 and §9.18's third. Twenty-six from extrapolation, intuition, arithmetic or a post
-hoc description failed outright; eighteen got part right and part wrong, the
-last two §9.20's registration, whose primary was among the parts it got wrong,
-and §9.21's, which replicated a val association at p = 8 × 10⁻¹⁸ and missed its
-failure-share bound by a point. One of
+hoc description failed outright; nineteen got part right and part wrong, the
+last three §9.20's registration, whose primary was among the parts it got wrong,
+§9.21's, which replicated a val association at p = 8 × 10⁻¹⁸ and missed its
+failure-share bound by a point, and §9.22's, which named flicker and found it
+forcing 4% of rebuilds. One of
 those twenty-six
 failed by helping: §9.12 registered `nominal` to stay inside ±0.03 and it
 improved by 0.040. Another failed on a fact: §9.13's collision bound rested on my
@@ -2423,8 +2487,11 @@ In order of expected information per GPU-hour:
    route at the planner's margin, where the stack arrives on 1 of 42 and which
    hold half the clutter failures, and failures on worlds that do have such a
    route — 40 of 81, 33 of them stalls with the pose known to within a tenth
-   of a metre — which nothing here has explained. The second half is the
-   larger untouched block, and §9.7's indecision is the only diagnosis it has.
+   of a metre. §9.22 finds the val stalls in a rebuild loop: inside a wall's
+   margin the plan is rebuilt from scratch on about two steps in three,
+   because the planner clears the robot's footprint and the check that
+   invalidates plans does not. Making the check consistent is the next
+   registered test.
 2. **Under noise, what a stack does with the pose error it cannot remove.**
    Localisation under noise is no longer a gap to close: with the noise
    delivered, slam_toolbox ends episodes 0.220 m from the truth and this stack

@@ -3219,7 +3219,7 @@ front end alone. Nothing ran on the test worlds.
 
 ## Phase 6p — The back end on the held-out worlds
 
-Registered in `f3269f0` before any held-out seed was driven, forecasts taken
+Registered in `3570b3c` before any held-out seed was driven, forecasts taken
 from the val measurement of the same condition and sensor. The front end
 reproduces Phase 6i's published outcomes 100/100 in each of the five 360-beam
 cells. Full treatment in report §9.13.
@@ -3244,7 +3244,7 @@ cells. Full treatment in report §9.13.
 - Off by default; the headline numbers remain the front end alone.
 - Two problems caught before launch: four conditions are scored on `test_ood`,
   not `test`; and a two-world smoke test touched test seeds before registration
-  (disclosed in `f3269f0`; those worlds are not in the scored run). Two attempts
+  (disclosed in `3570b3c`; those worlds are not in the scored run). Two attempts
   were killed partway by the tool's background time limit; per-episode
   checkpoints and detached processes fixed it.
 
@@ -3323,7 +3323,7 @@ A 2×2 on `noisy_lidar`, 100 val worlds, one arm per process
 
 ## Phase 6s — Where the closures reach, tested through the wrong quantity
 
-`closure_reach_diagnostic.py`, registered in `39bbc17` before any val world was
+`closure_reach_diagnostic.py`, registered in `abfb797` before any val world was
 driven, the instrumentation checked first on eight train worlds. The worlds are
 the 31 that formed a closure in Phase 6r; the run reproduces that one on all 31,
 outcome and closure count. Full treatment in report §9.16.
@@ -3358,7 +3358,7 @@ failed outright, sixteen part right.
 
 ## Phase 6t — The closures agree with the drift
 
-`closure_resolve_diagnostic.py`, registered in `f76b010` before any val graph
+`closure_resolve_diagnostic.py`, registered in `71163a0` before any val graph
 was saved (its path checked on one train world, which showed a direction, and
 the commit says so). The ten failing val worlds are driven once and their graphs
 re-solved offline four ways; the published re-solve reproduces each robot's own
@@ -3395,7 +3395,7 @@ quantity.
 
 ## Phase 6u — The motion prior is not the lever either
 
-`prior_binding_diagnostic.py`, registered in `ce329eb` before any val world was
+`prior_binding_diagnostic.py`, registered in `cf00d19` before any val world was
 driven (its instrumentation checked on two train worlds, where it left
 behaviour unchanged and showed the prior binding on 97% of scans -- disclosed).
 At every scan match: the odometry's prediction, the published correction and
@@ -3499,7 +3499,7 @@ to 0.377 m.
 ## Phase 6x — The noise, delivered: Nav2 re-run on `noisy_lidar`
 
 `scripts/nav2_noise_rerun.py`. Registered before any Nav2 run with the noise had
-been seen (PREDICTION, commit 30b3366); a three-episode val smoke test had been
+been seen (PREDICTION, commit 2b5ee5e); a three-episode val smoke test had been
 started, unread, and is disclosed there. The bridge now audits every published
 scan against the same scan cast without noise; all runs delivered 0.100 m.
 Identity control: with the original files the script reproduces every published
@@ -3524,7 +3524,7 @@ treatment in report §9.20.
   and 19 command-less). Val diagnosis, each run alone, 30 worlds: unthrottled
   `noisy_lidar` 0.767 (7 abandoned), unthrottled `nominal` 0.733 (8), `noisy_lidar`
   at 5× 1.000 (0). The published passes: one command-less episode in twelve runs.
-- **Addendum** (ADDENDUM, commit 103d159, before its runs, disclosing all of
+- **Addendum** (ADDENDUM, commit 43dfe14, before its runs, disclosing all of
   the above): full arm at 5× plus a `nominal` control at 5×. Every clause held;
   noise worth −0.020 (p = 0.50) and −0.010 (p = 1.00).
 - **Re-scored with the corrected cells**: §9.4 32 beams −0.078 / −0.070
@@ -3551,7 +3551,7 @@ margin-safe worlds unexplained; re-joining `margin_audit.json` and
 `clutter_forensic.json` put six of them on long margin detours (1.35–1.95×,
 against at most 1.17× for 31 of 32 arrivals), fitting the step budget at the
 arrivals' pace (216–430 steps). Registered before any held-out route class was
-computed (commit 2eb39e1); no agent run — held-out outcomes from §9.13's
+computed (commit 6d92869); no agent run — held-out outcomes from §9.13's
 `backend_test.json`. Identity control: on val the script reproduces the audit's
 route lengths exactly and the val tallies. Full treatment in report §9.21.
 
@@ -3574,6 +3574,43 @@ route lengths exactly and the val tallies. Full treatment in report §9.21.
 ### Calibration
 
 - Partial. Tally: 59 predictions, 15 held, 26 failed, 18 partial.
+
+## Phase 6z — Why it stalls where a route exists
+
+`scripts/stall_diagnostic.py`, registered before any val world was driven (commit
+bfc86f3): catch every plan rebuild before the old plan is discarded, class the
+cells that forced it (discovery / flicker / newly seen) and check them against
+the truth; published stack and an exact-pose arm; 100 val worlds per clutter
+condition. Identity control: on the 50 worlds §9.9's forensic drove, every
+outcome and replan count matches. Full treatment in report §9.22.
+
+| val, published stack | n | rebuilds /100 steps | discovery | flicker | newly seen | none new | reversals |
+|---|---|---|---|---|---|---|---|
+| stalls, margin-safe | 32 | 31.0 | 2% | 4% | 10% | 85% | 4% |
+| arrivals, margin-safe | 130 | 14.9 | 3% | 2% | 18% | 77% | 1% |
+
+- **Decision MIXED; primary failed.** Held: discovery < 30%, trigger cells real
+  (84%; 100% at exact pose), exact pose leads with the same category. Failed:
+  flicker leads ≥ 40% (4%), stalls ≥ 3× arrivals' rate (2.1×), reversals ≥ 25%
+  (4%).
+- **Follow-up, unregistered** (`scripts/stale_rebuild_diagnostic.py`): the "none
+  new" bucket is 85% pre-existing in stalls (76% arrivals) — blocked by cells
+  already occupied at plan time, at the plan's own start (99% within 0.5 m,
+  median 0.00 m), robot not yet moved along it, 0.039 m inside the margin — and
+  under 1% deferred-then-cleared. The planner clears the robot's footprint
+  before searching; the validity check does not; so inside a wall's margin
+  every map change rebuilds the plan from scratch (26.2 per 100 steps in
+  stalls).
+- Inside the full margin: 41% of steps in stalls, 15% in arrivals, 48% in
+  no-route stalls. Not the pose (exact pose: 30 stalls, same split), not
+  optimism (routes 50% unseen in stalls, rebuilt before reached), not
+  reversals.
+- An association with a mechanism, not yet a cause. Next: a validity check that
+  clears the footprint as the planner does, registered first.
+
+### Calibration
+
+- Partial; primary failed. Tally: 60 predictions, 15 held, 26 failed, 19 partial.
 
 ## Hardware notes
 
