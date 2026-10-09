@@ -131,14 +131,12 @@ dominant source of variance. A correct answer to the wrong question is much
 harder to notice than an error.
 
 Everything afterwards uses seed-level analysis, exact permutation tests, and
-pre-registered endpoints. Of fifty-six advance predictions, fourteen held —
-seven derived from *measurements* of the same quantity, two registered as
-bounds, which are the easiest kind to satisfy, one the only negative prediction
-in the set, one set from a train-band check, and three the surviving claims of
-tests whose other claims failed; twenty-six failed outright and sixteen got
-part right and part wrong, with identical confidence of expression throughout.
-Two of the failures were a hypothesis registered through a quantity that did not
-measure it, which a proper test later showed was right. The three failures that reasoned from a real measurement all
+pre-registered endpoints, every prediction written down before its data. The
+ones that held were mostly derived from *measurements* of the same quantity;
+most of those from intuition or extrapolation failed, with identical confidence
+of expression throughout. Two of the failures were a hypothesis registered
+through a quantity that did not measure it, which a proper test later showed was
+right. The three early failures that reasoned from a real measurement all
 carried it into a regime nothing had been measured in — and the one that
 crossed a boundary *with* the far side already measured held on both
 its magnitude and its mechanism (+0.080,

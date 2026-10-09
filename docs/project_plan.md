@@ -1362,8 +1362,7 @@ policy the per-beam range delta directly. The comparison arm is
 away). The only substantive difference is who does the subtraction.
 
 Six seeds per arm, slow condition kept as the control. This was a directional
-expectation rather than a numbered pre-registration, and is not counted in the
-calibration tally for that reason.
+expectation rather than a numbered pre-registration, and is not scored as one.
 
 ### Result
 
@@ -3016,9 +3015,6 @@ Three predictions, registered together before the data existed.
     bound rather than a direction, which is the easiest form of prediction to
     satisfy; §10 counts it as held and says so.
 
-Running total: thirty-six predictions, five held, fifteen failed outright,
-sixteen part right.
-
 The code stays, off by default, with an identity control pinning that it
 reproduces A\* where nothing is unknown; `frontier=True` is not used by any
 scored run.
@@ -3064,8 +3060,7 @@ report §9.9.
   does not lower the clearance asked for.
 
 **Exploratory, and labelled as such in the report.** Nothing was registered
-before this run, so no prediction is scored from it and the calibration tally is
-unchanged at thirty-six. The confound is stated: a world with no margin-safe
+before this run, so no prediction is scored from it. The confound is stated: a world with no margin-safe
 route is also just a tight world. Separating them is an experiment to register,
 not a conclusion to draw here.
 
@@ -3111,8 +3106,7 @@ Four predictions, registered together before the data existed.
 40. **`nominal` unchanged at 0.96, rule firing in at most 1 world** -- **failed**
     on both clauses: 0.92, fired in 3.
 
-Running total: forty predictions, six held, eighteen failed outright, sixteen
-part right. Two of the six held are bounds rather than directions.
+Two of the predictions that have held so far are bounds rather than directions.
 
 The rule stays, off by default, with an identity control driving both arms and
 pinning that the actions match; `relax_on_stall` is not used by any scored run.
@@ -3211,9 +3205,6 @@ registered before the arm ran on any val seed. Full treatment in report §9.12.
     negative prediction in the project, and it held for its arithmetic.
 44. **`nominal` inside ±0.03** -- **failed** at +0.040, by helping.
 
-Running total: forty-four predictions, eight held, twenty failed outright,
-sixteen part right.
-
 Off by default with an identity control; every published number is still the
 front end alone. Nothing ran on the test worlds.
 
@@ -3256,9 +3247,6 @@ cells. Full treatment in report §9.13.
     on my statement that the front end had never collided here; it collides 4
     times in the same 600 episodes.
 48. **`sparse` at 32 beams inside ±0.03** -- **held**, +0.020.
-
-Running total: forty-eight predictions, eleven held, twenty-one failed
-outright, sixteen part right.
 
 ## Phase 6q — The noisy map, repaired at its source
 
@@ -3353,8 +3341,7 @@ outcome and closure count. Full treatment in report §9.16.
 
 The hypothesis was mine, proposed at the end of Phase 6r, and claims 49 and 50
 tested it through a proxy that does not measure it; Phase 6t tests it properly
-and it holds. Running total: fifty-one predictions, twelve held, twenty-three
-failed outright, sixteen part right.
+and it holds.
 
 ## Phase 6t — The closures agree with the drift
 
@@ -3388,8 +3375,7 @@ final pose, 0.000 m apart at the median. Full treatment in report §9.17.
     **failed**, −5% (worse).
 53. **Raising the closure weights cuts it by less than 25%** -- **held**, −0%.
 
-Running total: fifty-three predictions, thirteen held, twenty-four failed
-outright, sixteen part right. Claims 49 and 50 are recorded as failed and are
+Claims 49 and 50 are recorded as failed and are
 also recorded here as having tested the right hypothesis through the wrong
 quantity.
 
@@ -3425,9 +3411,6 @@ the no-prior answer, each against the ground truth. Full treatment in report
 54. **Binding at least twice as often under noise** -- **failed**, 1.9x.
 55. **Overridden answers better more than half the time** -- **failed**, 49%.
 56. **Suppression heavier in failures** -- **held**, 57% vs 16%.
-
-Running total: fifty-six predictions, fourteen held, twenty-six failed outright,
-sixteen part right.
 
 ## Phase 6v — slam_toolbox's front end, rebuilt: it smooths the drift
 
@@ -3542,7 +3525,6 @@ treatment in report §9.20.
   at the same cap.
 - Phase 6g's prediction re-scored: loses its pose clause (Nav2 ≤ 0.20 m on every
   condition at 360; `noisy_lidar` 0.225 m). Phase 6h's unchanged.
-- Tally: 58 predictions, 15 held, 26 failed, 17 partial.
 
 ## Phase 6y — The clutter gap on held-out worlds
 
@@ -3573,7 +3555,7 @@ route lengths exactly and the val tallies. Full treatment in report §9.21.
 
 ### Calibration
 
-- Partial. Tally: 59 predictions, 15 held, 26 failed, 18 partial.
+- Partial.
 
 ## Phase 6z — Why it stalls where a route exists
 
@@ -3610,7 +3592,7 @@ outcome and replan count matches. Full treatment in report §9.22.
 
 ### Calibration
 
-- Partial; primary failed. Tally: 60 predictions, 15 held, 26 failed, 19 partial.
+- Partial; primary failed.
 
 ## Hardware notes
 

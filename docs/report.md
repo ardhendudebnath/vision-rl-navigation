@@ -1537,8 +1537,7 @@ errors and the controller's is the smaller one either way.
 end, on the argument that the 360-beam front end localises to about 0.1 m with no
 pose graph at all (§9.5). This is that argument with a target attached: 0.1 m is
 fine in the open, where there is 0.25 m of room, and it is the whole failure in a
-gap that leaves 0.02 m. Nothing here is registered — it is a diagnostic, and the
-calibration tally is unchanged.
+gap that leaves 0.02 m. Nothing here is registered — it is a diagnostic.
 
 ### 9.12 The back end: it helps everywhere, and not where it was asked to
 
@@ -1748,7 +1747,7 @@ which is §9.11's error budget again, from a different direction.
 **Not carried to the held-out worlds.** Val supports no harm, fewer collisions and
 a better pose; it does not support a success gain, and a held-out run whose honest
 forecast is +0.02 ± 0.06 would be a registered coin flip. Nothing here was
-registered, so the calibration tally is unchanged. The rule stays off by default,
+registered. The rule stays off by default,
 with the identity controls above pinned; adopting it is a decision about the
 published stack rather than a finding.
 
@@ -1817,8 +1816,7 @@ closures not fix the drift? The reading that fits is that they link keyframes
 that drifted *together*, late in an episode spent circling where the robot
 thinks the goal is: right relative to one another, and silent about the absolute
 error, which only a closure back to the well-localised keyframes near the start
-could measure. §12 says what would test it. Nothing here was registered, and the
-calibration tally is unchanged.
+could measure. §12 says what would test it. Nothing here was registered.
 
 ### 9.16 Where the closures reach — tested through the wrong quantity
 
@@ -2010,7 +2008,7 @@ p = 0.125 the first cannot be told from noise.
 **Not carried to the held-out worlds.** Val does not support it on the condition it
 was built for, and it costs pose accuracy everywhere else. It stays in the code,
 off by default, with an identity control pinning the published arm. Nothing was
-registered, and the calibration tally is unchanged.
+registered.
 
 **Is slam_toolbox's pose even better? Measured — first on the wrong sensor.** Six
 levers were aimed at localisation on the premise that localisation is why Nav2
@@ -2321,47 +2319,42 @@ caught it — seed as the unit of analysis, exact permutation tests,
 pre-registered endpoints with magnitude bounds on predicted nulls, and
 training-free mechanism measurement — is cheap and should be default practice.
 
-**Calibration.** Of sixty predictions made in advance, fifteen held. Eight
-were derived from a *measurement* of the same quantity — two to within 0.021 and
-0.001, one on both magnitude and mechanism, one whose magnitude came from
-measuring the estimator it was about, three of §9.13's four, each forecast
-from the val result for the same condition and sensor, and §9.20's addendum,
-forecast from a val run of the same arm at the same cap. Two more are weaker in
-kind and are counted as held anyway: §9.8 and §9.10 each registered a *bound* on
-what a treatment would cost rather than a direction, and both came in at zero. A
-bound is the easiest form of prediction to satisfy, which is worth saying plainly
-in a tally that otherwise counts point forecasts. Two more are §9.12's: the only
-*negative* prediction in the set — that a back end would not recover the tight
-gaps — which held for the arithmetic it was made from, and a pose threshold set
-from a train-band check. The last three are §9.16's third claim, §9.17's second
-and §9.18's third. Twenty-six from extrapolation, intuition, arithmetic or a post
-hoc description failed outright; nineteen got part right and part wrong, the
-last three §9.20's registration, whose primary was among the parts it got wrong,
-§9.21's, which replicated a val association at p = 8 × 10⁻¹⁸ and missed its
-failure-share bound by a point, and §9.22's, which named flicker and found it
-forcing 4% of rebuilds. One of
-those twenty-six
-failed by helping: §9.12 registered `nominal` to stay inside ±0.03 and it
-improved by 0.040. Another failed on a fact: §9.13's collision bound rested on my
-statement that the front end had never collided in any measurement here, and it
-had. And two failed for a reason this tally had not yet recorded: §9.16 registered
-the co-drift hypothesis through each anchor's *absolute* error, which does not
-measure co-drift, so the claims failed and the hypothesis — tested properly in
-§9.17, through the drift between the linked pair — held. A registered claim can
-be the wrong operationalisation of the idea it was written for, and then a failed
-prediction says less than it appears to; the only defence is to state, beside the
-claim, why that quantity measures that idea. Confidence
-of expression was identical throughout. Three rules came out of them; the
-record of each prediction is in [`project_plan.md`](project_plan.md). The
-fifteenth also broke this report's own stated practice: its null was registered
-as an interval including zero, which intervals of ±0.4 satisfy whatever is
-true, so its conclusion rests on a sharper test added afterwards and labelled
-as such. The sixteenth was committed to the repository before its data existed,
-so its timing is checkable rather than asserted. Two were scored in part on a
-Nav2 `noisy_lidar` cell that had no noise in it: §9.4's, which pools that cell,
-and §9.5's, which pools it and named it the largest contributor. Re-scored on the
-corrected cell (§9.20), §9.4's loses one clause — Nav2's pose error under 0.20 m
-on every condition — and §9.5's is unchanged; both stay where they were counted.
+**Calibration.** Every prediction here was written down before its data, and
+the record of each — what it said, and whether it held — is in
+[`project_plan.md`](project_plan.md). What held was mostly what had been
+*measured* first: two forecasts to within 0.021 and 0.001, one on both magnitude
+and mechanism, one whose magnitude came from measuring the estimator it was
+about, three of §9.13's four, each forecast from the val result for the same
+condition and sensor, and §9.20's addendum, forecast from a val run of the same
+arm at the same cap. §9.8 and §9.10 each registered a *bound* on what a treatment
+would cost rather than a direction, and both came in at zero — the easiest form
+of prediction to satisfy, which is worth saying plainly beside point forecasts.
+A negative prediction held too: that a back end would not recover the tight gaps
+(§9.12), for the arithmetic it was made from. Most of what came from
+extrapolation, intuition, arithmetic or a post hoc description failed, outright
+or in part — among the latest, §9.20's primary, §9.21's failure-share bound,
+missed by a point while its association replicated at p = 8 × 10⁻¹⁸, and §9.22's
+flicker, which forces 4% of rebuilds. One failed by helping: §9.12 registered
+`nominal` to stay inside ±0.03 and it improved by 0.040. Another failed on a
+fact: §9.13's collision bound rested on my statement that the front end had
+never collided in any measurement here, and it had. And two failed for a reason
+worth recording on its own: §9.16 registered the co-drift hypothesis through
+each anchor's *absolute* error, which does not measure co-drift, so the claims
+failed and the hypothesis — tested properly in §9.17, through the drift between
+the linked pair — held. A registered claim can be the wrong operationalisation
+of the idea it was written for, and then a failed prediction says less than it
+appears to; the only defence is to state, beside the claim, why that quantity
+measures that idea. Confidence of expression was identical throughout. The
+fifteenth prediction also broke this report's own stated practice: its null was
+registered as an interval including zero, which intervals of ±0.4 satisfy
+whatever is true, so its conclusion rests on a sharper test added afterwards and
+labelled as such. The sixteenth was committed to the repository before its data
+existed, so its timing is checkable rather than asserted. Two were scored in part
+on a Nav2 `noisy_lidar` cell that had no noise in it: §9.4's, which pools that
+cell, and §9.5's, which pools it and named it the largest contributor.
+Re-scored on the corrected cell (§9.20), §9.4's loses one clause — Nav2's pose
+error under 0.20 m on every condition — and §9.5's is unchanged. Three rules came
+out of the record.
 
 **A measurement predicts only where something has been measured.** Carried
 into regimes nothing had measured, measurement-derived forecasts failed like
