@@ -36,7 +36,7 @@ decision below follows from wanting that comparison to be trustworthy.
 
 | Stage | State |
 |---|---|
-| Task, metrics, splits, 542-test suite | Done |
+| Task, metrics, splits, 553-test suite | Done |
 | Classical baseline (A* + pure pursuit, full map) | Done |
 | Privileged RL, robustness suite, distribution shifts | Done |
 | Four explanations for the gap, each tested and rejected | Done |
@@ -69,6 +69,8 @@ decision below follows from wanting that comparison to be trustworthy.
 | Bridge bug found: Nav2 never received `noisy_lidar`'s noise — fixed, re-run: on the same scans slam_toolbox localises no better than this stack | Done |
 | The clutter gap on held-out worlds: where no route clears the planner's margin, the robot arrives on 1 of 42 | Done |
 | Why it stalls where a route exists: inside a wall's margin the plan is rebuilt from scratch on two steps in three | Done |
+| A virtual TurtleBot3 in Gazebo ([`gazebo_tb3/`](gazebo_tb3/)): built to a real Waffle Pi's limits, its lidar checked against the 2-D simulator's | Done |
+| Transfer test: the same worlds driven by the TurtleBot3 in Gazebo | Next |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
 Sixty-one experiments, each pre-registered where it tests a hypothesis. The

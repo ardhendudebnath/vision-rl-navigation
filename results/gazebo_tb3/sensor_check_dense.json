@@ -1,0 +1,34 @@
+{
+  "condition": "dense",
+  "seed": 10000,
+  "profile": "real",
+  "lidar": {
+    "samples": 360,
+    "min_angle": 0.0,
+    "max_angle": 6.28,
+    "range_min": 0.12,
+    "range_max": 3.5,
+    "noise_std": 0.01,
+    "update_rate": 5.0,
+    "x_offset": -0.064,
+    "topic": "/scan"
+  },
+  "scan": {
+    "beams": 360,
+    "angle_min": 0.0,
+    "angle_step": 0.017493036211699165,
+    "start_pose_error": 0.0005673978043120272,
+    "hit_agreement": 0.9972222222222222,
+    "both_hit": 217,
+    "median_abs_diff": 0.008149381244190512,
+    "p95_abs_diff": 0.04230415540849951,
+    "within_3_sigma": 0.9216589861751152
+  },
+  "drive": {
+    "true_distance": 0.38450490525221115,
+    "odom_distance": 0.39427600030967824,
+    "true_heading_change": 7.825851848219934e-07,
+    "odom_yaw": 8.05530632648564e-12,
+    "sim_time": 3.1
+  }
+}
