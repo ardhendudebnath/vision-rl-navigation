@@ -60,6 +60,23 @@ def test_the_model_is_made_loadable_and_placed():
     assert not [s for s in model.iter("sensor") if s.get("type") == "depth"]
 
 
+def test_gazebo_noise_can_be_handed_to_a_seeded_generator():
+    m = _module()
+    assert m.lidar_spec(m.robot_model(WAFFLE, lidar_noise=False))["noise_std"] == 0.0
+    assert m.lidar_spec(m.robot_model(WAFFLE))["noise_std"] == pytest.approx(0.01)
+
+
+def test_state_can_be_reported_at_the_physics_rate():
+    m = _module()
+    model = m.robot_model(WAFFLE, report_hz=500)
+    drive = next(p for p in model.findall("plugin") if "diff-drive" in p.get("filename"))
+    assert drive.find("odom_publish_frequency").text == "500"
+    pub = [p for p in model.findall("plugin") if "pose-publisher" in p.get("filename")]
+    assert len(pub) == 1 and pub[0].find("update_frequency").text == "500"
+    assert not [p for p in m.robot_model(WAFFLE).findall("plugin")
+                if "pose-publisher" in p.get("filename")]
+
+
 def test_an_unknown_profile_is_refused():
     with pytest.raises(ValueError):
         _module().robot_model(WAFFLE, "imaginary")

@@ -200,6 +200,12 @@ class MappedPursuitAgent(AStarPursuitAgent):
         self.plans_refused = 0
         self.churn_total = 0.0
         self.map: OccupancyMap | None = None
+        #: Builds the sensor the map is filled from, in place of
+        #: :func:`make_sensor`. ``None`` -- every published result -- uses
+        #: ``make_sensor(sensor, noise_std)``. Set by callers whose scans come
+        #: from outside this simulator (the Gazebo TurtleBot3), so the map is
+        #: built from those scans and never from a ray-cast of the world.
+        self.sensor_factory = None
         self._plan_radius = 0.0
         self._checked_version = -1
         #: Steps between replans for anything that is not close ahead: 1 Hz at
@@ -224,7 +230,9 @@ class MappedPursuitAgent(AStarPursuitAgent):
         self.churn_max = 0.0
         # Seeded from the world, so a sensor with noise corrupts an episode the
         # same way every time it is run.
-        self.map = OccupancyMap(world, make_sensor(self.sensor_kind, self.noise_std),
+        sensor = (self.sensor_factory() if self.sensor_factory is not None
+                  else make_sensor(self.sensor_kind, self.noise_std))
+        self.map = OccupancyMap(world, sensor,
                                 rng=np.random.default_rng(int(world.seed)),
                                 corroborate=self.corroborate,
                                 noise_margin=self.noise_margin)

@@ -25,6 +25,7 @@ from gz.msgs10.boolean_pb2 import Boolean
 from gz.msgs10.clock_pb2 import Clock
 from gz.msgs10.laserscan_pb2 import LaserScan
 from gz.msgs10.odometry_pb2 import Odometry
+from gz.msgs10.pose_pb2 import Pose
 from gz.msgs10.pose_v_pb2 import Pose_V
 from gz.msgs10.twist_pb2 import Twist
 from gz.msgs10.world_control_pb2 import WorldControl
@@ -67,8 +68,13 @@ class GzSession:
 
     def __init__(self, sdf_text: str, world_name: str = "vision_nav", robot_name: str = "turtlebot3",
                  step_size: float = 0.002, resource_path: str | None = None,
-                 headless: bool = True, verbose: int = 1) -> None:
+                 headless: bool = True, verbose: int = 1, sync: bool = False) -> None:
+        """``sync=True`` makes every :meth:`step` wait for the pose and the
+        odometry stamped at the step's end, which the robot publishes only if
+        it was built with ``report_hz`` at the physics rate
+        (:func:`robot_sdf.robot_model`)."""
         self.world_name, self.robot_name, self.step_size = world_name, robot_name, step_size
+        self.sync = sync
         self._dir = tempfile.mkdtemp(prefix="gz_world_")
         self.sdf_path = Path(self._dir) / "world.sdf"
         self.sdf_path.write_text(sdf_text, encoding="utf-8")
@@ -90,9 +96,14 @@ class GzSession:
         self.odom: Odometry | None = None
         self.true_pose: tuple[float, float, float] | None = None
         self.sim_time = 0.0
+        #: Simulation time each latest message was stamped with, so a step can
+        #: wait for the messages that belong to it rather than read whatever
+        #: arrived last -- which is what makes a run repeatable.
+        self.scan_stamp = self.odom_stamp = self.pose_stamp = -1.0
         self.node.subscribe(LaserScan, "/scan", self._on_scan)
         self.node.subscribe(Odometry, "/odom", self._on_odom)
         self.node.subscribe(Pose_V, f"/world/{world_name}/pose/info", self._on_poses)
+        self.node.subscribe(Pose, f"/model/{robot_name}/pose", self._on_model_pose)
         self.node.subscribe(Clock, f"/world/{world_name}/clock", self._on_clock)
         self.cmd = self.node.advertise("/cmd_vel", Twist)
         self._control = f"/world/{world_name}/control"
@@ -106,21 +117,36 @@ class GzSession:
         return self._worker.stdout.readline().strip() == "1"
 
     # --- message callbacks ------------------------------------------------
+    @staticmethod
+    def _stamp(msg) -> float:
+        return msg.header.stamp.sec + msg.header.stamp.nsec * 1e-9
+
     def _on_scan(self, msg: LaserScan) -> None:
         with self._lock:
             self.scan = msg
             self.scan_count += 1
+            self.scan_stamp = self._stamp(msg)
 
     def _on_odom(self, msg: Odometry) -> None:
         with self._lock:
             self.odom = msg
+            self.odom_stamp = self._stamp(msg)
+
+    def _set_pose(self, p, stamp: float) -> None:
+        # Two streams carry the pose; keep whichever reading is newest.
+        with self._lock:
+            if stamp >= self.pose_stamp:
+                self.true_pose = (p.position.x, p.position.y, yaw_of(p.orientation))
+                self.pose_stamp = stamp
 
     def _on_poses(self, msg: Pose_V) -> None:
         for p in msg.pose:
             if p.name == self.robot_name:
-                with self._lock:
-                    self.true_pose = (p.position.x, p.position.y, yaw_of(p.orientation))
+                self._set_pose(p, self._stamp(msg))
                 return
+
+    def _on_model_pose(self, msg: Pose) -> None:
+        self._set_pose(msg, self._stamp(msg))
 
     def _on_clock(self, msg: Clock) -> None:
         with self._lock:
@@ -138,10 +164,27 @@ class GzSession:
             time.sleep(0.5)
         raise TimeoutError(f"gz sim did not come up in {timeout} s; see {self.log_path}")
 
-    def command(self, v: float, w: float) -> None:
+    def command(self, v: float, w: float, settle: float = 0.005) -> None:
+        """Publish a velocity command and give it ``settle`` seconds of wall
+        time to reach the drive before the next step is requested. Gazebo is
+        paused in between, so the wait costs nothing in simulated time; it
+        stops a command racing the step request through a different process."""
         msg = Twist()
         msg.linear.x, msg.angular.z = float(v), float(w)
         self.cmd.publish(msg)
+        if settle:
+            time.sleep(settle)
+
+    def wait_for(self, attribute: str, stamp: float, timeout: float = 10.0) -> bool:
+        """Until the latest ``attribute`` (``scan``, ``odom`` or ``pose``)
+        message is stamped at or after ``stamp``. False on timeout."""
+        start = time.monotonic()
+        while time.monotonic() - start < timeout:
+            with self._lock:
+                if getattr(self, f"{attribute}_stamp") >= stamp - 1e-6:
+                    return True
+            time.sleep(0.0005)
+        return False
 
     def step(self, seconds: float = 0.1, timeout: float = 180.0) -> None:
         """Advance exactly ``seconds`` of simulated time, then return.
@@ -163,10 +206,15 @@ class GzSession:
         while True:
             with self._lock:
                 if self.sim_time >= target:
-                    return
+                    break
             if time.monotonic() - start > timeout:
                 raise TimeoutError(f"simulation did not reach {target:.3f} s")
             time.sleep(0.001)
+        if self.sync:
+            # The pose and odometry of this step's end, not of the one before.
+            for attribute in ("pose", "odom"):
+                if not self.wait_for(attribute, target):
+                    raise TimeoutError(f"no {attribute} message stamped at {target:.3f} s")
 
     def close(self) -> None:
         try:

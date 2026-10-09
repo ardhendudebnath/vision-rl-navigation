@@ -30,9 +30,21 @@ PROFILES = {
 
 
 def robot_model(sdf_text: str, profile: str = "real", name: str = "turtlebot3",
-                pose: tuple[float, float, float] = (0.0, 0.0, 0.0)) -> ET.Element:
+                pose: tuple[float, float, float] = (0.0, 0.0, 0.0),
+                lidar_noise: bool = True, report_hz: float | None = None) -> ET.Element:
     """The robot's ``<model>`` element, set to ``profile`` and placed at
-    ``pose`` = (x, y, yaw), ready to embed in a world."""
+    ``pose`` = (x, y, yaw), ready to embed in a world.
+
+    ``lidar_noise=False`` zeroes Gazebo's own range noise. Gazebo cannot be
+    given a seed, so its noise differs on every run; an experiment that must be
+    repeatable adds the same noise itself, from a seeded generator.
+
+    ``report_hz`` publishes the wheel odometry and the true model pose at that
+    rate -- at the physics rate, every message a lockstep runner could ask for
+    exists at the instant it asks -- in place of the drive's 30 Hz, whose
+    stamps do not line up with the control period. It changes how often the
+    state is reported, never the physics.
+    """
     if profile not in PROFILES:
         raise ValueError(f"unknown profile {profile!r}; one of {sorted(PROFILES)}")
     root = ET.fromstring(sdf_text)
@@ -74,6 +86,17 @@ def robot_model(sdf_text: str, profile: str = "real", name: str = "turtlebot3",
     if "lidar_min" in limits:
         block.find("range/min").text = f"{limits['lidar_min']}"
         block.find("range/max").text = f"{limits['lidar_max']}"
+    if not lidar_noise and block.find("noise/stddev") is not None:
+        block.find("noise/stddev").text = "0.0"
+    if report_hz is not None:
+        drive = next(p for p in model.findall("plugin") if "diff-drive" in (p.get("filename") or ""))
+        drive.find("odom_publish_frequency").text = f"{report_hz:g}"
+        pub = ET.SubElement(model, "plugin", filename="gz-sim-pose-publisher-system",
+                            name="gz::sim::systems::PosePublisher")
+        for tag, value in (("publish_link_pose", "false"), ("publish_model_pose", "true"),
+                           ("publish_nested_model_pose", "false"),
+                           ("use_pose_vector_msg", "false"), ("update_frequency", f"{report_hz:g}")):
+            ET.SubElement(pub, tag).text = value
     return model
 
 
