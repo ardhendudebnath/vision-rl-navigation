@@ -73,7 +73,11 @@ ARMS = ("project", "tb3_2d", "tb3_2d_6m", "gazebo", "tb3_2d_exact_odom")
 #:                     adapter, empty directions reading the training 6 m
 #: policy_tb3_2d_naive the same, empty directions reading the LDS-01's 3.5 m
 #: policy_gazebo       the TurtleBot3 in Gazebo, through the adapter
-POLICY_ARMS = ("policy_project", "policy_tb3_2d", "policy_tb3_2d_naive", "policy_gazebo")
+#: ... and the same policy without its privilege: the ``_odom`` arms compute its
+#: goal vector from the robot's own dead-reckoned odometry, never the truth --
+#: the published odometry model in 2-D, Gazebo's wheel odometry in Gazebo.
+POLICY_ARMS = ("policy_project", "policy_tb3_2d", "policy_tb3_2d_naive", "policy_gazebo",
+               "policy_project_odom", "policy_tb3_2d_odom", "policy_gazebo_odom")
 POLICY_MODEL = HERE.parent / "runs" / "ppo_privileged" / "best_model.zip"
 _MODEL = None
 
@@ -243,15 +247,45 @@ def _policy_command(action: np.ndarray, limits: RobotConfig) -> np.ndarray:
                      np.clip(w, -limits.max_angular_vel, limits.max_angular_vel)])
 
 
+def odom_pose(msg) -> np.ndarray:
+    """``(x, y, heading)`` of an odometry message, in its own frame."""
+    p, q = msg.pose.position, msg.pose.orientation
+    return np.array([p.x, p.y, np.arctan2(2.0 * (q.w * q.z + q.x * q.y),
+                                          1.0 - 2.0 * (q.y * q.y + q.z * q.z))])
+
+
+def compose(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Pose ``b``, given in the frame of pose ``a``, in ``a``'s frame's parent."""
+    c, s = np.cos(a[2]), np.sin(a[2])
+    return np.array([a[0] + c * b[0] - s * b[1], a[1] + s * b[0] + c * b[1],
+                     np.arctan2(np.sin(a[2] + b[2]), np.cos(a[2] + b[2]))])
+
+
+def relative(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Pose ``b`` in the frame of pose ``a``: ``compose(a, relative(a, b)) == b``."""
+    c, s = np.cos(a[2]), np.sin(a[2])
+    d = np.asarray(b[:2]) - np.asarray(a[:2])
+    return np.array([c * d[0] + s * d[1], -s * d[0] + c * d[1],
+                     np.arctan2(np.sin(b[2] - a[2]), np.cos(b[2] - a[2]))])
+
+
 def _policy_summary(success, collision, steps, goal_distance, path, scans, extra=None) -> dict:
     return {"success": bool(success), "collision": bool(collision), "steps": int(steps),
             "goal_distance": float(goal_distance), "path_length": float(path),
             "scans_used": int(scans), **(extra or {})}
 
 
-def policy_episode_2d(arm: str, cond: str, seed: int, split: str, n: int) -> dict:
+def policy_episode_2d(arm: str, cond: str, seed: int, split: str, n: int,
+                      exact_odometry: bool = False) -> dict:
+    """``exact_odometry`` switches the ``_odom`` arms' odometry model off, so
+    that dead reckoning integrates the true velocity: the identity control,
+    under which an ``_odom`` arm must reproduce its privileged arm exactly."""
     from policy_driver import POLICY_BEARINGS, POLICY_MAX_RANGE, POLICY_ROBOT, PolicyDriver
 
+    from vision_nav.mapping.localisation import DeadReckoning
+
+    from_odometry = arm.endswith("_odom")
+    arm = arm.removesuffix("_odom")
     if arm == "policy_project":
         robot, lidar, bearings, lidar_x, every = (
             POLICY_ROBOT, LidarConfig(n_beams=32, fov=2.0 * np.pi, max_range=POLICY_MAX_RANGE,
@@ -272,20 +306,35 @@ def policy_episode_2d(arm: str, cond: str, seed: int, split: str, n: int) -> dic
     driver = PolicyDriver(_policy(), lidar.max_range, bearings, lidar_x, no_return)
     driver.feed(scan_at(env.robot.pose))
     unscale = DiffDriveRobot(robot)
+    # Without the privilege, the goal vector is computed from where the
+    # robot's odometry says it is: the published model, seeded as the stack's
+    # own odometry is seeded, driven by the true velocity as an encoder would be.
+    odom = None
+    if from_odometry:
+        odom = DeadReckoning(robot, None if exact_odometry else OdometryConfig(),
+                             np.random.default_rng((seed, 7)))
+        odom.reset(env.robot.pose)
     info: dict = {}
     for k in range(BUDGET):
-        action = driver.act(env.robot.pose, world.goal, env.robot.velocity)
+        believed = odom.update(env.robot.velocity.copy()) if odom is not None else env.robot.pose
+        action = driver.act(believed, world.goal, env.robot.velocity)
         _, _, done, truncated, info = env.step(unscale.unscale_action(_policy_command(action, robot)))
         if (k + 1) % every == 0:
             driver.feed(scan_at(env.robot.pose))
         if done or truncated:
             break
+    extra = {}
+    if odom is not None:
+        # Odometry is a step behind the robot until it hears the last step.
+        odom.update(env.robot.velocity.copy())
+        extra["odom_err_final"] = float(np.linalg.norm(odom.pose[:2] - env.robot.pose[:2]))
     return _policy_summary(info.get("is_success"), info.get("collision"), info.get("steps", k + 1),
                            info.get("goal_distance", np.nan), info.get("path_length", np.nan),
-                           driver.scans_used)
+                           driver.scans_used, extra)
 
 
-def policy_episode_gazebo(cond: str, seed: int, split: str, n: int, profile: str = "real") -> dict:
+def policy_episode_gazebo(cond: str, seed: int, split: str, n: int, profile: str = "real",
+                          from_odometry: bool = False) -> dict:
     from gz_session import GzSession  # needs the ros_tb3 environment
     from policy_driver import POLICY_MAX_RANGE, PolicyDriver
     from robot_sdf import robot_model
@@ -314,11 +363,18 @@ def policy_episode_gazebo(cond: str, seed: int, split: str, n: int, profile: str
         driver = PolicyDriver(_policy(), max_range, TB3_BEARINGS, TB3_LIDAR_X, POLICY_MAX_RANGE)
         driver.feed(add_noise(np.asarray(gz.scan.ranges), max_range, rng))
         last = np.array(gz.true_pose[:2])
+        # Without the privilege: the goal vector from the drive's own wheel
+        # odometry -- the pose it integrates from the wheel joints every physics
+        # step, as a real TurtleBot3 publishes on /odom -- carried into the
+        # world frame from where the episode began. Slip is its only error.
+        start, odom_start = np.array(gz.true_pose), odom_pose(gz.odom)
         missed, path, success, collision, k = 0, 0.0, False, False, 0
         for k in range(BUDGET):
             truth = np.array(gz.true_pose)
             vel = np.array([gz.odom.twist.linear.x, gz.odom.twist.angular.z])
-            v, w = _policy_command(driver.act(truth, world.goal, vel), TB3_ROBOT)
+            believed = (compose(start, relative(odom_start, odom_pose(gz.odom))) if from_odometry
+                        else truth)
+            v, w = _policy_command(driver.act(believed, world.goal, vel), TB3_ROBOT)
             gz.command(v, w)
             gz.step(0.1)
             now = gz.sim_time
@@ -336,9 +392,12 @@ def policy_episode_gazebo(cond: str, seed: int, split: str, n: int, profile: str
             if float(world.clearance(here, include_dynamic=False)) < radius:
                 collision = True
                 break
+        final = compose(start, relative(odom_start, odom_pose(gz.odom)))
+    extra = {"missed_scans": missed, "wall_seconds": time.monotonic() - started}
+    if from_odometry:
+        extra["odom_err_final"] = float(np.linalg.norm(final[:2] - last))
     return _policy_summary(success, collision, k + 1, float(np.linalg.norm(last - world.goal)), path,
-                           driver.scans_used,
-                           {"missed_scans": missed, "wall_seconds": time.monotonic() - started})
+                           driver.scans_used, extra)
 
 
 _STAGGER = None
@@ -363,11 +422,16 @@ def _run(job: tuple) -> dict:
         # So that, if this worker dies outright, the episode it was running
         # can be told from the ones still queued.
         Path(started, f"{cond}_{seed}").touch()
-    if arm in POLICY_ARMS and arm != "policy_gazebo":
+    gz_arms = ("gazebo", "policy_gazebo", "policy_gazebo_odom")
+    if arm in POLICY_ARMS and arm not in gz_arms:
         return {"arm": arm, "cond": cond, "seed": seed, **policy_episode_2d(arm, cond, seed, split, n)}
-    if arm not in ("gazebo", "policy_gazebo"):
+    if arm not in gz_arms:
         return {"arm": arm, "cond": cond, "seed": seed, **analytic_episode(arm, cond, seed, split, n)}
-    episode = gazebo_episode if arm == "gazebo" else policy_episode_gazebo
+    if arm == "gazebo":
+        episode = gazebo_episode
+    else:
+        def episode(c, s, sp, nn):
+            return policy_episode_gazebo(c, s, sp, nn, from_odometry=arm.endswith("_odom"))
     errors = []
     # A run is deterministic, so an episode whose server failed to start is
     # simply run again on a fresh one; the result is the same episode.
@@ -408,7 +472,7 @@ def main(argv=None) -> int:
     done = {(r["cond"], r["seed"]) for r in rows}
     todo = [j for j in jobs if (j[1], j[2]) not in done]
     failed: list[dict] = []
-    stagger = 20.0 if args.arm in ("gazebo", "policy_gazebo") else 0.0
+    stagger = 20.0 if args.arm in ("gazebo", "policy_gazebo", "policy_gazebo_odom") else 0.0
     # A worker that dies outright (a crash in a native library, not an
     # exception) breaks the whole pool. Each break starts a fresh pool on the
     # episodes not yet finished; an episode that was running when its worker
