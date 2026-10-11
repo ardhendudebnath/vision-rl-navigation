@@ -3635,6 +3635,45 @@ actions step for step. Registered before any val arm ran
   within ±0.05 (+0.12), nominal pose ratio ≥ 2× (1.4×), Gazebo within ±0.10 per
   condition, and the decision.
 
+## Phase 7b — The learned policy on the TurtleBot3
+
+`gazebo_tb3/policy_driver.py` feeds the privileged PPO policy
+(`runs/ppo_privileged`, kept locally like every trained model) the TurtleBot3's
+scan: moved to the centre, sampled at its 32 bearings, empty directions read as
+6 m (or 3.5 m), last scan held between 5 Hz updates, commands clipped by the
+TurtleBot3's drive. Given its own sensor it rebuilds the training observation
+and the native actions exactly (tests). Registered before any val policy arm ran
+(`scripts/policy_transfer_test.py`, commit 2d2094d). Full treatment in report
+§9.24.
+
+| val success / collision | nominal | dense | narrow |
+|---|---|---|---|
+| policy_project | 0.92 / 0.06 | 0.67 / 0.29 | 0.68 / 0.21 |
+| policy_tb3_2d | 0.93 / 0.05 | 0.63 / 0.31 | 0.65 / 0.25 |
+| policy_tb3_2d_naive | 0.91 / 0.06 | 0.68 / 0.27 | 0.69 / 0.21 |
+| policy_gazebo | 0.92 / 0.06 | 0.60 / 0.32 | 0.66 / 0.22 |
+
+- The TurtleBot3 costs the policy −0.020 pooled (9 / 15, p = 0.31), against the
+  stack's −0.203; Gazebo against 2-D: −0.010 [−0.033, +0.017] — **TRANSFERS**,
+  as registered; the 3.5 m reading +0.023 pooled, unresolved.
+- The policy transfers because its goal vector comes from the true pose: it uses
+  the lidar only for what is near, all inside 3.5 m. It still collides far more
+  than the stack (0.06–0.32 against 0.00–0.02 in Gazebo).
+- Running it: PyTorch left at its default thread count gave each worker every
+  core (a load of 51 on 24 cores); the first Gazebo run was stopped, its eight
+  episodes discarded, and rerun with one thread per worker. A worker that died
+  outright later broke the pool; the runner now rebuilds the pool and retries
+  only the episode that was running. The 2-D arms ran in the Windows
+  environment, the Gazebo arm in `ros_tb3`; on the one observation compared,
+  their PyTorch builds gave the policy's action to within 1e-7.
+
+### Calibration
+
+- Partial. Held: the decision, open-world parity (within 0.05), Gazebo within
+  0.10 per condition, collisions within 0.05, no missed scans. Failed: the
+  clutter cost (0.05–0.25 predicted; −0.04 and −0.03 measured) and the 3.5 m
+  cost (≥ 0.10 predicted on nominal; −0.02).
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

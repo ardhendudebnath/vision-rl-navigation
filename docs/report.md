@@ -2331,6 +2331,60 @@ the one question in this section only hardware can answer. 14 of the 300 Gazebo
 episodes had to be rerun on a fresh server after one failed to start; runs are
 deterministic, so each rerun is the same episode.
 
+### 9.24 The learned policy on the TurtleBot3: it barely notices
+
+§9.23 moved the classical stack to a TurtleBot3 and found its specification
+costing 0.13 to 0.24. The privileged PPO policy looks like the harder case — it
+was trained on one robot and one sensor and has no idea either can change — and
+[`policy_driver.py`](../gazebo_tb3/policy_driver.py) feeds it the TurtleBot3's
+scan the way a deployment would: moved to the robot's centre, sampled at the
+policy's 32 bearings, an empty direction read as the 6 m the policy trained on,
+the last scan held between 5 Hz updates, its commands clipped by the TurtleBot3's
+drive. Given its own sensor, the adapter rebuilds the training observation
+number for number. Four arms on 100 val worlds each of `nominal`, `dense` and
+`narrow`, registered first ([`policy_transfer_test.py`](../scripts/policy_transfer_test.py)):
+
+| val success / collision | nominal | dense | narrow |
+|---|---|---|---|
+| the policy on its training robot, 2-D | 0.92 / 0.06 | 0.67 / 0.29 | 0.68 / 0.21 |
+| on a TurtleBot3's specification, 2-D | 0.93 / 0.05 | 0.63 / 0.31 | 0.65 / 0.25 |
+| the same, empty directions read as 3.5 m | 0.91 / 0.06 | 0.68 / 0.27 | 0.69 / 0.21 |
+| on the TurtleBot3 in Gazebo | 0.92 / 0.06 | 0.60 / 0.32 | 0.66 / 0.22 |
+
+**The TurtleBot3 costs the policy nothing this resolves.** Against its training
+robot it moves +0.01, −0.04 and −0.03, pooled −0.020 (9 worlds won, 15 lost,
+p = 0.31), where the same move cost the classical stack −0.203 with not one
+world won. The registration expected 0.05 to 0.25 lost in clutter; the policy
+lost less than that.
+
+**Gazebo adds nothing either: TRANSFERS, as registered.** Against the 2-D
+TurtleBot3 the Gazebo arm moves −0.01, −0.03 and +0.01, pooled −0.010
+[−0.033, +0.017], 6 worlds won and 9 lost; its collisions are within 0.03 of the
+2-D arm's on every condition, and no lidar scan was missed.
+
+**And the adapter's one choice is worth nothing measurable.** Reading empty
+directions as the LDS-01's own 3.5 m, not the 6 m the policy trained on, moves
+success by −0.02, +0.05 and +0.04, none resolved (pooled +0.023, p = 0.30). The
+registration said it would cost at least 0.10 in the open.
+
+**Why the two controllers move so differently.** Not because the policy is the
+better driver: on the Gazebo TurtleBot3 it arrives about as often as the
+classical stack does — 0.92, 0.60 and 0.66 against 0.97, 0.68 and 0.60 — and
+collides far more, 0.06 to 0.32 against 0.00 to 0.02. It is what each does with
+the sensor. The stack localises and maps with it, and a 3.5 m lidar in an open
+arena leaves its scan matcher little to match, so most of its specification
+cost is localisation and mapping (§9.23). The policy is reactive and
+privileged: its goal vector comes from the true pose, so it needs the lidar only
+for what is near, and everything near is inside 3.5 m. A slower, more sluggish
+body shifts its speed inputs and clips its commands, and costs it nothing it
+shows. The policy transfers because it was handed the hard part.
+
+**Calibration.** Partial: the decision held, as did parity in the open, the
+per-condition bounds on Gazebo, the collision bound and the scan check; the
+clutter cost and the cost of reading 3.5 m both failed. A few Gazebo episodes
+needed a fresh server after a start-up failure; runs are deterministic, so each
+is the same episode.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -2591,8 +2645,11 @@ In order of expected information per GPU-hour:
    for the classical stack (§9.23): with odometry of matching quality the 2-D
    simulator predicts a TurtleBot3 in Gazebo to within two points, and the
    question left for hardware is narrow — how much a real TurtleBot3's
-   odometry drifts. The next step without hardware is the learned policy in
-   the same Gazebo worlds, which meets a lidar it was never trained on.
+   odometry drifts. The learned policy has made the same move (§9.24): on the
+   TurtleBot3, in 2-D or in Gazebo, it does as well as on its training robot,
+   because its privileged goal vector spares it the localisation the stack
+   pays for. The informative next run is a policy without that privilege —
+   one that reads its goal from odometry — on the same robot.
 
 ## 13. Reproducing
 

@@ -35,6 +35,7 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures.process import BrokenProcessPool
 from dataclasses import replace
 from pathlib import Path
 
@@ -81,8 +82,13 @@ def _policy():
     """The policy, loaded once per worker process."""
     global _MODEL
     if _MODEL is None:
+        import torch
         from stable_baselines3 import PPO
 
+        # One thread per worker. Left to itself, PyTorch gives a 37-input
+        # network every core, and four such workers beside four Gazebo
+        # servers ran at a load of 51 on 24 cores, an episode an hour.
+        torch.set_num_threads(1)
         _MODEL = PPO.load(str(POLICY_MODEL), device="cpu")
     return _MODEL
 BUDGET = 1200
@@ -352,6 +358,11 @@ def _stagger_start(counter, seconds: float) -> None:
 
 def _run(job: tuple) -> dict:
     arm, cond, seed, split, n, partition = job
+    started = os.environ.get("TRANSFER_STARTED_DIR")
+    if started:
+        # So that, if this worker dies outright, the episode it was running
+        # can be told from the ones still queued.
+        Path(started, f"{cond}_{seed}").touch()
     if arm in POLICY_ARMS and arm != "policy_gazebo":
         return {"arm": arm, "cond": cond, "seed": seed, **policy_episode_2d(arm, cond, seed, split, n)}
     if arm not in ("gazebo", "policy_gazebo"):
@@ -397,24 +408,53 @@ def main(argv=None) -> int:
     done = {(r["cond"], r["seed"]) for r in rows}
     todo = [j for j in jobs if (j[1], j[2]) not in done]
     failed: list[dict] = []
-    counter = mp.Value("i", 0)
     stagger = 20.0 if args.arm in ("gazebo", "policy_gazebo") else 0.0
-    with ProcessPoolExecutor(max_workers=args.workers, initializer=_stagger_start,
-                             initargs=(counter, stagger)) as pool:
-        futures = [pool.submit(_run, j) for j in todo]
-        for fut in as_completed(futures):
-            row = fut.result()
-            if "error" in row:
-                # Never written as an episode, never silently dropped.
-                failed.append(row)
-                print(f"{row['cond']:8s} {row['seed']} FAILED: {row['error']}", flush=True)
-                continue
-            rows.append(row)
-            out.write_text(json.dumps({"arm": args.arm, "split": args.split, "budget": BUDGET,
-                                       "episodes": rows, "failed": failed}, indent=1),
-                           encoding="utf-8")
-            print(f"{row['cond']:8s} {row['seed']} success {row['success']} collision "
-                  f"{row['collision']} steps {row['steps']}", flush=True)
+    # A worker that dies outright (a crash in a native library, not an
+    # exception) breaks the whole pool. Each break starts a fresh pool on the
+    # episodes not yet finished; an episode that was running when its worker
+    # died is charged a crash, and after two it is recorded as failed --
+    # runs are deterministic, so a crash that repeats is the episode's own.
+    crashes: dict[tuple, int] = {}
+    import tempfile
+
+    started_dir = Path(tempfile.mkdtemp(prefix="transfer_started_"))
+    os.environ["TRANSFER_STARTED_DIR"] = str(started_dir)
+    while todo:
+        counter = mp.Value("i", 0)
+        running = {}
+        try:
+            with ProcessPoolExecutor(max_workers=args.workers, initializer=_stagger_start,
+                                     initargs=(counter, stagger)) as pool:
+                running = {pool.submit(_run, j): j for j in todo}
+                for fut in as_completed(running):
+                    row = fut.result()
+                    job = running[fut]
+                    todo = [j for j in todo if j != job]
+                    if "error" in row:
+                        # Never written as an episode, never silently dropped.
+                        failed.append(row)
+                        print(f"{row['cond']:8s} {row['seed']} FAILED: {row['error']}", flush=True)
+                        continue
+                    rows.append(row)
+                    out.write_text(json.dumps({"arm": args.arm, "split": args.split,
+                                               "budget": BUDGET, "episodes": rows,
+                                               "failed": failed}, indent=1), encoding="utf-8")
+                    print(f"{row['cond']:8s} {row['seed']} success {row['success']} collision "
+                          f"{row['collision']} steps {row['steps']}", flush=True)
+        except BrokenProcessPool:
+            # Charge only the episodes a worker had started and not finished.
+            for job in todo:
+                key = (job[1], job[2])
+                if (started_dir / f"{key[0]}_{key[1]}").exists():
+                    crashes[key] = crashes.get(key, 0) + 1
+            for marker in started_dir.iterdir():
+                marker.unlink()
+            gave_up = [j for j in todo if crashes.get((j[1], j[2]), 0) > 2]
+            for job in gave_up:
+                failed.append({"arm": job[0], "cond": job[1], "seed": job[2],
+                               "error": ["worker crashed on three pools"]})
+            todo = [j for j in todo if j not in gave_up]
+            print(f"worker pool broke; restarting on {len(todo)} episodes", flush=True)
     out.write_text(json.dumps({"arm": args.arm, "split": args.split, "budget": BUDGET,
                                "episodes": rows, "failed": failed}, indent=1), encoding="utf-8")
     for cond in args.conditions:

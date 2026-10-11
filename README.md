@@ -71,6 +71,7 @@ decision below follows from wanting that comparison to be trustworthy.
 | Why it stalls where a route exists: inside a wall's margin the plan is rebuilt from scratch on two steps in three | Done |
 | A virtual TurtleBot3 in Gazebo ([`gazebo_tb3/`](gazebo_tb3/)): built to a real Waffle Pi's limits, its lidar checked against the 2-D simulator's | Done |
 | Transfer test: with matching odometry, the 2-D simulator predicts the Gazebo TurtleBot3 within two points; its specification costs 0.13–0.24 | Done |
+| The learned policy on the TurtleBot3: transfers, in 2-D and in Gazebo — its privileged goal vector spares it the localisation the classical stack pays for | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
 Sixty-one experiments, each pre-registered where it tests a hypothesis. The

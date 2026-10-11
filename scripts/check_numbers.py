@@ -1929,6 +1929,50 @@ def claims():
                  round(min(o[c]["delta"] for c in ("nominal", "dense", "narrow")), 2)),
                 ("followup odometry effect high", 0.16,
                  round(max(o[c]["delta"] for c in ("nominal", "dense", "narrow")), 2))]
+    # The learned policy on the TurtleBot3, report §9.24.
+    pt = "results/policy_transfer_test.json"
+    if os.path.exists(pt) and os.path.exists(tt):
+        pj, tj2 = load(pt), load(tt)
+        conds = ("nominal", "dense", "narrow")
+        table = {"policy_project": ((0.92, 0.06), (0.67, 0.29), (0.68, 0.21)),
+                 "policy_tb3_2d": ((0.93, 0.05), (0.63, 0.31), (0.65, 0.25)),
+                 "policy_tb3_2d_naive": ((0.91, 0.06), (0.68, 0.27), (0.69, 0.21)),
+                 "policy_gazebo": ((0.92, 0.06), (0.60, 0.32), (0.66, 0.22))}
+        for arm, rows in table.items():
+            for cond, (s, c) in zip(conds, rows, strict=True):
+                e = pj["conditions"][cond][arm]
+                out += [(f"policy {arm} {cond} success", s, e["success"]),
+                        (f"policy {arm} {cond} collision", c, round(e["collision"], 2))]
+        pp = pj["pairs"]
+        for name, deltas, pooled, won, lost, p in (
+            ("policy_tb3_2d - policy_project", (0.01, -0.04, -0.03), -0.020, 9, 15, 0.31),
+            ("policy_tb3_2d_naive - policy_tb3_2d", (-0.02, 0.05, 0.04), 0.023, 20, 13, 0.30),
+            ("policy_gazebo - policy_tb3_2d", (-0.01, -0.03, 0.01), -0.010, 6, 9, 0.61),
+        ):
+            for cond, d in zip(conds, deltas, strict=True):
+                out.append((f"policy {name} {cond}", d, round(pp[name][cond]["delta"], 3)))
+            q = pp[name]["pooled"]
+            out += [(f"policy {name} pooled", pooled, round(q["delta"], 3)),
+                    (f"policy {name} won", won, q["won"]), (f"policy {name} lost", lost, q["lost"]),
+                    (f"policy {name} p", p, round(q["p"], 2))]
+        g = pp["policy_gazebo - policy_tb3_2d"]["pooled"]
+        out += [("policy gazebo ci lo", -0.033, round(g["ci95"][0], 3)),
+                ("policy gazebo ci hi", 0.017, round(g["ci95"][1], 3)),
+                ("policy decision TRANSFERS", 1.0, float(pj["decision"] == "TRANSFERS")),
+                ("policy missed scans", 0, pj["missed_scans"]),
+                ("policy gazebo collision gap", 0.03, round(max(
+                    abs(pj["conditions"][c]["policy_gazebo"]["collision"]
+                        - pj["conditions"][c]["policy_tb3_2d"]["collision"]) for c in conds), 2)),
+                ("policy gazebo collision low", 0.06,
+                 round(min(pj["conditions"][c]["policy_gazebo"]["collision"] for c in conds), 2)),
+                ("policy gazebo collision high", 0.32,
+                 round(max(pj["conditions"][c]["policy_gazebo"]["collision"] for c in conds), 2)),
+                ("stack gazebo collision low", 0.00,
+                 round(min(tj2["conditions"][c]["gazebo"]["collision"] for c in conds), 2)),
+                ("stack gazebo collision high", 0.02,
+                 round(max(tj2["conditions"][c]["gazebo"]["collision"] for c in conds), 2)),
+                ("policy gazebo episodes", 300,
+                 len(load("results/gazebo_tb3/transfer_policy_gazebo.json")["episodes"]))]
     # Graph density: slam_toolbox's linking against this back end's closures.
     if os.path.exists(sy):
         from vision_nav.mapping.posegraph import PoseGraphConfig

@@ -1,0 +1,178 @@
+{
+  "prediction": "the TurtleBot3 costs the policy in clutter, not in the open, the adapter's choice for empty directions matters, and the physics simulator adds nothing. policy_tb3_2d against policy_project: on nominal within 0.05 either way; on dense and narrow each lower by between 0.05 and 0.25. policy_tb3_2d_naive against policy_tb3_2d: on nominal at least 0.10 lower. policy_gazebo against policy_tb3_2d: on each condition within 0.10 either way, and policy_gazebo collides no more than 0.05 more often than policy_tb3_2d on any condition. The Gazebo arm misses no lidar scan. Decision on the pooled policy_gazebo - policy_tb3_2d difference over the 300 paired worlds -- TRANSFERS: within 0.05 either way with its 95% interval inside 0.10 either way. WORSE IN GAZEBO: at most -0.05 with the interval below zero. BETTER IN GAZEBO: at least +0.05 with the interval above zero. Otherwise UNRESOLVED. Prediction: TRANSFERS.",
+  "worlds": 300,
+  "conditions": {
+    "nominal": {
+      "policy_project": {
+        "success": 0.92,
+        "collision": 0.06,
+        "timeout": 0.019999999999999962,
+        "steps_median": 139.5
+      },
+      "policy_tb3_2d": {
+        "success": 0.93,
+        "collision": 0.05,
+        "timeout": 0.01999999999999995,
+        "steps_median": 309.0
+      },
+      "policy_tb3_2d_naive": {
+        "success": 0.91,
+        "collision": 0.06,
+        "timeout": 0.02999999999999997,
+        "steps_median": 304.0
+      },
+      "policy_gazebo": {
+        "success": 0.92,
+        "collision": 0.06,
+        "timeout": 0.019999999999999962,
+        "steps_median": 312.0
+      }
+    },
+    "dense": {
+      "policy_project": {
+        "success": 0.67,
+        "collision": 0.29,
+        "timeout": 0.03999999999999998,
+        "steps_median": 141.5
+      },
+      "policy_tb3_2d": {
+        "success": 0.63,
+        "collision": 0.31,
+        "timeout": 0.06,
+        "steps_median": 305.0
+      },
+      "policy_tb3_2d_naive": {
+        "success": 0.68,
+        "collision": 0.27,
+        "timeout": 0.04999999999999993,
+        "steps_median": 291.0
+      },
+      "policy_gazebo": {
+        "success": 0.6,
+        "collision": 0.32,
+        "timeout": 0.08000000000000002,
+        "steps_median": 299.0
+      }
+    },
+    "narrow": {
+      "policy_project": {
+        "success": 0.68,
+        "collision": 0.21,
+        "timeout": 0.10999999999999996,
+        "steps_median": 161.5
+      },
+      "policy_tb3_2d": {
+        "success": 0.65,
+        "collision": 0.25,
+        "timeout": 0.09999999999999998,
+        "steps_median": 354.5
+      },
+      "policy_tb3_2d_naive": {
+        "success": 0.69,
+        "collision": 0.21,
+        "timeout": 0.10000000000000006,
+        "steps_median": 340.0
+      },
+      "policy_gazebo": {
+        "success": 0.66,
+        "collision": 0.22,
+        "timeout": 0.11999999999999997,
+        "steps_median": 352.5
+      }
+    }
+  },
+  "pairs": {
+    "policy_tb3_2d - policy_project": {
+      "nominal": {
+        "delta": 0.010000000000000009,
+        "p": 1.0,
+        "won": 3,
+        "lost": 2
+      },
+      "dense": {
+        "delta": -0.040000000000000036,
+        "p": 0.34375,
+        "won": 3,
+        "lost": 7
+      },
+      "narrow": {
+        "delta": -0.030000000000000027,
+        "p": 0.5078125,
+        "won": 3,
+        "lost": 6
+      },
+      "pooled": {
+        "delta": -0.020000000000000018,
+        "p": 0.30745625495910645,
+        "won": 9,
+        "lost": 15,
+        "ci95": [
+          -0.05008333333333326,
+          0.01
+        ]
+      }
+    },
+    "policy_tb3_2d_naive - policy_tb3_2d": {
+      "nominal": {
+        "delta": -0.020000000000000018,
+        "p": 0.6875,
+        "won": 2,
+        "lost": 4
+      },
+      "dense": {
+        "delta": 0.050000000000000044,
+        "p": 0.266845703125,
+        "won": 9,
+        "lost": 4
+      },
+      "narrow": {
+        "delta": 0.039999999999999925,
+        "p": 0.4239501953125,
+        "won": 9,
+        "lost": 5
+      },
+      "pooled": {
+        "delta": 0.023333333333333317,
+        "p": 0.296206368599087,
+        "won": 20,
+        "lost": 13,
+        "ci95": [
+          -0.013333333333333334,
+          0.06333333333333334
+        ]
+      }
+    },
+    "policy_gazebo - policy_tb3_2d": {
+      "nominal": {
+        "delta": -0.010000000000000009,
+        "p": 1.0,
+        "won": 0,
+        "lost": 1
+      },
+      "dense": {
+        "delta": -0.030000000000000027,
+        "p": 0.25,
+        "won": 0,
+        "lost": 3
+      },
+      "narrow": {
+        "delta": 0.010000000000000009,
+        "p": 1.0,
+        "won": 6,
+        "lost": 5
+      },
+      "pooled": {
+        "delta": -0.010000000000000009,
+        "p": 0.60723876953125,
+        "won": 6,
+        "lost": 9,
+        "ci95": [
+          -0.03341666666666659,
+          0.016666666666666666
+        ]
+      }
+    }
+  },
+  "decision": "TRANSFERS",
+  "missed_scans": 0
+}
