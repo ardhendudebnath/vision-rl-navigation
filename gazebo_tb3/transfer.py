@@ -65,6 +65,26 @@ from vision_nav.training.env_factory import build_env_config  # noqa: E402
 #: ``tb3_2d`` with that model switched off -- odometry integrates the true
 #: velocity, no drift at all -- so it brackets Gazebo from the other side.
 ARMS = ("project", "tb3_2d", "tb3_2d_6m", "gazebo", "tb3_2d_exact_odom")
+#: The privileged PPO policy on the same worlds (``policy_driver.py``):
+#: policy_project      in 2-D on its training robot and its own 32-beam 6 m
+#:                     lidar, an observation every step
+#: policy_tb3_2d       a TurtleBot3's limits and LDS-01 in 2-D, through the
+#:                     adapter, empty directions reading the training 6 m
+#: policy_tb3_2d_naive the same, empty directions reading the LDS-01's 3.5 m
+#: policy_gazebo       the TurtleBot3 in Gazebo, through the adapter
+POLICY_ARMS = ("policy_project", "policy_tb3_2d", "policy_tb3_2d_naive", "policy_gazebo")
+POLICY_MODEL = HERE.parent / "runs" / "ppo_privileged" / "best_model.zip"
+_MODEL = None
+
+
+def _policy():
+    """The policy, loaded once per worker process."""
+    global _MODEL
+    if _MODEL is None:
+        from stable_baselines3 import PPO
+
+        _MODEL = PPO.load(str(POLICY_MODEL), device="cpu")
+    return _MODEL
 BUDGET = 1200
 NOISE = 0.01
 #: The published configuration's sensor: 360 beams over the full circle, 6 m.
@@ -207,6 +227,114 @@ def gazebo_episode(cond: str, seed: int, split: str, n: int, profile: str = "rea
                    {"missed_scans": missed, "wall_seconds": time.monotonic() - started})
 
 
+def _policy_command(action: np.ndarray, limits: RobotConfig) -> np.ndarray:
+    """The policy's action as the velocity it asked for -- scaled by its
+    training robot's limits -- clipped to what ``limits`` allows."""
+    from policy_driver import POLICY_ROBOT
+
+    v, w = DiffDriveRobot(POLICY_ROBOT).scale_action(action)
+    return np.array([np.clip(v, limits.min_linear_vel, limits.max_linear_vel),
+                     np.clip(w, -limits.max_angular_vel, limits.max_angular_vel)])
+
+
+def _policy_summary(success, collision, steps, goal_distance, path, scans, extra=None) -> dict:
+    return {"success": bool(success), "collision": bool(collision), "steps": int(steps),
+            "goal_distance": float(goal_distance), "path_length": float(path),
+            "scans_used": int(scans), **(extra or {})}
+
+
+def policy_episode_2d(arm: str, cond: str, seed: int, split: str, n: int) -> dict:
+    from policy_driver import POLICY_BEARINGS, POLICY_MAX_RANGE, POLICY_ROBOT, PolicyDriver
+
+    if arm == "policy_project":
+        robot, lidar, bearings, lidar_x, every = (
+            POLICY_ROBOT, LidarConfig(n_beams=32, fov=2.0 * np.pi, max_range=POLICY_MAX_RANGE,
+                                      noise_std=NOISE), POLICY_BEARINGS, 0.0, 1)
+    else:
+        robot, lidar, bearings, lidar_x, every = TB3_ROBOT, TB3_LIDAR, TB3_BEARINGS, TB3_LIDAR_X, 2
+    no_return = lidar.max_range if arm == "policy_tb3_2d_naive" else POLICY_MAX_RANGE
+    cfg, env = world_for(cond, seed, split, n, robot)
+    world = env.world
+    rng = np.random.default_rng((seed, 11))
+    caster = analytic_lidar(replace(lidar, noise_std=0.0), bearings)
+
+    def scan_at(pose: np.ndarray) -> np.ndarray:
+        s = np.asarray(pose, dtype=np.float64).copy()
+        s[:2] += lidar_x * np.array([np.cos(s[2]), np.sin(s[2])])
+        return add_noise(caster.scan(world, s), lidar.max_range, rng)
+
+    driver = PolicyDriver(_policy(), lidar.max_range, bearings, lidar_x, no_return)
+    driver.feed(scan_at(env.robot.pose))
+    unscale = DiffDriveRobot(robot)
+    info: dict = {}
+    for k in range(BUDGET):
+        action = driver.act(env.robot.pose, world.goal, env.robot.velocity)
+        _, _, done, truncated, info = env.step(unscale.unscale_action(_policy_command(action, robot)))
+        if (k + 1) % every == 0:
+            driver.feed(scan_at(env.robot.pose))
+        if done or truncated:
+            break
+    return _policy_summary(info.get("is_success"), info.get("collision"), info.get("steps", k + 1),
+                           info.get("goal_distance", np.nan), info.get("path_length", np.nan),
+                           driver.scans_used)
+
+
+def policy_episode_gazebo(cond: str, seed: int, split: str, n: int, profile: str = "real") -> dict:
+    from gz_session import GzSession  # needs the ros_tb3 environment
+    from policy_driver import POLICY_MAX_RANGE, PolicyDriver
+    from robot_sdf import robot_model
+    from world_sdf import world_sdf
+
+    cfg, env = world_for(cond, seed, split, n, TB3_ROBOT)
+    world = env.world
+    model = robot_model((HERE / "gz_waffle.sdf").read_text(encoding="utf-8"), profile,
+                        pose=tuple(float(v) for v in world.start), lidar_noise=False,
+                        report_hz=500)
+    sdf = world_sdf(world, robot_xml=ET.tostring(model, encoding="unicode"))
+    rng = np.random.default_rng((seed, 11))
+    max_range = TB3_LIDAR.max_range
+    tol, radius = float(world.config.goal_tolerance), float(world.config.robot_radius)
+    started = time.monotonic()
+    with GzSession(sdf, resource_path=str(Path(sys.prefix) / "share/nav2_minimal_tb3_sim/models"),
+                   sync=True) as gz:
+        gz.wait_ready()
+        for _ in range(20):
+            gz.command(0.0, 0.0)
+            gz.step(0.1)
+            if gz.scan is not None and abs(gz.scan_stamp - gz.sim_time) < 1e-3:
+                break
+        if gz.scan is None:
+            raise RuntimeError(f"no lidar scan after 2 s; see {gz.log_path}")
+        driver = PolicyDriver(_policy(), max_range, TB3_BEARINGS, TB3_LIDAR_X, POLICY_MAX_RANGE)
+        driver.feed(add_noise(np.asarray(gz.scan.ranges), max_range, rng))
+        last = np.array(gz.true_pose[:2])
+        missed, path, success, collision, k = 0, 0.0, False, False, 0
+        for k in range(BUDGET):
+            truth = np.array(gz.true_pose)
+            vel = np.array([gz.odom.twist.linear.x, gz.odom.twist.angular.z])
+            v, w = _policy_command(driver.act(truth, world.goal, vel), TB3_ROBOT)
+            gz.command(v, w)
+            gz.step(0.1)
+            now = gz.sim_time
+            if (k + 1) % 2 == 0:
+                if gz.wait_for("scan", now - 1e-4, timeout=30.0) and abs(gz.scan_stamp - now) < 1e-3:
+                    driver.feed(add_noise(np.asarray(gz.scan.ranges), max_range, rng))
+                else:
+                    missed += 1
+            here = np.array(gz.true_pose[:2])
+            path += float(np.linalg.norm(here - last))
+            last = here
+            if np.linalg.norm(here - world.goal) <= tol:
+                success = True
+                break
+            if float(world.clearance(here, include_dynamic=False)) < radius:
+                collision = True
+                break
+    return _policy_summary(success, collision, k + 1, float(np.linalg.norm(last - world.goal)), path,
+                           driver.scans_used,
+                           {"missed_scans": missed, "wall_seconds": time.monotonic() - started})
+
+
 _STAGGER = None
 
 
@@ -224,8 +352,11 @@ def _stagger_start(counter, seconds: float) -> None:
 
 def _run(job: tuple) -> dict:
     arm, cond, seed, split, n, partition = job
-    if arm != "gazebo":
+    if arm in POLICY_ARMS and arm != "policy_gazebo":
+        return {"arm": arm, "cond": cond, "seed": seed, **policy_episode_2d(arm, cond, seed, split, n)}
+    if arm not in ("gazebo", "policy_gazebo"):
         return {"arm": arm, "cond": cond, "seed": seed, **analytic_episode(arm, cond, seed, split, n)}
+    episode = gazebo_episode if arm == "gazebo" else policy_episode_gazebo
     errors = []
     # A run is deterministic, so an episode whose server failed to start is
     # simply run again on a fresh one; the result is the same episode.
@@ -234,7 +365,7 @@ def _run(job: tuple) -> dict:
         # never hear each other.
         os.environ["GZ_PARTITION"] = f"transfer_{partition}_{attempt}"
         try:
-            out = gazebo_episode(cond, seed, split, n)
+            out = episode(cond, seed, split, n)
             return {"arm": arm, "cond": cond, "seed": seed, "attempts": attempt + 1, **out}
         except Exception as exc:  # noqa: BLE001 -- recorded, then retried once
             errors.append(f"{type(exc).__name__}: {exc}")
@@ -243,7 +374,7 @@ def _run(job: tuple) -> dict:
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--arm", required=True, choices=ARMS)
+    p.add_argument("--arm", required=True, choices=ARMS + POLICY_ARMS)
     p.add_argument("--conditions", nargs="+", default=["nominal", "dense", "narrow"])
     p.add_argument("--episodes", type=int, default=50)
     p.add_argument("--split", default="val")
@@ -267,7 +398,7 @@ def main(argv=None) -> int:
     todo = [j for j in jobs if (j[1], j[2]) not in done]
     failed: list[dict] = []
     counter = mp.Value("i", 0)
-    stagger = 20.0 if args.arm == "gazebo" else 0.0
+    stagger = 20.0 if args.arm in ("gazebo", "policy_gazebo") else 0.0
     with ProcessPoolExecutor(max_workers=args.workers, initializer=_stagger_start,
                              initargs=(counter, stagger)) as pool:
         futures = [pool.submit(_run, j) for j in todo]
@@ -283,8 +414,7 @@ def main(argv=None) -> int:
                                        "episodes": rows, "failed": failed}, indent=1),
                            encoding="utf-8")
             print(f"{row['cond']:8s} {row['seed']} success {row['success']} collision "
-                  f"{row['collision']} steps {row['steps']} pose {row['pose_err_median']:.3f}",
-                  flush=True)
+                  f"{row['collision']} steps {row['steps']}", flush=True)
     out.write_text(json.dumps({"arm": args.arm, "split": args.split, "budget": BUDGET,
                                "episodes": rows, "failed": failed}, indent=1), encoding="utf-8")
     for cond in args.conditions:
