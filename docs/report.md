@@ -2463,6 +2463,58 @@ size of the 2-D cost failed on both robots. Seven Gazebo episodes needed a fresh
 server after a start-up failure; runs are deterministic, so each is the same
 episode, and no lidar scan was missed.
 
+### 9.26 The repair §9.22 named: the rebuilds go, the stalls stay
+
+§9.22 left an association. Clutter stalls on worlds with a margin-safe route
+spend 41% of their steps inside a wall's margin, and there they rebuild their
+plan on about two steps in three. The planner clears the robot's footprint
+before it searches, and the check that invalidates plans did not. The test is
+the repair. With `footprint_check` on
+([`mapped.py`](../src/vision_nav/agents/mapped.py)), the check excuses the
+route's points inside the footprint and on the one grid step out of it — what
+the planner accepted cell by cell, never by line of sight — and nothing else.
+The footprint alone would not have done: between the last cleared cell and the
+first free one the route dips under the plan radius, so the plan would still
+have been rebuilt. A unit test holds both facts. The published stack and the
+repaired one ran on the same val worlds, registered first
+([`footprint_check_test.py`](../scripts/footprint_check_test.py)), and the
+published arm reproduces §9.22's episodes exactly.
+
+| val | nominal | dense | narrow |
+|---|---|---|---|
+| success / collision, published | 0.95 / 0.00 | 0.72 / 0.00 | 0.58 / 0.00 |
+| success / collision, repaired | 0.96 / 0.00 | 0.70 / 0.01 | 0.58 / 0.00 |
+| rebuilds per 100 steps, published | 11.1 | 21.8 | 22.4 |
+| rebuilds per 100 steps, repaired | 2.8 | 4.7 | 5.5 |
+
+**The repair does what it was built to do, and arrival does not move: NO
+EFFECT, as registered.** On the margin-safe clutter worlds rebuilds fall from
+20.0 to 4.8 per 100 steps. Success moves −0.02 on `dense` and 0.00 on `narrow`,
+pooled −0.010 [−0.030, +0.010], 1 world won and 3 lost. Of the 32 stalls on
+margin-safe worlds, one arrives with the repair, three more end within a metre
+of the goal without arriving, and 28 stall in both arms. None of the 31 worlds
+with no route at the full margin arrives in either.
+
+**So the rebuild loop was a symptom.** Under the repair the stalls rebuild 6.4
+times per 100 steps instead of 31.0, and otherwise look as they did: inside the
+margin on 36% of their steps against 41%, ending a median 6.9 m from the goal
+against 7.3 m, the pose known to within 0.05 m. On all margin-safe worlds the
+share of steps inside the margin barely moves, 0.199 to 0.188. That answers
+part of the question §9.22 left open: whatever keeps a stalling robot inside the
+margin, it is not the rebuilding it does there.
+
+**What holds them is now narrower.** Neither arm spent a single step in
+recovery on these worlds, so these robots are never without a route. Each holds
+a plan it keeps, knows its pose to five centimetres, and ends seven metres
+short. With the rebuilds ruled out here, as the pose and the map's changes of
+mind were in §9.22, what remains is what the controller does with a plan it
+holds. That is the next measurement, not a repair.
+
+**Calibration.** Held in full: the decision, rebuilds at 24% of the published
+arm's rate (at most 40% registered), 1 of 32 stalls converted (at most a
+third), the share of steps inside the margin within 0.05, collisions at most
+0.02, nominal within 0.03, and no arrival on a no-route world.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -2675,8 +2727,11 @@ In order of expected information per GPU-hour:
    of a metre. §9.22 finds the val stalls in a rebuild loop: inside a wall's
    margin the plan is rebuilt from scratch on about two steps in three,
    because the planner clears the robot's footprint and the check that
-   invalidates plans does not. Making the check consistent is the next
-   registered test.
+   invalidates plans does not. Making the check consistent removed three
+   quarters of the rebuilds and none of the stalls (§9.26), so the loop was a
+   symptom. What is left to measure is what the controller does with a plan
+   it holds: the stalled robots keep their route, know their pose to 0.05 m,
+   and end seven metres short.
 2. **Under noise, what a stack does with the pose error it cannot remove.**
    Localisation under noise is no longer a gap to close: with the noise
    delivered, slam_toolbox ends episodes 0.220 m from the truth and this stack

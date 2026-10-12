@@ -2048,6 +2048,61 @@ def claims():
                     (f"privilege {arm} timeout distance", true_d, round(d["timeout_goal_distance_median"], 2)),
                     (f"privilege {arm} timeout believed", believed,
                      round(d["timeout_believed_distance_median"], 2))]
+    # The footprint-consistent validity check, report §9.26.
+    fc = "results/footprint_check_test.json"
+    if os.path.exists(fc):
+        fj = load(fc)
+        conds = ("nominal", "dense", "narrow")
+        for arm, rows, rates in (("published", ((0.95, 0.00), (0.72, 0.00), (0.58, 0.00)), (11.1, 21.8, 22.4)),
+                                 ("repaired", ((0.96, 0.00), (0.70, 0.01), (0.58, 0.00)), (2.8, 4.7, 5.5))):
+            for cond, (s, c), rate in zip(conds, rows, rates, strict=True):
+                e = fj["conditions"][cond][arm]
+                out += [(f"footprint {arm} {cond} success", s, round(e["success"], 2)),
+                        (f"footprint {arm} {cond} collision", c, round(e["collision"], 2)),
+                        (f"footprint {arm} {cond} rebuilds", rate, round(e["replans_per_100_steps"], 1))]
+        q, ms, nr = fj["pairs"]["clutter"], fj["margin_safe"], fj["no_route"]
+        out += [("footprint decision NO EFFECT", 1.0, float(fj["decision"] == "NO EFFECT")),
+                ("footprint reproduces 9.22", 1.0, float(fj["reproduces_stall_diagnostic"])),
+                ("footprint dense delta", -0.02, round(fj["pairs"]["dense"]["delta"], 3)),
+                ("footprint narrow delta", 0.00, round(fj["pairs"]["narrow"]["delta"], 3)),
+                ("footprint nominal delta", 0.01, round(fj["pairs"]["nominal"]["delta"], 3)),
+                ("footprint clutter pooled", -0.010, round(q["delta"], 3)),
+                ("footprint clutter ci lo", -0.030, round(q["ci95"][0], 3)),
+                ("footprint clutter ci hi", 0.010, round(q["ci95"][1], 3)),
+                ("footprint clutter won", 1, q["won"]), ("footprint clutter lost", 3, q["lost"]),
+                ("footprint margin-safe stalls", 32, ms["published_stalls"]),
+                ("footprint stalls converted", 1, ms["published_stalls_arrived"]),
+                ("footprint safe rebuilds published", 20.0, round(ms["replans_per_100_steps"]["published"], 1)),
+                ("footprint safe rebuilds repaired", 4.8, round(ms["replans_per_100_steps"]["repaired"], 1)),
+                ("footprint rebuild ratio", 0.24, round(ms["replans_per_100_steps"]["repaired"]
+                                                        / ms["replans_per_100_steps"]["published"], 2)),
+                ("footprint inside published", 0.199, round(ms["inside_margin_share"]["published"], 3)),
+                ("footprint inside repaired", 0.188, round(ms["inside_margin_share"]["repaired"], 3)),
+                ("footprint no route worlds", 31, nr["worlds"]),
+                ("footprint no route arrivals", 0, max(nr["arrived"].values()))]
+        rows = fj["episodes_detail"]
+        safe = [r for r in rows if r["cond"] in ("dense", "narrow") and r["class"] in ("short", "long detour")]
+
+        def stall(r):
+            return not r["success"] and not r["collision"] and r["final_remaining"] >= 1.0
+        both = {(r["cond"], r["seed"]) for r in safe if r["arm"] == "published" and stall(r)} & \
+               {(r["cond"], r["seed"]) for r in safe if r["arm"] == "repaired" and stall(r)}
+        repaired = {(r["cond"], r["seed"]): r for r in safe if r["arm"] == "repaired"}
+        were = {(r["cond"], r["seed"]) for r in safe if r["arm"] == "published" and stall(r)}
+        out += [("footprint stall in both", 28, len(both)),
+                ("footprint stalls ending near", 3, sum(not repaired[k]["success"] and not repaired[k]["collision"]
+                                                        and repaired[k]["final_remaining"] < 1.0 for k in were))]
+        for arm, rate, inside, rem in (("published", 31.0, 0.41, 7.3), ("repaired", 6.4, 0.36, 6.9)):
+            g = [r for r in safe if r["arm"] == arm and stall(r)]
+            out += [(f"footprint {arm} stall rebuilds", rate,
+                     round(100 * sum(r["replans"] for r in g) / sum(r["steps"] for r in g), 1)),
+                    (f"footprint {arm} stall inside", inside,
+                     round(st.mean([r["inside_margin_share"] for r in g]), 2)),
+                    (f"footprint {arm} stall remaining", rem,
+                     round(st.median([r["final_remaining"] for r in g]), 1)),
+                    (f"footprint {arm} stall pose", 0.05,
+                     round(st.median([r["pose_err_median"] for r in g]), 2))]
+        out.append(("footprint no recovery on safe worlds", 0, sum(r["recovery_steps"] for r in safe)))
     # Graph density: slam_toolbox's linking against this back end's closures.
     if os.path.exists(sy):
         from vision_nav.mapping.posegraph import PoseGraphConfig

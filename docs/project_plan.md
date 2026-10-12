@@ -3719,6 +3719,40 @@ With the model off, the 2-D arms reproduce their privileged arms exactly
   condition. Failed: the size of the 2-D cost (0.15–0.40 predicted; 0.113 on
   both robots).
 
+## Phase 7d — The footprint-consistent validity check
+
+The repair §9.22 named. `MappedPursuitAgent.footprint_check` (off by default)
+excuses the route's points inside the robot's footprint and on the one grid step
+out of it — what the planner accepted cell by cell — when deciding whether a
+plan still holds. The footprint alone was not enough: the step from the last
+cleared cell to the first free one dips under the plan radius (tests hold both).
+Published stack against repaired on the same val worlds, registered first
+(`scripts/footprint_check_test.py`, commit ff09fac); the published arm
+reproduces §9.22's episodes exactly. Full treatment in report §9.26.
+
+| val | nominal | dense | narrow |
+|---|---|---|---|
+| published, success / collision | 0.95 / 0.00 | 0.72 / 0.00 | 0.58 / 0.00 |
+| repaired, success / collision | 0.96 / 0.00 | 0.70 / 0.01 | 0.58 / 0.00 |
+| rebuilds per 100 steps, published → repaired | 11.1 → 2.8 | 21.8 → 4.7 | 22.4 → 5.5 |
+
+- **Decision NO EFFECT**, as predicted: pooled clutter −0.010 [−0.030, +0.010],
+  1 / 3. Margin-safe worlds: rebuilds 20.0 → 4.8 per 100 steps; of the 32
+  published stalls, 1 arrives repaired, 3 more end within a metre of the goal
+  without arriving, 28 stall in both; no no-route world arrives in either arm.
+- The stalls under the repair rebuild 6.4 times per 100 steps instead of 31.0
+  and otherwise look the same: inside the margin on 36% of steps (41%), ending a
+  median 6.9 m out (7.3 m), pose within 0.05 m, no recovery steps in either arm.
+  The rebuild loop was a symptom; what is left is what the controller does with
+  a plan it holds.
+
+### Calibration
+
+- Held in full: the decision, rebuilds ≤ 40% of the published rate (24%), at
+  most a third of stalls converted (1 of 32), inside-margin share within 0.05
+  (0.199 → 0.188), collisions ≤ 0.02, nominal within 0.03, no-route arrivals ≤ 2
+  (0).
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**
