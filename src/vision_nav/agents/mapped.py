@@ -206,6 +206,18 @@ class MappedPursuitAgent(AStarPursuitAgent):
         #: from outside this simulator (the Gazebo TurtleBot3), so the map is
         #: built from those scans and never from a ray-cast of the world.
         self.sensor_factory = None
+        #: Judge whether a plan still holds the way the planner made it: points
+        #: of the route inside the robot's own footprint, or on the grid step
+        #: out of it, do not count against it. Off by default, so every
+        #: published result is unchanged.
+        #:
+        #: Report §9.22: the planner clears the footprint before it searches, so
+        #: a plan made with the robot inside a wall's margin begins inside it;
+        #: the check did not clear it, so at the next change anywhere in the map
+        #: it found the plan's first points inside the margin and rebuilt from
+        #: scratch -- 85% of the stalls' rebuilds, 99.6% of them within the
+        #: robot's radius of where the plan began.
+        self.footprint_check = False
         self._plan_radius = 0.0
         self._checked_version = -1
         #: Steps between replans for anything that is not close ahead: 1 Hz at
@@ -479,6 +491,14 @@ class MappedPursuitAgent(AStarPursuitAgent):
         if not len(ahead):
             return False
         invalid = self.map.clearance(ahead) < self._plan_radius - 1e-9
+        if self.footprint_check:
+            # What the planner accepted cell by cell and never by line of sight:
+            # the footprint :meth:`_clear_footprint` hands it as free, and the
+            # one grid step out of it. The smoother cannot shortcut from inside
+            # the margin, so those steps stay in the route as the search left
+            # them, and between cell centres they dip under the plan radius.
+            reach = self.map.robot_radius + 2.0 * self.map.half_diagonal
+            invalid &= np.linalg.norm(ahead - position, axis=1) > reach
         near = max(1, int(self.urgent_distance / self.config.track_spacing))
         # Remembered, not consumed: deferring must not lose the fact that the
         # plan is broken, or anything further than the near horizon is never
