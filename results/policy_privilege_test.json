@@ -1,0 +1,362 @@
+{
+  "prediction": "the privilege is worth a lot under the published odometry model and little under Gazebo's wheel odometry, and the policy does not collide more for the want of it. policy_project_odom against policy_project: lower on every condition, and lower pooled by between 0.15 and 0.40. policy_tb3_2d_odom against policy_tb3_2d: lower pooled by between 0.15 and 0.40, and its pooled drop within 0.10 of policy_project_odom's. Every _odom arm's collision rate within 0.05 of its privileged arm's on every condition, and in each 2-D pair at least two thirds of the worlds lost end in a timeout. policy_gazebo_odom against policy_tb3_2d_odom: at least +0.10 pooled, and its median final odometry error at most half the 2-D arm's. gazebo, the classical stack, against policy_gazebo_odom: pooled success within 0.10 either way, and the stack collides less on every condition. Decision on the pooled policy_gazebo_odom - policy_gazebo difference over the 300 paired worlds -- FREE: within 0.05 either way with its 95% interval inside 0.10 either way. COSTLY: at most -0.05 with the interval below zero. HELPS: at least +0.05 with the interval above zero. Otherwise UNRESOLVED. Prediction: FREE.",
+  "worlds": 300,
+  "conditions": {
+    "nominal": {
+      "policy_project": {
+        "success": 0.92,
+        "collision": 0.06,
+        "timeout": 0.019999999999999962,
+        "steps_median": 139.5
+      },
+      "policy_tb3_2d": {
+        "success": 0.93,
+        "collision": 0.05,
+        "timeout": 0.01999999999999995,
+        "steps_median": 309.0
+      },
+      "policy_gazebo": {
+        "success": 0.92,
+        "collision": 0.06,
+        "timeout": 0.019999999999999962,
+        "steps_median": 312.0
+      },
+      "policy_project_odom": {
+        "success": 0.8,
+        "collision": 0.08,
+        "timeout": 0.11999999999999995,
+        "steps_median": 145.0
+      },
+      "policy_tb3_2d_odom": {
+        "success": 0.77,
+        "collision": 0.07,
+        "timeout": 0.15999999999999998,
+        "steps_median": 322.0
+      },
+      "policy_gazebo_odom": {
+        "success": 0.91,
+        "collision": 0.07,
+        "timeout": 0.019999999999999962,
+        "steps_median": 311.5
+      },
+      "gazebo": {
+        "success": 0.97,
+        "collision": 0.0,
+        "timeout": 0.030000000000000027,
+        "steps_median": 368.0
+      }
+    },
+    "dense": {
+      "policy_project": {
+        "success": 0.67,
+        "collision": 0.29,
+        "timeout": 0.03999999999999998,
+        "steps_median": 141.5
+      },
+      "policy_tb3_2d": {
+        "success": 0.63,
+        "collision": 0.31,
+        "timeout": 0.06,
+        "steps_median": 305.0
+      },
+      "policy_gazebo": {
+        "success": 0.6,
+        "collision": 0.32,
+        "timeout": 0.08000000000000002,
+        "steps_median": 299.0
+      },
+      "policy_project_odom": {
+        "success": 0.59,
+        "collision": 0.29,
+        "timeout": 0.12000000000000005,
+        "steps_median": 150.0
+      },
+      "policy_tb3_2d_odom": {
+        "success": 0.55,
+        "collision": 0.31,
+        "timeout": 0.13999999999999996,
+        "steps_median": 304.0
+      },
+      "policy_gazebo_odom": {
+        "success": 0.65,
+        "collision": 0.29,
+        "timeout": 0.06,
+        "steps_median": 304.5
+      },
+      "gazebo": {
+        "success": 0.68,
+        "collision": 0.02,
+        "timeout": 0.29999999999999993,
+        "steps_median": 551.0
+      }
+    },
+    "narrow": {
+      "policy_project": {
+        "success": 0.68,
+        "collision": 0.21,
+        "timeout": 0.10999999999999996,
+        "steps_median": 161.5
+      },
+      "policy_tb3_2d": {
+        "success": 0.65,
+        "collision": 0.25,
+        "timeout": 0.09999999999999998,
+        "steps_median": 354.5
+      },
+      "policy_gazebo": {
+        "success": 0.66,
+        "collision": 0.22,
+        "timeout": 0.11999999999999997,
+        "steps_median": 352.5
+      },
+      "policy_project_odom": {
+        "success": 0.54,
+        "collision": 0.24,
+        "timeout": 0.21999999999999997,
+        "steps_median": 172.5
+      },
+      "policy_tb3_2d_odom": {
+        "success": 0.55,
+        "collision": 0.23,
+        "timeout": 0.21999999999999995,
+        "steps_median": 372.0
+      },
+      "policy_gazebo_odom": {
+        "success": 0.65,
+        "collision": 0.22,
+        "timeout": 0.12999999999999998,
+        "steps_median": 354.0
+      },
+      "gazebo": {
+        "success": 0.6,
+        "collision": 0.01,
+        "timeout": 0.39,
+        "steps_median": 626.5
+      }
+    }
+  },
+  "pairs": {
+    "policy_project_odom - policy_project": {
+      "nominal": {
+        "delta": -0.12,
+        "p": 0.0018310546875,
+        "won": 1,
+        "lost": 13
+      },
+      "dense": {
+        "delta": -0.08000000000000007,
+        "p": 0.0078125,
+        "won": 0,
+        "lost": 8
+      },
+      "narrow": {
+        "delta": -0.14,
+        "p": 0.001312255859375,
+        "won": 2,
+        "lost": 16
+      },
+      "pooled": {
+        "delta": -0.1133333333333334,
+        "p": 1.946500560734421e-08,
+        "won": 3,
+        "lost": 37,
+        "ci95": [
+          -0.15333333333333332,
+          -0.07333333333333333
+        ],
+        "lost_to_timeout": 29,
+        "lost_to_collision": 8
+      }
+    },
+    "policy_tb3_2d_odom - policy_tb3_2d": {
+      "nominal": {
+        "delta": -0.16000000000000003,
+        "p": 3.0517578125e-05,
+        "won": 0,
+        "lost": 16
+      },
+      "dense": {
+        "delta": -0.07999999999999996,
+        "p": 0.057373046875,
+        "won": 3,
+        "lost": 11
+      },
+      "narrow": {
+        "delta": -0.09999999999999998,
+        "p": 0.012939453125,
+        "won": 2,
+        "lost": 12
+      },
+      "pooled": {
+        "delta": -0.1133333333333334,
+        "p": 1.4051624930289108e-07,
+        "won": 5,
+        "lost": 39,
+        "ci95": [
+          -0.15333333333333332,
+          -0.07333333333333333
+        ],
+        "lost_to_timeout": 34,
+        "lost_to_collision": 5
+      }
+    },
+    "policy_gazebo_odom - policy_gazebo": {
+      "nominal": {
+        "delta": -0.010000000000000009,
+        "p": 1.0,
+        "won": 1,
+        "lost": 2
+      },
+      "dense": {
+        "delta": 0.050000000000000044,
+        "p": 0.125,
+        "won": 6,
+        "lost": 1
+      },
+      "narrow": {
+        "delta": -0.010000000000000009,
+        "p": 1.0,
+        "won": 2,
+        "lost": 3
+      },
+      "pooled": {
+        "delta": 0.010000000000000009,
+        "p": 0.60723876953125,
+        "won": 9,
+        "lost": 6,
+        "ci95": [
+          -0.013333333333333334,
+          0.03666666666666667
+        ],
+        "lost_to_timeout": 1,
+        "lost_to_collision": 5
+      }
+    },
+    "policy_gazebo_odom - policy_tb3_2d_odom": {
+      "nominal": {
+        "delta": 0.14,
+        "p": 0.000518798828125,
+        "won": 15,
+        "lost": 1
+      },
+      "dense": {
+        "delta": 0.09999999999999998,
+        "p": 0.00634765625,
+        "won": 11,
+        "lost": 1
+      },
+      "narrow": {
+        "delta": 0.09999999999999998,
+        "p": 0.0308837890625,
+        "won": 14,
+        "lost": 4
+      },
+      "pooled": {
+        "delta": 0.1133333333333334,
+        "p": 3.1028037028590916e-07,
+        "won": 40,
+        "lost": 6,
+        "ci95": [
+          0.07,
+          0.15666666666666668
+        ],
+        "lost_to_timeout": 2,
+        "lost_to_collision": 4
+      }
+    },
+    "gazebo - policy_gazebo_odom": {
+      "nominal": {
+        "delta": 0.05999999999999994,
+        "p": 0.14599609375,
+        "won": 9,
+        "lost": 3
+      },
+      "dense": {
+        "delta": 0.030000000000000027,
+        "p": 0.7011080384254456,
+        "won": 15,
+        "lost": 12
+      },
+      "narrow": {
+        "delta": -0.050000000000000044,
+        "p": 0.4048728942871094,
+        "won": 9,
+        "lost": 14
+      },
+      "pooled": {
+        "delta": 0.013333333333333308,
+        "p": 0.7035366713552734,
+        "won": 33,
+        "lost": 29,
+        "ci95": [
+          -0.03666666666666667,
+          0.06333333333333334
+        ],
+        "lost_to_timeout": 29,
+        "lost_to_collision": 0
+      }
+    }
+  },
+  "odometry": {
+    "policy_project_odom": {
+      "final_error_median": 0.26656764038631514,
+      "final_error_median_by_condition": {
+        "nominal": 0.3074422494403809,
+        "dense": 0.2232115786297959,
+        "narrow": 0.28783104831236284
+      },
+      "final_error_median_successes": 0.28262594735776764,
+      "success_if_within_tolerance": 0.8865248226950354,
+      "success_if_beyond_tolerance": 0.6938775510204082,
+      "beyond_tolerance": 98
+    },
+    "policy_tb3_2d_odom": {
+      "final_error_median": 0.26783079564235246,
+      "final_error_median_by_condition": {
+        "nominal": 0.279846404573953,
+        "dense": 0.23200165978582638,
+        "narrow": 0.27212408137548727
+      },
+      "final_error_median_successes": 0.27695327123025276,
+      "success_if_within_tolerance": 0.8455882352941176,
+      "success_if_beyond_tolerance": 0.6990291262135923,
+      "beyond_tolerance": 103
+    },
+    "policy_gazebo_odom": {
+      "final_error_median": 0.06889201992048397,
+      "final_error_median_by_condition": {
+        "nominal": 0.071943968760139,
+        "dense": 0.06527324042186074,
+        "narrow": 0.06727514871954629
+      },
+      "final_error_median_successes": 0.07219615215906261,
+      "success_if_within_tolerance": 0.9132231404958677,
+      "success_if_beyond_tolerance": null,
+      "beyond_tolerance": 0
+    }
+  },
+  "direction_unregistered": {
+    "policy_project_odom": {
+      "beyond_ahead": 58,
+      "beyond_ahead_success": 0.4827586206896552,
+      "beyond_behind": 40,
+      "beyond_behind_success": 1.0,
+      "timeouts": 46,
+      "timeouts_ahead": 35,
+      "timeout_goal_distance_median": 1.1696206247259964,
+      "timeout_believed_distance_median": 0.4044732802414911
+    },
+    "policy_tb3_2d_odom": {
+      "beyond_ahead": 63,
+      "beyond_ahead_success": 0.5079365079365079,
+      "beyond_behind": 40,
+      "beyond_behind_success": 1.0,
+      "timeouts": 52,
+      "timeouts_ahead": 42,
+      "timeout_goal_distance_median": 1.275294501749376,
+      "timeout_believed_distance_median": 0.31782481050105715
+    }
+  },
+  "decision": "FREE",
+  "missed_scans": 0
+}

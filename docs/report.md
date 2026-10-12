@@ -2385,6 +2385,84 @@ clutter cost and the cost of reading 3.5 m both failed. A few Gazebo episodes
 needed a fresh server after a start-up failure; runs are deterministic, so each
 is the same episode.
 
+### 9.25 What the privilege was worth: the policy on its own odometry
+
+§9.24 found the policy moving to a TurtleBot3 at no cost and named why: it is
+handed its goal vector from the true pose, the one thing a robot without
+localisation does not have. This takes it away. The same trained policy, not
+retrained, computes its goal vector from where the robot's own odometry says it
+is; the true pose still decides arrival and collision. In 2-D the odometry is
+the published odometry model — a random walk plus a per-robot scale and heading
+bias, the drift the classical stack's scan matcher corrects (§9.3). In Gazebo it
+is the drive's own wheel odometry, the pose a real TurtleBot3 publishes on
+`/odom`, whose only error is its wheels' slip. With the odometry model switched
+off, each 2-D arm reproduces its privileged arm episode for episode. Three arms
+on the same 300 val worlds, registered first
+([`policy_privilege_test.py`](../scripts/policy_privilege_test.py)):
+
+| val success / collision | nominal | dense | narrow | odometry error at the end, median |
+|---|---|---|---|---|
+| training robot, 2-D, true pose | 0.92 / 0.06 | 0.67 / 0.29 | 0.68 / 0.21 | — |
+| the same, published odometry model | 0.80 / 0.08 | 0.59 / 0.29 | 0.54 / 0.24 | 0.267 m |
+| TurtleBot3, 2-D, true pose | 0.93 / 0.05 | 0.63 / 0.31 | 0.65 / 0.25 | — |
+| the same, published odometry model | 0.77 / 0.07 | 0.55 / 0.31 | 0.55 / 0.23 | 0.268 m |
+| TurtleBot3 in Gazebo, true pose | 0.92 / 0.06 | 0.60 / 0.32 | 0.66 / 0.22 | — |
+| the same, its wheel odometry | 0.91 / 0.07 | 0.65 / 0.29 | 0.65 / 0.22 | 0.069 m |
+
+**With Gazebo's wheel odometry the privilege is worth nothing: FREE, as
+registered.** Against the same robot holding its true pose, the Gazebo arm moves
+−0.01, +0.05 and −0.01, pooled +0.010 [−0.013, +0.037], 9 worlds won and 6
+lost. Its odometry ended a median 0.069 m from the truth and never more than
+0.208 m — inside the 0.35 m within which a robot counts as arrived, on every one
+of the 300 episodes.
+
+**Under the published odometry model it is worth 0.11: real, and less than
+registered.** The training robot loses 0.12, 0.08 and 0.14, the TurtleBot3
+0.16, 0.08 and 0.10, both −0.113 pooled [−0.153, −0.073] (3 worlds won and 37
+lost; 5 won and 39 lost). The registration expected 0.15 to 0.40. Collisions
+move by at most 0.03 on any condition, and the worlds lost are mostly timeouts,
+29 of 37 and 34 of 39. Against that 2-D arm, Gazebo's wheel odometry is worth
++0.113 pooled (40 won, 6 lost), close to the +0.133 the same comparison gave
+the classical stack in §9.23.
+
+**Why it costs less than the drift suggests: arrival forgives odometry that
+lags.** The published model's odometry ended a median 0.27 m out, and beyond the
+0.35 m tolerance on two in five of the episodes that did not collide — yet 69%
+and 70% of those still arrived. An analysis added after the run, not
+registered, splits them by which way the odometry was wrong. Arrival is judged
+where the robot really is and ends the episode the moment it gets there, so
+odometry that believes the robot *farther* from the goal than it is costs
+nothing: of the episodes whose odometry ended beyond tolerance that way, 40 of
+40 arrived on each arm. Odometry that believes it *nearer* is what strands it:
+only 28 of 58 and 32 of 63 of those arrived. Of the timeouts, 35 of 46 and 42 of
+52 had odometry running ahead, and they ended a median 1.17 and 1.28 m from the
+goal with the robot believing itself 0.40 and 0.32 m away. The registered range
+assumed drift past the tolerance would mostly be fatal; the half that lags is
+not.
+
+**Without the privilege, the policy matches the classical stack's arrivals in
+Gazebo — and still crashes.** Neither now holds the true pose: the stack
+localises against the map it builds, the policy trusts its wheels. The stack
+moves +0.06, +0.03 and −0.05 against the policy, pooled +0.013 [−0.037,
++0.063], 33 worlds won and 29 lost, and collides on 0.00 to 0.02 of episodes
+against the policy's 0.07 to 0.29.
+
+**What it leaves for hardware.** The policy needs a pose about as good as its
+goal tolerance. Gazebo's wheel odometry is well inside it and costs nothing; the
+published model's drift often is not and costs 0.11. Which of the two a real
+TurtleBot3 is nearer is the question §9.23 left for hardware, and it now decides
+the learned policy's result as well as the stack's. Deployed on odometry alone,
+the policy also has a failure the privileged one cannot: when its odometry runs
+ahead, it stops short of the goal believing it has arrived.
+
+**Calibration.** Partial: the decision held, as did the drop on every condition,
+the two robots' drops within 0.10 of each other, the collision bound, the
+timeout share, Gazebo's edge over the 2-D model and its odometry error under
+half, and parity with the stack, which collides less on every condition. The
+size of the 2-D cost failed on both robots. Seven Gazebo episodes needed a fresh
+server after a start-up failure; runs are deterministic, so each is the same
+episode, and no lidar scan was missed.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -2648,8 +2726,11 @@ In order of expected information per GPU-hour:
    odometry drifts. The learned policy has made the same move (§9.24): on the
    TurtleBot3, in 2-D or in Gazebo, it does as well as on its training robot,
    because its privileged goal vector spares it the localisation the stack
-   pays for. The informative next run is a policy without that privilege —
-   one that reads its goal from odometry — on the same robot.
+   pays for. Without that privilege, reading its goal from odometry (§9.25),
+   it loses nothing on Gazebo's wheel odometry and 0.11 under the published
+   odometry model. Both controllers' results now turn on the same unmeasured
+   number — how far a real TurtleBot3's odometry drifts over an episode,
+   against a 0.35 m goal tolerance — and that is what hardware would settle.
 
 ## 13. Reproducing
 

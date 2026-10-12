@@ -328,6 +328,9 @@ def policy_episode_2d(arm: str, cond: str, seed: int, split: str, n: int,
         # Odometry is a step behind the robot until it hears the last step.
         odom.update(env.robot.velocity.copy())
         extra["odom_err_final"] = float(np.linalg.norm(odom.pose[:2] - env.robot.pose[:2]))
+        # How far from the goal the robot believed itself: nearer than it
+        # truly was means its odometry ran ahead of it.
+        extra["odom_goal_distance_final"] = float(np.linalg.norm(world.goal - odom.pose[:2]))
     return _policy_summary(info.get("is_success"), info.get("collision"), info.get("steps", k + 1),
                            info.get("goal_distance", np.nan), info.get("path_length", np.nan),
                            driver.scans_used, extra)

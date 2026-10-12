@@ -141,6 +141,28 @@ def main(argv=None) -> int:
             "success_if_within_tolerance": float(ok[clear & within].mean()) if (clear & within).any() else None,
             "success_if_beyond_tolerance": float(ok[clear & ~within].mean()) if (clear & ~within).any() else None,
             "beyond_tolerance": int((clear & ~within).sum())}
+    # Added after the run, not registered: which way the odometry was wrong.
+    # Arrival is judged where the robot is and ends the episode, so odometry
+    # lagging behind the robot should be harmless and odometry running ahead
+    # of it -- believing itself nearer the goal than it is -- should strand it.
+    report["direction_unregistered"] = {}
+    for arm in ODOM_ARMS:
+        if any("odom_goal_distance_final" not in runs[arm][k] for k in keys):
+            continue
+        ok = col(arm, "success").astype(bool)
+        clear = ~col(arm, "collision").astype(bool)
+        beyond = clear & (col(arm, "odom_err_final") >= TOLERANCE)
+        ahead = col(arm, "odom_goal_distance_final") < col(arm, "goal_distance")
+        timeout = clear & ~ok
+        report["direction_unregistered"][arm] = {
+            "beyond_ahead": int((beyond & ahead).sum()),
+            "beyond_ahead_success": float(ok[beyond & ahead].mean()) if (beyond & ahead).any() else None,
+            "beyond_behind": int((beyond & ~ahead).sum()),
+            "beyond_behind_success": float(ok[beyond & ~ahead].mean()) if (beyond & ~ahead).any() else None,
+            "timeouts": int(timeout.sum()),
+            "timeouts_ahead": int((timeout & ahead).sum()),
+            "timeout_goal_distance_median": float(np.median(col(arm, "goal_distance")[timeout])),
+            "timeout_believed_distance_median": float(np.median(col(arm, "odom_goal_distance_final")[timeout]))}
     g = report["pairs"]["policy_gazebo_odom - policy_gazebo"]["pooled"]
     if abs(g["delta"]) <= BOUND and -2 * BOUND < g["ci95"][0] and g["ci95"][1] < 2 * BOUND:
         decision = "FREE"
@@ -167,6 +189,11 @@ def main(argv=None) -> int:
               f"{o['final_error_median_by_condition']}; success within/beyond tolerance "
               f"{o['success_if_within_tolerance']}/{o['success_if_beyond_tolerance']} "
               f"({o['beyond_tolerance']} beyond)")
+    for arm, d in report["direction_unregistered"].items():
+        print(f"{arm} (unregistered): beyond tolerance, ahead {d['beyond_ahead']} arrive "
+              f"{d['beyond_ahead_success']}, behind {d['beyond_behind']} arrive {d['beyond_behind_success']}; "
+              f"timeouts {d['timeouts']}, ahead {d['timeouts_ahead']}, ending "
+              f"{d['timeout_goal_distance_median']:.2f} m out believing {d['timeout_believed_distance_median']:.2f} m")
     print(f"decision {decision}; missed scans {report['missed_scans']}")
     print("pre-registered: " + PREDICTION)
     Path(args.out).write_text(json.dumps(report, indent=2), encoding="utf-8")

@@ -60,6 +60,7 @@ def test_with_exact_odometry_the_unprivileged_arm_is_the_privileged_one(arm):
     privileged = m.policy_episode_2d(arm, "nominal", seed, "val", 100)
     exact = m.policy_episode_2d(arm + "_odom", "nominal", seed, "val", 100, exact_odometry=True)
     assert exact.pop("odom_err_final") < 1e-9
+    assert exact.pop("odom_goal_distance_final") == pytest.approx(exact["goal_distance"], abs=1e-9)
     assert exact == privileged
     drifting = m.policy_episode_2d(arm + "_odom", "nominal", seed, "val", 100)
     assert drifting["odom_err_final"] > 0.0

@@ -3674,6 +3674,51 @@ and the native actions exactly (tests). Registered before any val policy arm ran
   clutter cost (0.05–0.25 predicted; −0.04 and −0.03 measured) and the 3.5 m
   cost (≥ 0.10 predicted on nominal; −0.02).
 
+## Phase 7c — What the policy's privilege was worth
+
+The same trained policy, not retrained, with its goal vector computed from the
+robot's own odometry instead of the true pose (`_odom` arms of
+`gazebo_tb3/transfer.py`): the published odometry model in 2-D, the drive's
+wheel odometry (`/odom`) in Gazebo. Truth still judges arrival and collision.
+With the model off, the 2-D arms reproduce their privileged arms exactly
+(tests). Registered before any `_odom` arm ran on val
+(`scripts/policy_privilege_test.py`, commit 5126de1). Full treatment in report
+§9.25.
+
+| val success / collision | nominal | dense | narrow | odometry error, median |
+|---|---|---|---|---|
+| policy_project_odom | 0.80 / 0.08 | 0.59 / 0.29 | 0.54 / 0.24 | 0.267 m |
+| policy_tb3_2d_odom | 0.77 / 0.07 | 0.55 / 0.31 | 0.55 / 0.23 | 0.268 m |
+| policy_gazebo_odom | 0.91 / 0.07 | 0.65 / 0.29 | 0.65 / 0.22 | 0.069 m |
+
+- **Decision FREE**, as predicted: Gazebo's wheel odometry against the true pose
+  +0.010 pooled [−0.013, +0.037], 9 / 6; its odometry never ended more than
+  0.208 m out, inside the 0.35 m goal tolerance on all 300 episodes.
+- The published odometry model costs −0.113 pooled on both robots
+  [−0.153, −0.073] (3 / 37 and 5 / 39), less than the 0.15–0.40 predicted;
+  collisions within 0.03, losses mostly timeouts (29 of 37, 34 of 39). Gazebo's
+  odometry against it: +0.113 (40 / 6).
+- Unregistered follow-up in the same script: arrival ends the episode where the
+  robot really is, so odometry that believes the robot farther from the goal
+  than it is costs nothing — 40 of 40 such episodes past tolerance arrived on
+  each arm; odometry running ahead strands it (28 of 58, 32 of 63), and most
+  timeouts end about 1.2 m out with the robot believing itself there.
+- Neither holding the true pose, the classical stack in Gazebo against the
+  unprivileged policy: +0.013 pooled [−0.037, +0.063], 33 / 29; the stack
+  collides on 0.00–0.02 against 0.07–0.29.
+- To record the follow-up's field, the 2-D arms were rerun after the registered
+  run; all 600 episodes matched the first run in every field. Seven Gazebo
+  episodes rerun on a fresh server after a start-up failure; no missed scans.
+
+### Calibration
+
+- Partial. Held: the decision, a drop on every condition for the training robot,
+  the two robots' drops within 0.10, collisions within 0.05, timeouts at least
+  two thirds of the losses, Gazebo's odometry ≥ +0.10 over the 2-D model and its
+  error under half, parity with the stack, which collides less on every
+  condition. Failed: the size of the 2-D cost (0.15–0.40 predicted; 0.113 on
+  both robots).
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

@@ -1973,6 +1973,81 @@ def claims():
                  round(max(tj2["conditions"][c]["gazebo"]["collision"] for c in conds), 2)),
                 ("policy gazebo episodes", 300,
                  len(load("results/gazebo_tb3/transfer_policy_gazebo.json")["episodes"]))]
+    # The policy without its privilege, its goal from odometry, report §9.25.
+    pv = "results/policy_privilege_test.json"
+    if os.path.exists(pv) and os.path.exists(tt):
+        vj, tj3 = load(pv), load(tt)
+        conds = ("nominal", "dense", "narrow")
+        table = {"policy_project_odom": ((0.80, 0.08), (0.59, 0.29), (0.54, 0.24)),
+                 "policy_tb3_2d_odom": ((0.77, 0.07), (0.55, 0.31), (0.55, 0.23)),
+                 "policy_gazebo_odom": ((0.91, 0.07), (0.65, 0.29), (0.65, 0.22))}
+        for arm, rows in table.items():
+            for cond, (s, c) in zip(conds, rows, strict=True):
+                e = vj["conditions"][cond][arm]
+                out += [(f"privilege {arm} {cond} success", s, round(e["success"], 2)),
+                        (f"privilege {arm} {cond} collision", c, round(e["collision"], 2))]
+        od = vj["odometry"]
+        for arm, med in (("policy_project_odom", 0.267), ("policy_tb3_2d_odom", 0.268),
+                         ("policy_gazebo_odom", 0.069)):
+            out.append((f"privilege {arm} odometry median", med, round(od[arm]["final_error_median"], 3)))
+        gz_odom = load("results/gazebo_tb3/transfer_policy_gazebo_odom.json")["episodes"]
+        out += [("privilege gazebo odometry max", 0.208, round(max(r["odom_err_final"] for r in gz_odom), 3)),
+                ("privilege gazebo all inside tolerance", 1.0,
+                 float(all(r["odom_err_final"] < 0.35 for r in gz_odom))),
+                ("privilege gazebo episodes", 300, len(gz_odom)),
+                ("privilege gazebo reruns", 7, sum(1 for r in gz_odom if r.get("attempts", 1) > 1)),
+                ("privilege decision FREE", 1.0, float(vj["decision"] == "FREE")),
+                ("privilege missed scans", 0, vj["missed_scans"])]
+        vp = vj["pairs"]
+        for name, deltas, pooled, won, lost, ci in (
+            ("policy_project_odom - policy_project", (-0.12, -0.08, -0.14), -0.113, 3, 37, (-0.153, -0.073)),
+            ("policy_tb3_2d_odom - policy_tb3_2d", (-0.16, -0.08, -0.10), -0.113, 5, 39, (-0.153, -0.073)),
+            ("policy_gazebo_odom - policy_gazebo", (-0.01, 0.05, -0.01), 0.010, 9, 6, (-0.013, 0.037)),
+            ("policy_gazebo_odom - policy_tb3_2d_odom", None, 0.113, 40, 6, None),
+            ("gazebo - policy_gazebo_odom", (0.06, 0.03, -0.05), 0.013, 33, 29, (-0.037, 0.063)),
+        ):
+            q = vp[name]["pooled"]
+            if deltas is not None:
+                for cond, d in zip(conds, deltas, strict=True):
+                    out.append((f"privilege {name} {cond}", d, round(vp[name][cond]["delta"], 3)))
+            out += [(f"privilege {name} pooled", pooled, round(q["delta"], 3)),
+                    (f"privilege {name} won", won, q["won"]), (f"privilege {name} lost", lost, q["lost"])]
+            if ci is not None:
+                out += [(f"privilege {name} ci lo", ci[0], round(q["ci95"][0], 3)),
+                        (f"privilege {name} ci hi", ci[1], round(q["ci95"][1], 3))]
+        for name, timeouts in (("policy_project_odom - policy_project", 29),
+                               ("policy_tb3_2d_odom - policy_tb3_2d", 34)):
+            out.append((f"privilege {name} lost to timeout", timeouts, vp[name]["pooled"]["lost_to_timeout"]))
+        vc = vj["conditions"]
+        out += [("privilege 2-D collision gap", 0.03, round(max(
+                    abs(vc[c][f"{a}_odom"]["collision"] - vc[c][a]["collision"])
+                    for c in conds for a in ("policy_project", "policy_tb3_2d")), 2)),
+                ("privilege gazebo odom collision low", 0.07,
+                 round(min(vc[c]["policy_gazebo_odom"]["collision"] for c in conds), 2)),
+                ("privilege gazebo odom collision high", 0.29,
+                 round(max(vc[c]["policy_gazebo_odom"]["collision"] for c in conds), 2)),
+                ("privilege stack collision low", 0.00,
+                 round(min(tj3["conditions"][c]["gazebo"]["collision"] for c in conds), 2)),
+                ("privilege stack collision high", 0.02,
+                 round(max(tj3["conditions"][c]["gazebo"]["collision"] for c in conds), 2))]
+        dr = vj["direction_unregistered"]
+        for arm, beyond_share, beyond_ok, ahead, ahead_n, timeouts, t_ahead, true_d, believed in (
+            ("policy_project_odom", 0.4, 0.69, 28, 58, 46, 35, 1.17, 0.40),
+            ("policy_tb3_2d_odom", 0.4, 0.70, 32, 63, 52, 42, 1.28, 0.32),
+        ):
+            d, o = dr[arm], od[arm]
+            clear = 300 - round(300 * sum(vc[c][arm]["collision"] for c in conds) / 3)
+            out += [(f"privilege {arm} beyond share", beyond_share, round(o["beyond_tolerance"] / clear, 1)),
+                    (f"privilege {arm} beyond arrive", beyond_ok, round(o["success_if_beyond_tolerance"], 2)),
+                    (f"privilege {arm} behind arrive", 1.0, d["beyond_behind_success"]),
+                    (f"privilege {arm} behind n", 40, d["beyond_behind"]),
+                    (f"privilege {arm} ahead arrived", ahead, round(d["beyond_ahead_success"] * d["beyond_ahead"])),
+                    (f"privilege {arm} ahead n", ahead_n, d["beyond_ahead"]),
+                    (f"privilege {arm} timeouts", timeouts, d["timeouts"]),
+                    (f"privilege {arm} timeouts ahead", t_ahead, d["timeouts_ahead"]),
+                    (f"privilege {arm} timeout distance", true_d, round(d["timeout_goal_distance_median"], 2)),
+                    (f"privilege {arm} timeout believed", believed,
+                     round(d["timeout_believed_distance_median"], 2))]
     # Graph density: slam_toolbox's linking against this back end's closures.
     if os.path.exists(sy):
         from vision_nav.mapping.posegraph import PoseGraphConfig
