@@ -36,7 +36,7 @@ import time
 import xml.etree.ElementTree as ET
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from concurrent.futures.process import BrokenProcessPool
-from dataclasses import replace
+from dataclasses import fields, replace
 from pathlib import Path
 
 import numpy as np
@@ -102,13 +102,20 @@ PROJECT_LIDAR = LidarConfig(n_beams=360, fov=2.0 * np.pi, max_range=6.0, noise_s
 PROJECT_BEARINGS = np.linspace(-np.pi, np.pi, 360, endpoint=False)
 
 
-def arm_spec(arm: str) -> dict:
+def scaled_odometry(scale: float) -> OdometryConfig:
+    """The published odometry model with every error term multiplied by
+    ``scale``: 1 is the model as published, 0 odometry that never errs."""
+    base = OdometryConfig()
+    return OdometryConfig(**{f.name: getattr(base, f.name) * scale for f in fields(base)})
+
+
+def arm_spec(arm: str, odometry_scale: float = 1.0) -> dict:
     """Robot, sensor and timing of an arm."""
     if arm == "project":
         return {"robot": RobotConfig(), "lidar": PROJECT_LIDAR, "bearings": PROJECT_BEARINGS,
-                "lidar_x": 0.0, "scan_every": 1, "odometry": OdometryConfig()}
+                "lidar_x": 0.0, "scan_every": 1, "odometry": scaled_odometry(odometry_scale)}
     lidar = replace(TB3_LIDAR, max_range=6.0) if arm == "tb3_2d_6m" else TB3_LIDAR
-    odometry = None if arm == "tb3_2d_exact_odom" else OdometryConfig()
+    odometry = None if arm == "tb3_2d_exact_odom" else scaled_odometry(odometry_scale)
     return {"robot": TB3_ROBOT, "lidar": lidar, "bearings": TB3_BEARINGS,
             "lidar_x": TB3_LIDAR_X, "scan_every": 2, "odometry": odometry}
 
@@ -141,8 +148,9 @@ def summary(agent: TB3Agent, success: bool, collision: bool, steps: int, goal_di
             "scans_used": int(agent.scans_used), **(extra or {})}
 
 
-def analytic_episode(arm: str, cond: str, seed: int, split: str, n: int) -> dict:
-    spec = arm_spec(arm)
+def analytic_episode(arm: str, cond: str, seed: int, split: str, n: int,
+                     odometry_scale: float = 1.0) -> dict:
+    spec = arm_spec(arm, odometry_scale)
     cfg, env = world_for(cond, seed, split, n, spec["robot"])
     world = env.world
     rng = np.random.default_rng((seed, 11))
@@ -276,10 +284,11 @@ def _policy_summary(success, collision, steps, goal_distance, path, scans, extra
 
 
 def policy_episode_2d(arm: str, cond: str, seed: int, split: str, n: int,
-                      exact_odometry: bool = False) -> dict:
+                      exact_odometry: bool = False, odometry_scale: float = 1.0) -> dict:
     """``exact_odometry`` switches the ``_odom`` arms' odometry model off, so
     that dead reckoning integrates the true velocity: the identity control,
-    under which an ``_odom`` arm must reproduce its privileged arm exactly."""
+    under which an ``_odom`` arm must reproduce its privileged arm exactly.
+    ``odometry_scale`` multiplies the model's error terms (:func:`scaled_odometry`)."""
     from policy_driver import POLICY_BEARINGS, POLICY_MAX_RANGE, POLICY_ROBOT, PolicyDriver
 
     from vision_nav.mapping.localisation import DeadReckoning
@@ -311,7 +320,7 @@ def policy_episode_2d(arm: str, cond: str, seed: int, split: str, n: int,
     # own odometry is seeded, driven by the true velocity as an encoder would be.
     odom = None
     if from_odometry:
-        odom = DeadReckoning(robot, None if exact_odometry else OdometryConfig(),
+        odom = DeadReckoning(robot, None if exact_odometry else scaled_odometry(odometry_scale),
                              np.random.default_rng((seed, 7)))
         odom.reset(env.robot.pose)
     info: dict = {}
@@ -404,6 +413,10 @@ def policy_episode_gazebo(cond: str, seed: int, split: str, n: int, profile: str
 
 
 _STAGGER = None
+GZ_ARMS = ("gazebo", "policy_gazebo", "policy_gazebo_odom")
+#: Arms whose odometry follows the published model, which ``--odometry-scale``
+#: can scale; Gazebo's odometry is its wheels', not a model.
+SCALABLE_ARMS = ("project", "tb3_2d", "tb3_2d_6m", "policy_project_odom", "policy_tb3_2d_odom")
 
 
 def _stagger_start(counter, seconds: float) -> None:
@@ -419,17 +432,18 @@ def _stagger_start(counter, seconds: float) -> None:
 
 
 def _run(job: tuple) -> dict:
-    arm, cond, seed, split, n, partition = job
+    arm, cond, seed, split, n, partition, scale = job
     started = os.environ.get("TRANSFER_STARTED_DIR")
     if started:
         # So that, if this worker dies outright, the episode it was running
         # can be told from the ones still queued.
         Path(started, f"{cond}_{seed}").touch()
-    gz_arms = ("gazebo", "policy_gazebo", "policy_gazebo_odom")
-    if arm in POLICY_ARMS and arm not in gz_arms:
-        return {"arm": arm, "cond": cond, "seed": seed, **policy_episode_2d(arm, cond, seed, split, n)}
-    if arm not in gz_arms:
-        return {"arm": arm, "cond": cond, "seed": seed, **analytic_episode(arm, cond, seed, split, n)}
+    if arm in POLICY_ARMS and arm not in GZ_ARMS:
+        return {"arm": arm, "cond": cond, "seed": seed,
+                **policy_episode_2d(arm, cond, seed, split, n, odometry_scale=scale)}
+    if arm not in GZ_ARMS:
+        return {"arm": arm, "cond": cond, "seed": seed,
+                **analytic_episode(arm, cond, seed, split, n, odometry_scale=scale)}
     if arm == "gazebo":
         episode = gazebo_episode
     else:
@@ -458,14 +472,19 @@ def main(argv=None) -> int:
     p.add_argument("--split", default="val")
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--out", required=True)
+    p.add_argument("--odometry-scale", type=float, default=1.0,
+                   help="multiply the published odometry model's error terms (0: exact)")
     args = p.parse_args(argv)
+    if args.odometry_scale != 1.0 and args.arm not in SCALABLE_ARMS:
+        p.error(f"--odometry-scale applies only to {', '.join(SCALABLE_ARMS)}")
 
     jobs = []
     for cond in args.conditions:
         _, shift, _ = BENCHMARK_CONDITIONS[cond]
         cfg = build_env_config({}, split=args.split, shift=shift, n_worlds=args.episodes)
         for s in list(cfg.world_seeds)[:args.episodes]:
-            jobs.append((args.arm, cond, int(s), args.split, args.episodes, len(jobs)))
+            jobs.append((args.arm, cond, int(s), args.split, args.episodes, len(jobs),
+                         args.odometry_scale))
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     rows = []
@@ -475,7 +494,10 @@ def main(argv=None) -> int:
     done = {(r["cond"], r["seed"]) for r in rows}
     todo = [j for j in jobs if (j[1], j[2]) not in done]
     failed: list[dict] = []
-    stagger = 20.0 if args.arm in ("gazebo", "policy_gazebo", "policy_gazebo_odom") else 0.0
+    stagger = 20.0 if args.arm in GZ_ARMS else 0.0
+    header = {"arm": args.arm, "split": args.split, "budget": BUDGET}
+    if args.odometry_scale != 1.0:
+        header["odometry_scale"] = args.odometry_scale
     # A worker that dies outright (a crash in a native library, not an
     # exception) breaks the whole pool. Each break starts a fresh pool on the
     # episodes not yet finished; an episode that was running when its worker
@@ -503,9 +525,8 @@ def main(argv=None) -> int:
                         print(f"{row['cond']:8s} {row['seed']} FAILED: {row['error']}", flush=True)
                         continue
                     rows.append(row)
-                    out.write_text(json.dumps({"arm": args.arm, "split": args.split,
-                                               "budget": BUDGET, "episodes": rows,
-                                               "failed": failed}, indent=1), encoding="utf-8")
+                    out.write_text(json.dumps({**header, "episodes": rows, "failed": failed},
+                                              indent=1), encoding="utf-8")
                     print(f"{row['cond']:8s} {row['seed']} success {row['success']} collision "
                           f"{row['collision']} steps {row['steps']}", flush=True)
         except BrokenProcessPool:
@@ -522,8 +543,8 @@ def main(argv=None) -> int:
                                "error": ["worker crashed on three pools"]})
             todo = [j for j in todo if j not in gave_up]
             print(f"worker pool broke; restarting on {len(todo)} episodes", flush=True)
-    out.write_text(json.dumps({"arm": args.arm, "split": args.split, "budget": BUDGET,
-                               "episodes": rows, "failed": failed}, indent=1), encoding="utf-8")
+    out.write_text(json.dumps({**header, "episodes": rows, "failed": failed}, indent=1),
+                   encoding="utf-8")
     for cond in args.conditions:
         sub = [r for r in rows if r["cond"] == cond]
         if sub:

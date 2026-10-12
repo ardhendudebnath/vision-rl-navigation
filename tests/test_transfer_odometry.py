@@ -50,6 +50,33 @@ def test_heading_is_read_from_the_quaternion():
     assert np.allclose(m.odom_pose(msg), [1.0, -2.0, h])
 
 
+def test_the_odometry_scale_runs_from_exact_to_the_published_model():
+    from vision_nav.mapping.localisation import OdometryConfig
+
+    m = _module()
+    assert m.scaled_odometry(1.0) == OdometryConfig()
+    assert m.scaled_odometry(0.5).bias_trans == OdometryConfig().bias_trans / 2
+    assert all(v == 0.0 for v in vars(m.scaled_odometry(0.0)).values())
+
+
+def test_at_scale_zero_the_stack_drives_on_exact_odometry():
+    """The sweep's zero is the follow-up arm already published (§9.23)."""
+    m = _module()
+    exact = m.analytic_episode("tb3_2d_exact_odom", "nominal", 10000, "val", 100)
+    zero = m.analytic_episode("tb3_2d", "nominal", 10000, "val", 100, odometry_scale=0.0)
+    assert zero == exact
+
+
+@pytest.mark.skipif(not MODEL.exists(), reason="trained policy not present")
+def test_at_scale_zero_the_unprivileged_policy_is_the_privileged_one():
+    m = _module()
+    privileged = m.policy_episode_2d("policy_tb3_2d", "nominal", 10000, "val", 100)
+    zero = m.policy_episode_2d("policy_tb3_2d_odom", "nominal", 10000, "val", 100, odometry_scale=0.0)
+    assert zero.pop("odom_err_final") < 1e-9
+    zero.pop("odom_goal_distance_final")
+    assert zero == privileged
+
+
 @pytest.mark.skipif(not MODEL.exists(), reason="trained policy not present")
 @pytest.mark.parametrize("arm", ["policy_project", "policy_tb3_2d"])
 def test_with_exact_odometry_the_unprivileged_arm_is_the_privileged_one(arm):
