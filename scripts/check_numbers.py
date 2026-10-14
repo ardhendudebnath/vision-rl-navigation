@@ -2135,6 +2135,34 @@ def claims():
                 ("drift policy x0.5 p", 0.63, round(po["0.5"]["p"], 2)),
                 ("drift policy x1 delta", -0.113, round(po["1"]["delta"], 3)),
                 ("drift policy x2 delta", -0.290, round(po["2"]["delta"], 3))]
+    # A hundred more held-out worlds for Nav2 against this stack, report §9.28.
+    nm = "results/nav2_more_worlds_test.json"
+    if os.path.exists(nm):
+        nj = load(nm)
+        for name, nav2, stack, delta, won, lost in (("first", 0.950, 0.890, 0.060, 8, 2),
+                                                     ("new", 0.940, 0.910, 0.030, 6, 3),
+                                                     ("pooled", 0.945, 0.900, 0.045, 14, 5)):
+            s = nj["sets"][name]
+            out += [(f"more worlds {name} nav2", nav2, round(s["nav2"], 3)),
+                    (f"more worlds {name} stack", stack, round(s["stack"], 3)),
+                    (f"more worlds {name} delta", delta, round(s["delta"], 3)),
+                    (f"more worlds {name} won", won, s["nav2_won"]),
+                    (f"more worlds {name} lost", lost, s["nav2_lost"])]
+        g, nw, h = nj["sets"]["pooled"], nj["sets"]["new"], nj["harness"]
+        out += [("more worlds decision UNRESOLVED", 1.0, float(nj["decision"] == "UNRESOLVED")),
+                ("more worlds reproduces 9.20", 1.0, float(nj["reproduces_published"])),
+                ("more worlds pooled p", 0.064, round(g["p"], 3)),
+                ("more worlds pooled ci lo", 0.005, round(g["ci95"][0], 3)),
+                ("more worlds pooled ci hi", 0.090, round(g["ci95"][1], 3)),
+                ("more worlds pose nav2", 0.228, round(g["pose_err_median"]["nav2"], 3)),
+                ("more worlds pose stack", 0.233, round(g["pose_err_median"]["stack"], 3)),
+                ("more worlds new stalls", 6, nw["stack_losses_stalled"]),
+                ("more worlds pooled stalls", 11, g["stack_losses_stalled"]),
+                ("more worlds stall pose", 0.12, round(g["stack_losses_stalled_pose_err_median"], 2)),
+                ("more worlds new collisions", 0, nw["stack_collisions"] + nw["nav2_collisions"]),
+                ("more worlds noise delivered", 0.100, round(h["delivered_noise_std"], 3)),
+                ("more worlds commands per step", 0.98, round(h["mean_commands_per_step"], 2)),
+                ("more worlds abandoned", 0, h["aborted"] + h["zero_command_episodes"])]
     # Graph density: slam_toolbox's linking against this back end's closures.
     if os.path.exists(sy):
         from vision_nav.mapping.posegraph import PoseGraphConfig

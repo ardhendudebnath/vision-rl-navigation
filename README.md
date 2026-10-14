@@ -75,9 +75,10 @@ decision below follows from wanting that comparison to be trustworthy.
 | Without that privilege, its goal read from odometry: free on Gazebo's wheel odometry, 0.11 under the published drift model | Done |
 | A validity check consistent with the planner: three quarters of the rebuilds gone, every stall still there — the rebuild loop was a symptom | Done |
 | How much odometry drift each stands: the policy is flat to half the published error, then falls; the stack loses from the first step | Done |
+| Nav2 against this stack on the rest of the held-out band: ahead again, by half as much — +0.045 over 200 worlds, still unresolved | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Sixty-four experiments, each pre-registered where it tests a hypothesis. The
+Sixty-five experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).

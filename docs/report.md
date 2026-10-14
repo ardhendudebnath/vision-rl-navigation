@@ -2567,6 +2567,47 @@ condition at any new scale.
 rising with every step. Failed: the decision, by the stack's 0.053 at scale 0.5,
 and the policy losing less than the stack at scale 2.
 
+### 9.28 A hundred more worlds under noise: Nav2's edge, smaller and still unresolved
+
+§9.20 left one gap open on held-out `noisy_lidar` at 360 beams, with neither
+stack holding the map or the pose. Nav2 with slam_toolbox arrived on 0.950 of
+100 worlds and this stack on 0.890: 8 worlds won, 2 lost, p = 0.11. The held-out
+band holds 200 worlds, and nothing in this project had ever driven the second
+hundred. Both stacks drove them exactly as §9.20 had, under a registration
+committed first ([`nav2_more_worlds_test.py`](../scripts/nav2_more_worlds_test.py)).
+`run_nav2_eval.py --first` skips the worlds already published. This stack
+re-drove the first hundred too and reproduced §9.20's episodes exactly. Nav2's
+harness held on the new run: 0.100 m of noise delivered, 0.98 commands per step,
+no episode without a command, none abandoned.
+
+| held-out `noisy_lidar`, 360 beams | first 100 (§9.20) | new 100 | all 200 |
+|---|---|---|---|
+| Nav2 + slam_toolbox | 0.950 | 0.940 | 0.945 |
+| this stack | 0.890 | 0.910 | 0.900 |
+| Nav2 − this stack (worlds won / lost) | +0.060 (8 / 2) | +0.030 (6 / 3) | +0.045 (14 / 5) |
+
+**The registered decision is UNRESOLVED, where the prediction said NAV2 ARRIVES
+MORE.** On the new worlds Nav2 is ahead again, by half as much. Pooled over all
+200, the difference is +0.045, inside the +0.02 to +0.08 the registration
+predicted, but the exact McNemar test gives p = 0.064 against the registered
+0.05. The bootstrap interval, [+0.005, +0.090], just clears zero; the registered
+rule is the exact test, and it does not. Two hundred worlds is the whole
+held-out band, so this is as far as the band can resolve it.
+
+**What the edge is made of has not changed.** The two stacks localise alike: a
+median final pose error of 0.228 m for slam_toolbox and 0.233 m for this stack
+over the 200 worlds. Every one of this stack's six losses on the new worlds is a
+stall — no collision, at least a metre from the goal — and so are 11 of its 14
+losses over the 200, with the pose known to within 0.12 m (median). Neither
+stack collides on the new worlds. If Nav2's edge exists, it is the edge §9.26
+narrowed the stall down to: what a planner and controller do with a route they
+hold, not how well they know where they are.
+
+**Calibration.** Partial. Held: Nav2 ahead on the new worlds, the pooled
+difference within +0.02 to +0.08, pose errors within 25% of each other, this
+stack's losses on the new worlds mostly stalls (all six), at most two collisions
+each (none), and the harness. Failed: the decision.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -2795,9 +2836,12 @@ In order of expected information per GPU-hour:
    What remains is arrival: 0.950 for Nav2 against 0.890, eight worlds to two,
    not resolved at a hundred worlds (p = 0.11), and the worlds it is made of
    are mostly stalls — five of the eight end 5 to 9 m from the goal with the
-   pose known to within 0.4 m (§9.20). More worlds would say whether the gap
-   exists; if it does, it is in the map and the planner under noise, not in
-   tolerating pose error.
+   pose known to within 0.4 m (§9.20). The second hundred held-out worlds
+   (§9.28) put Nav2 ahead again by half as much: +0.045 over all 200, 14
+   worlds to 5, p = 0.064. That is still unresolved, and the band is used
+   up. The two localise alike, and this stack's losses are stalls, so if the
+   gap exists it is in what the planner and controller do with a route they
+   hold, not in tolerating pose error.
 3. **A better front end for the sparse sensor.** The back end is done and
    measured on the held-out worlds (§9.13): pooled +0.010 over 600 paired
    episodes, 14 won and 8 lost, clutter pose error down 20%, not enough to

@@ -3784,6 +3784,35 @@ treatment in report §9.27.
   decision (stack −0.053 at 0.5), and the policy losing less than the stack at
   2 (−0.290 against −0.273).
 
+## Phase 7f — A hundred more worlds for Nav2 under noise
+
+§9.20's open gap (held-out `noisy_lidar`, 360 beams, Nav2 + slam_toolbox 0.950
+against this stack's 0.890, 8 / 2, p = 0.11) on the band's second hundred worlds,
+never driven before. `run_nav2_eval.py --first` skips published worlds; this
+stack re-drove the first hundred and reproduced §9.20 exactly. Registered first
+(`scripts/nav2_more_worlds_test.py`, commit 3edc0f8). Full treatment in report
+§9.28.
+
+| held-out `noisy_lidar` | first 100 | new 100 | all 200 |
+|---|---|---|---|
+| Nav2 + slam_toolbox | 0.950 | 0.940 | 0.945 |
+| this stack | 0.890 | 0.910 | 0.900 |
+| Nav2 − stack (won / lost) | +0.060 (8 / 2) | +0.030 (6 / 3) | +0.045 (14 / 5) |
+
+- **Decision UNRESOLVED** (predicted NAV2 ARRIVES MORE): pooled p = 0.064 by
+  the registered exact McNemar test, bootstrap interval [+0.005, +0.090]. The
+  held-out band is used up.
+- Pose errors alike (0.228 m and 0.233 m); all 6 of this stack's losses on the
+  new worlds, and 11 of 14 over the 200, are stalls with the pose known to
+  0.12 m (median); no collisions on the new worlds. Nav2's harness held (0.100 m
+  delivered, 0.98 commands per step, none abandoned).
+
+### Calibration
+
+- Partial. Held: Nav2 ahead on the new worlds, pooled within +0.02 to +0.08,
+  pose errors within 25%, losses mostly stalls, collisions ≤ 2, harness. Failed:
+  the decision.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

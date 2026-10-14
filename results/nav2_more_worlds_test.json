@@ -1,0 +1,78 @@
+{
+  "prediction": "the gap is real and smaller than the first hundred showed. On the new 100 worlds Nav2 arrives more often than this stack; pooled over all 200, Nav2 - stack is between +0.02 and +0.08. The two localise alike: their median final pose errors over the 200 are within 25% of each other. At least half of this stack's losses on the new worlds are stalls -- no collision, at least 1 m from the goal -- and each stack collides at most twice on them. Nav2's harness holds on the new run (0.10 m noise delivered, at least 0.95 commands per step, no episode without a command, at most 3 abandoned); if it does not, that run is repeated, not scored. Decision on the pooled 200 -- NAV2 ARRIVES MORE: Nav2 ahead with McNemar p < 0.05. STACK ARRIVES MORE: the stack ahead with p < 0.05. PARITY: neither, with the 95% interval inside 0.05 either way. Otherwise UNRESOLVED. Prediction: NAV2 ARRIVES MORE.",
+  "reproduces_published": true,
+  "harness": {
+    "delivered_noise_std": 0.09997863603324897,
+    "mean_commands_per_step": 0.9789670162387648,
+    "zero_command_episodes": 0,
+    "aborted": 0,
+    "slam_not_ready": 0,
+    "realtime_factor_cap": 5.0
+  },
+  "sets": {
+    "first": {
+      "worlds": 100,
+      "nav2": 0.95,
+      "stack": 0.89,
+      "delta": 0.05999999999999994,
+      "p": 0.109375,
+      "nav2_won": 8,
+      "nav2_lost": 2,
+      "ci95": [
+        0.0,
+        0.12
+      ],
+      "stack_collisions": 2,
+      "nav2_collisions": 0,
+      "pose_err_median": {
+        "nav2": 0.225075503989684,
+        "stack": 0.23789051918781962
+      },
+      "stack_losses_stalled": 5,
+      "stack_losses_stalled_pose_err_median": 0.1177600327714828
+    },
+    "new": {
+      "worlds": 100,
+      "nav2": 0.94,
+      "stack": 0.91,
+      "delta": 0.029999999999999916,
+      "p": 0.5078125,
+      "nav2_won": 6,
+      "nav2_lost": 3,
+      "ci95": [
+        -0.029999999999999916,
+        0.08999999999999997
+      ],
+      "stack_collisions": 0,
+      "nav2_collisions": 0,
+      "pose_err_median": {
+        "nav2": 0.22857562578883694,
+        "stack": 0.23099832246037905
+      },
+      "stack_losses_stalled": 6,
+      "stack_losses_stalled_pose_err_median": 0.10702853531770731
+    },
+    "pooled": {
+      "worlds": 200,
+      "nav2": 0.945,
+      "stack": 0.9,
+      "delta": 0.04499999999999993,
+      "p": 0.063568115234375,
+      "nav2_won": 14,
+      "nav2_lost": 5,
+      "ci95": [
+        0.0050000000000000044,
+        0.08999999999999997
+      ],
+      "stack_collisions": 2,
+      "nav2_collisions": 0,
+      "pose_err_median": {
+        "nav2": 0.22849344972542768,
+        "stack": 0.233130563794741
+      },
+      "stack_losses_stalled": 11,
+      "stack_losses_stalled_pose_err_median": 0.1177600327714828
+    }
+  },
+  "decision": "UNRESOLVED"
+}
