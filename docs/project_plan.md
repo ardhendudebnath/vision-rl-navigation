@@ -3813,6 +3813,37 @@ stack re-drove the first hundred and reproduced §9.20 exactly. Registered first
   pose errors within 25%, losses mostly stalls, collisions ≤ 2, harness. Failed:
   the decision.
 
+## Phase 7g — What a stalled robot does with its route
+
+`scripts/controller_stall_diagnostic.py` wraps the pure-pursuit controller and
+records every step of the published stack on the 200 val clutter worlds: the
+command (turn on the spot, crawl, drive, recover), movement, progress along the
+route, rebuilds, clearance, and whether the route held is a phantom shortcut
+(shorter than any real path). Stalls are read from their last 5 cm of progress;
+margin-safe arrivals a metre or more out are the control. Instrumented, the
+stack reproduces §9.22 exactly. Registered first (commit 50b1c7c). Full
+treatment in report §9.29.
+
+| val | turn / crawl / drive | m per step | path, net, farthest (median) | inside margin | rebuilds / 100 |
+|---|---|---|---|---|---|
+| stalls, margin-safe (32) | 23 / 26 / 51% | 0.028 | 6.9, 1.6, 2.1 m | 51% | 38.7 |
+| stalls, no route (30) | 19 / 28 / 53% | 0.029 | 5.4, 1.0, 2.5 m | 50% | 28.7 |
+| arrivals, margin-safe (130) | 5 / 7 / 88% | 0.042 | 7.2, 6.4, 6.4 m | 21% | 16.1 |
+
+- **Decision WANDERING**, as predicted: the stalled robot moves at 0.66 of the
+  arrivals' pace. But it goes nowhere — 6.9 m driven, 1.6 m net, never more than
+  2.1 m from where the stall began — half the time inside a wall's margin.
+- Phantom shortcuts are not the mechanism (11% of stall steps, 6% of arrivals').
+  The no-route stalls look the same as the margin-safe ones. What turns the
+  driving back on itself is open; the step traces are next.
+
+### Calibration
+
+- Partial. Held: the decision, driving leading with turning under 25% (23%),
+  median range ≥ 2 m (2.13), the identity control. Failed: phantom shortcuts
+  ≥ 30% and ≥ 3× arrivals (11%, 2.0×), and no-route stalls ranging less and
+  holding fewer phantom shortcuts (2.5 m and 19.5% against 2.1 m and 11%).
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

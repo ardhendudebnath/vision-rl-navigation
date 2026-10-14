@@ -2163,6 +2163,39 @@ def claims():
                 ("more worlds noise delivered", 0.100, round(h["delivered_noise_std"], 3)),
                 ("more worlds commands per step", 0.98, round(h["mean_commands_per_step"], 2)),
                 ("more worlds abandoned", 0, h["aborted"] + h["zero_command_episodes"])]
+    # What a stalled robot does with its route, report §9.29.
+    cs = "results/controller_stall_diagnostic.json"
+    if os.path.exists(cs):
+        cj = load(cs)
+        for group, eps, steps, shares, pace, pnr, inside, rebuilds in (
+            ("stall_margin_safe", 32, 8031, (0.23, 0.26, 0.51), 0.028, (6.9, 1.6, 2.1), 0.51, 38.7),
+            ("stall_no_route", 30, 6666, (0.19, 0.28, 0.53), 0.029, (5.4, 1.0, 2.5), 0.50, 28.7),
+            ("arrive_margin_safe", 130, 24661, (0.05, 0.07, 0.88), 0.042, (7.2, 6.4, 6.4), 0.21, 16.1),
+        ):
+            g = cj["groups"][group]
+            out += [(f"controller {group} episodes", eps, g["episodes"]),
+                    (f"controller {group} steps", steps, g["steps"]),
+                    (f"controller {group} pace", pace, round(g["metres_per_step"], 3)),
+                    (f"controller {group} inside", inside, round(g["inside_share"], 2)),
+                    (f"controller {group} rebuilds", rebuilds, round(g["rebuilds_per_100"], 1))]
+            for kind, v in zip(("turning", "crawling", "driving"), shares, strict=True):
+                out.append((f"controller {group} {kind}", v, round(g["shares"][kind], 2)))
+            for what, v in zip(("path_median", "net_median", "range_median"), pnr, strict=True):
+                out.append((f"controller {group} {what}", v, round(g[what], 1)))
+        s, a = cj["groups"]["stall_margin_safe"], cj["groups"]["arrive_margin_safe"]
+        nr = cj["groups"]["stall_no_route"]
+        out += [("controller decision WANDERING", 1.0, float(cj["decision"] == "WANDERING")),
+                ("controller reproduces 9.22", 1.0, float(cj["reproduces_stall_diagnostic"])),
+                ("controller pace ratio", 0.66, round(cj["pace_ratio"], 2)),
+                ("controller stall still", 0.21, round(s["still_share"], 2)),
+                ("controller stall turn flips", 0.028, round(s["turn_flip_share"], 3)),
+                ("controller stall phase steps", 312, int(s["phase_steps_median"])),
+                ("controller stall range exact", 2.13, round(s["range_median"], 2)),
+                ("controller stall phantom", 0.11, round(s["phantom_shortcut_share"], 2)),
+                ("controller arrive phantom", 0.06, round(a["phantom_shortcut_share"], 2)),
+                ("controller phantom ratio", 2.0, round(s["phantom_shortcut_share"] / a["phantom_shortcut_share"], 1)),
+                ("controller no route phantom", 0.195, round(nr["phantom_shortcut_share"], 3)),
+                ("controller rebuild ratio", 2.4, round(s["rebuilds_per_100"] / a["rebuilds_per_100"], 1))]
     # Graph density: slam_toolbox's linking against this back end's closures.
     if os.path.exists(sy):
         from vision_nav.mapping.posegraph import PoseGraphConfig

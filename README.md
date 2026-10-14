@@ -76,9 +76,10 @@ decision below follows from wanting that comparison to be trustworthy.
 | A validity check consistent with the planner: three quarters of the rebuilds gone, every stall still there — the rebuild loop was a symptom | Done |
 | How much odometry drift each stands: the policy is flat to half the published error, then falls; the stack loses from the first step | Done |
 | Nav2 against this stack on the rest of the held-out band: ahead again, by half as much — +0.045 over 200 worlds, still unresolved | Done |
+| What a stalled robot does with its route: keeps moving at two-thirds pace and goes nowhere, pacing within two metres | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Sixty-five experiments, each pre-registered where it tests a hypothesis. The
+Sixty-six experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).

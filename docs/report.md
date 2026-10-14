@@ -2608,6 +2608,59 @@ difference within +0.02 to +0.08, pose errors within 25% of each other, this
 stack's losses on the new worlds mostly stalls (all six), at most two collisions
 each (none), and the harness. Failed: the decision.
 
+### 9.29 What a stalled robot does: it keeps moving and goes nowhere
+
+§9.26 left the clutter stall with robots that hold a route, know their pose to
+five centimetres, and end seven metres short. What does the controller do with
+the route? [`controller_stall_diagnostic.py`](../scripts/controller_stall_diagnostic.py)
+records it step by step for the published stack on the same 200 val clutter
+worlds. Each step logs what pure pursuit commanded — turn on the spot (lookahead
+point more than 0.9 rad off its heading), crawl (forward, slowed by the caution
+scale below one half), or drive — and what happened. A stall is read from the
+step after it last got 5 cm closer to the goal by the true geodesic; arrivals on
+the same worlds, while a metre or more out, are the control. Instrumented, the
+stack reproduces §9.22's episodes exactly. Registered first.
+
+| val, published stack | steps | turn / crawl / drive | metres per step | path, net, farthest (median) | inside the margin | rebuilds per 100 steps |
+|---|---|---|---|---|---|---|
+| stalls, margin-safe worlds (32) | 8,031 | 23% / 26% / 51% | 0.028 | 6.9, 1.6, 2.1 m | 51% | 38.7 |
+| stalls, no route at the margin (30) | 6,666 | 19% / 28% / 53% | 0.029 | 5.4, 1.0, 2.5 m | 50% | 28.7 |
+| arrivals, margin-safe worlds (130) | 24,661 | 5% / 7% / 88% | 0.042 | 7.2, 6.4, 6.4 m | 21% | 16.1 |
+
+**The stalled robot is not stuck: WANDERING, as registered.** In its stall phase
+it moves at 0.66 of an arriving robot's pace, drives forward on half its steps,
+and stands still on 21% of them. Turning on the spot, at 23%, is not dithering:
+only 2.8% of consecutive turns reverse direction.
+
+**But it is not wandering in the sense the registration meant.** It goes
+nowhere. Over a median stall phase of 312 steps the robot drives 6.9 m and ends
+1.6 m from where the stall began, never more than 2.1 m away. An arriving robot
+drives 7.2 m and ends 6.4 m from where it was; its path is nearly straight,
+while the stalled robot's turns back on itself. It does this inside the margin
+of something mapped on half its steps, against a fifth for arrivals, rebuilding
+its plan 2.4 times as often.
+
+**The mechanism the registration named failed.** It predicted phantom shortcuts:
+routes shorter than any real path, through space the map has not seen. The
+stalled robot holds one on 11% of its steps, against 6% for arrivals; the
+registration asked for at least 30% and three times the arrivals' rate. The one
+train-world stall that had suggested it was the exception, not the rule.
+
+**And the route class does not change what a stall looks like.** Stalls on
+worlds with no route at the full margin move as fast, sit inside the margin as
+often, and range as far (2.5 m against 2.1 m). Whether a route exists at the
+margin decides whether the robot stalls (§9.21); once it does, the stall is the
+same behaviour: a robot pacing within about two metres of one place, half the
+time inside a wall's margin. What turns its driving back on itself is not
+identified here. The step-by-step trajectories are the next thing to read.
+
+**Calibration.** Partial. Held: the decision, driving the leading command with
+turning on the spot under 25%, a median range of at least 2 m (2.13 m), and the
+identity control. Failed: phantom shortcuts on at least 30% of stall steps and
+three times the arrivals' rate (11%, 2.0×), and the no-route stalls ranging
+less far and holding phantom shortcuts less often than the margin-safe ones
+(2.5 m and 19.5%, against 2.1 m and 11%).
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -2824,7 +2877,12 @@ In order of expected information per GPU-hour:
    quarters of the rebuilds and none of the stalls (§9.26), so the loop was a
    symptom. What is left to measure is what the controller does with a plan
    it holds: the stalled robots keep their route, know their pose to 0.05 m,
-   and end seven metres short.
+   and end seven metres short. A step-by-step record (§9.29) finds them
+   pacing. They move at two-thirds of an arriving robot's pace, sit inside a
+   wall's margin half the time, and end a median 1.6 m from where the stall
+   began, on worlds with a margin-safe route and without. Phantom shortcuts
+   through unseen space are not the reason. What turns the robot's driving
+   back on itself is the next thing to find.
 2. **Under noise, what a stack does with the pose error it cannot remove.**
    Localisation under noise is no longer a gap to close: with the noise
    delivered, slam_toolbox ends episodes 0.220 m from the truth and this stack
