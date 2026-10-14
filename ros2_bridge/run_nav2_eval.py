@@ -146,6 +146,10 @@ def parse_args(argv=None):
     p.add_argument("--split", default=None,
                    help="Override the condition's split, e.g. 'val' while "
                         "developing. The registered run leaves this alone.")
+    p.add_argument("--first", type=int, default=0,
+                   help="Skip the split's first N worlds and run worlds N to "
+                        "--episodes: more worlds after a published run without "
+                        "repeating it. 0, every published run.")
     return p.parse_args(argv)
 
 
@@ -410,7 +414,10 @@ def main(argv=None) -> int:
         overrides["freeze_dynamic"] = True
     env_config = build_env_config(overrides, split=split, shift=shift,
                                   n_worlds=args.episodes)
-    seeds = list(env_config.world_seeds)
+    seeds = list(env_config.world_seeds)[args.first:]
+    if not seeds:
+        print(f"--first {args.first} leaves no worlds of {args.episodes}", file=sys.stderr)
+        return 1
 
     bridge = Nav2Bridge(env_config, privileges=args.privileges, beams=args.beams)
     # Both arms at REALTIME_FACTOR unless overridden; see its comment for why
@@ -592,6 +599,8 @@ def main(argv=None) -> int:
         "" if args.beams == 360 else f"_b{args.beams}")
     if args.split:
         stem += f"_{args.split}"  # a development run never lands on a scored name
+    if args.first:
+        stem += f"_from{args.first}"  # nor does an extension land on the run it extends
     out = Path(args.out_dir) / f"{args.condition}__{stem}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(
@@ -603,6 +612,7 @@ def main(argv=None) -> int:
                 "scan_beams": args.beams,
                 "realtime_factor_cap": factor or None,
                 "split": split,
+                "world_seeds": [int(s) for s in seeds],
                 "shift": shift or "none",
                 "lidar_noise_std": noise,
                 # Measured on the published scans, not read from the config.
