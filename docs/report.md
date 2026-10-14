@@ -2515,6 +2515,58 @@ arm's rate (at most 40% registered), 1 of 32 stalls converted (at most a
 third), the share of steps inside the margin within 0.05, collisions at most
 0.02, nominal within 0.03, and no arrival on a no-route world.
 
+### 9.27 How much odometry drift each controller stands
+
+§9.23 and §9.25 left both controllers' TurtleBot3 results turning on how far a
+real robot's odometry drifts, measured at two points: exact odometry and the
+published odometry model. Two points do not make a curve, and a curve is what a
+measurement on hardware could be read against. This scales every error term of
+the published model together — the random walk and the per-robot bias. Scale 0
+is exact odometry; scale 1 is the model as published, whose scale bias is a 2%
+wheel-radius error at one standard deviation; scale 0.5 is a robot calibrated to
+half that. Both controllers ran on the 2-D TurtleBot3, on the same 300 val worlds
+as before, registered first
+([`drift_sweep_test.py`](../scripts/drift_sweep_test.py)). At scale 0 each
+reproduces its exact-odometry arm episode for episode.
+
+| val success, pooled over 300 worlds | exact | 0.25 | 0.5 | 1 (published) | 2 |
+|---|---|---|---|---|---|
+| classical stack | 0.757 | 0.743 | 0.703 | 0.617 | 0.483 |
+| its pose error, median | 0.025 m | 0.035 m | 0.044 m | 0.072 m | 0.148 m |
+| policy, goal vector from odometry | 0.737 | 0.727 | 0.727 | 0.623 | 0.447 |
+| its odometry error at the end, median | — | 0.067 m | 0.132 m | 0.268 m | 0.473 m |
+
+**The registered decision missed by three thousandths: POLICY ONLY, where BOTH
+TOLERATE was predicted.** At scale 0.5 the policy loses 0.010 (7 worlds won, 10
+lost, p = 0.63). The stack loses 0.053 [−0.080, −0.027] (1 won, 17 lost), just
+past the 0.05 the registration allowed. At 0.25 both lose about a hundredth
+(−0.013 and −0.010); at 2 both lose more than a quarter (−0.273 and −0.290).
+
+**The policy has a knee; the stack has a slope.** The policy loses nothing
+measurable while its odometry error stays well inside the goal tolerance —
+0.132 m at scale 0.5, against 0.35 m. Then it falls fast: −0.113 at scale 1,
+−0.290 at 2. That is the shape §9.25's mechanism predicts, since the policy fails
+when its odometry ends past the tolerance and ahead of the robot. The stack's
+loss grows from the first step: −0.013, −0.053, −0.140, −0.273. Its scan
+matching corrects most of the drift — at scale 2 its pose error is 0.148 m
+against the policy's uncorrected 0.473 m — and it still loses as much as the
+policy does. Why a stack that holds its pose to 0.044 m loses five points at
+scale 0.5 is not measured here. Below scale 0.5 the policy is the more tolerant
+of the two; at 2 they are level, and the registration's claim that the policy
+would lose less there failed (−0.290 against −0.273).
+
+**What a measurement on hardware would now say.** Suppose a real TurtleBot3's
+odometry is a quarter as bad as the published model, its wheel radius known to
+0.5%. Then either controller pays about a hundredth. At half the published
+error, the stack pays five points and the policy nothing measurable; at the
+published level, both pay 0.11 to 0.14. Collisions moved by at most 0.04 on any
+condition at any new scale.
+
+**Calibration.** Partial. Held: the losses at 0.25 (at most 0.03) and at 2
+(0.15 to 0.40), success falling with scale, the collision bound, and both errors
+rising with every step. Failed: the decision, by the stack's 0.053 at scale 0.5,
+and the policy losing less than the stack at scale 2.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -2786,6 +2838,10 @@ In order of expected information per GPU-hour:
    odometry model. Both controllers' results now turn on the same unmeasured
    number — how far a real TurtleBot3's odometry drifts over an episode,
    against a 0.35 m goal tolerance — and that is what hardware would settle.
+   §9.27 gives the curve to read that measurement against: at a quarter of
+   the published model's error either controller loses about a hundredth, at
+   half the stack loses 0.053 and the policy nothing measurable, at the
+   published level both lose 0.11 to 0.14.
 
 ## 13. Reproducing
 

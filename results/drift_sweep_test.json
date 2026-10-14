@@ -1,0 +1,258 @@
+{
+  "prediction": "loss grows faster than the drift: small drift is nearly free, and the published model already sits past the knee. Against exact odometry, pooled over the 300 paired worlds, each controller loses at most 0.03 at scale 0.25 and at most 0.05 at scale 0.5, and between 0.15 and 0.40 at scale 2. Neither controller's pooled success rises by more than 0.02 from one scale to the next. At scale 2 the policy loses less than the stack, as at scale 1. At every new scale each controller's collision rate is within 0.05 of its scale-0 arm's on every condition. The stack's median pose error and the policy's median final odometry error rise with every step in scale. Decision at scale 0.5 -- a controller TOLERATES it if its pooled success is at most 0.05 below exact odometry's with its 95% interval's lower end above -0.10: BOTH TOLERATE, STACK ONLY, POLICY ONLY or NEITHER. Prediction: BOTH TOLERATE.",
+  "worlds": 300,
+  "controllers": {
+    "stack": {
+      "0": {
+        "success": 0.7566666666666667,
+        "by_condition": {
+          "nominal": {
+            "success": 0.96,
+            "collision": 0.0
+          },
+          "dense": {
+            "success": 0.7,
+            "collision": 0.0
+          },
+          "narrow": {
+            "success": 0.61,
+            "collision": 0.0
+          }
+        },
+        "error_median": 0.025495097567965384
+      },
+      "0.25": {
+        "success": 0.7433333333333333,
+        "by_condition": {
+          "nominal": {
+            "success": 0.94,
+            "collision": 0.0
+          },
+          "dense": {
+            "success": 0.69,
+            "collision": 0.0
+          },
+          "narrow": {
+            "success": 0.6,
+            "collision": 0.0
+          }
+        },
+        "delta": -0.01333333333333342,
+        "p": 0.2890625,
+        "won": 2,
+        "lost": 6,
+        "ci95": [
+          -0.03333333333333333,
+          0.0033333333333333335
+        ],
+        "error_median": 0.034869995691765285
+      },
+      "0.5": {
+        "success": 0.7033333333333334,
+        "by_condition": {
+          "nominal": {
+            "success": 0.91,
+            "collision": 0.0
+          },
+          "dense": {
+            "success": 0.67,
+            "collision": 0.01
+          },
+          "narrow": {
+            "success": 0.53,
+            "collision": 0.0
+          }
+        },
+        "delta": -0.053333333333333344,
+        "p": 0.00014495849609375,
+        "won": 1,
+        "lost": 17,
+        "ci95": [
+          -0.08,
+          -0.02666666666666667
+        ],
+        "error_median": 0.04416741508308275
+      },
+      "1": {
+        "success": 0.6166666666666667,
+        "by_condition": {
+          "nominal": {
+            "success": 0.83,
+            "collision": 0.0
+          },
+          "dense": {
+            "success": 0.57,
+            "collision": 0.01
+          },
+          "narrow": {
+            "success": 0.45,
+            "collision": 0.02
+          }
+        },
+        "delta": -0.14,
+        "p": 1.312585595769633e-10,
+        "won": 3,
+        "lost": 45,
+        "ci95": [
+          -0.18,
+          -0.1
+        ],
+        "error_median": 0.07168972362744441
+      },
+      "2": {
+        "success": 0.48333333333333334,
+        "by_condition": {
+          "nominal": {
+            "success": 0.65,
+            "collision": 0.02
+          },
+          "dense": {
+            "success": 0.42,
+            "collision": 0.01
+          },
+          "narrow": {
+            "success": 0.38,
+            "collision": 0.0
+          }
+        },
+        "delta": -0.2733333333333334,
+        "p": 8.788794008375919e-24,
+        "won": 1,
+        "lost": 83,
+        "ci95": [
+          -0.3233333333333333,
+          -0.22333333333333333
+        ],
+        "error_median": 0.14771037122191227
+      },
+      "tolerates_0.5": false,
+      "largest_tolerated": 0.25
+    },
+    "policy": {
+      "0": {
+        "success": 0.7366666666666667,
+        "by_condition": {
+          "nominal": {
+            "success": 0.93,
+            "collision": 0.05
+          },
+          "dense": {
+            "success": 0.63,
+            "collision": 0.31
+          },
+          "narrow": {
+            "success": 0.65,
+            "collision": 0.25
+          }
+        }
+      },
+      "0.25": {
+        "success": 0.7266666666666667,
+        "by_condition": {
+          "nominal": {
+            "success": 0.91,
+            "collision": 0.06
+          },
+          "dense": {
+            "success": 0.63,
+            "collision": 0.29
+          },
+          "narrow": {
+            "success": 0.64,
+            "collision": 0.25
+          }
+        },
+        "delta": -0.010000000000000009,
+        "p": 0.5078125,
+        "won": 3,
+        "lost": 6,
+        "ci95": [
+          -0.03,
+          0.01
+        ],
+        "error_median": 0.06698065626609424
+      },
+      "0.5": {
+        "success": 0.7266666666666667,
+        "by_condition": {
+          "nominal": {
+            "success": 0.9,
+            "collision": 0.05
+          },
+          "dense": {
+            "success": 0.64,
+            "collision": 0.29
+          },
+          "narrow": {
+            "success": 0.64,
+            "collision": 0.25
+          }
+        },
+        "delta": -0.010000000000000009,
+        "p": 0.629058837890625,
+        "won": 7,
+        "lost": 10,
+        "ci95": [
+          -0.03666666666666667,
+          0.016666666666666666
+        ],
+        "error_median": 0.13191313432246313
+      },
+      "1": {
+        "success": 0.6233333333333333,
+        "by_condition": {
+          "nominal": {
+            "success": 0.77,
+            "collision": 0.07
+          },
+          "dense": {
+            "success": 0.55,
+            "collision": 0.31
+          },
+          "narrow": {
+            "success": 0.55,
+            "collision": 0.23
+          }
+        },
+        "delta": -0.1133333333333334,
+        "p": 1.4051624930289108e-07,
+        "won": 5,
+        "lost": 39,
+        "ci95": [
+          -0.15333333333333332,
+          -0.07333333333333333
+        ],
+        "error_median": 0.26783079564235246
+      },
+      "2": {
+        "success": 0.44666666666666666,
+        "by_condition": {
+          "nominal": {
+            "success": 0.6,
+            "collision": 0.08
+          },
+          "dense": {
+            "success": 0.37,
+            "collision": 0.35
+          },
+          "narrow": {
+            "success": 0.37,
+            "collision": 0.28
+          }
+        },
+        "delta": -0.29000000000000004,
+        "p": 3.3822316648042255e-24,
+        "won": 2,
+        "lost": 89,
+        "ci95": [
+          -0.3433333333333333,
+          -0.23666666666666666
+        ],
+        "error_median": 0.47330578964564807
+      },
+      "tolerates_0.5": true,
+      "largest_tolerated": 0.5
+    }
+  },
+  "decision": "POLICY ONLY"
+}

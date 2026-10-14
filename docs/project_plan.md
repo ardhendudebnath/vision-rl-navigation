@@ -3753,6 +3753,37 @@ reproduces §9.22's episodes exactly. Full treatment in report §9.26.
   (0.199 → 0.188), collisions ≤ 0.02, nominal within 0.03, no-route arrivals ≤ 2
   (0).
 
+## Phase 7e — The drift sweep
+
+`gazebo_tb3/transfer.py --odometry-scale` multiplies every error term of the
+published odometry model (0: exact, 1: published, whose scale bias is a 2%
+wheel-radius error at 1σ); at 0 both controllers reproduce their exact-odometry
+arms exactly (tests). The stack and the unprivileged policy on the 2-D
+TurtleBot3 at scales 0.25, 0.5 and 2, read against 0 and 1, on the same 300 val
+worlds. Registered first (`scripts/drift_sweep_test.py`, commit 57bf079). Full
+treatment in report §9.27.
+
+| val success, pooled | 0 | 0.25 | 0.5 | 1 | 2 |
+|---|---|---|---|---|---|
+| stack | 0.757 | 0.743 | 0.703 | 0.617 | 0.483 |
+| policy, goal from odometry | 0.737 | 0.727 | 0.727 | 0.623 | 0.447 |
+
+- **Decision POLICY ONLY** (predicted BOTH TOLERATE): at scale 0.5 the policy
+  loses 0.010 (7 / 10), the stack 0.053 [−0.080, −0.027] (1 / 17), past the
+  0.05 bound.
+- The policy has a knee: flat while its odometry error (0.132 m at 0.5) stays
+  inside the 0.35 m goal tolerance, then −0.113 and −0.290. The stack has a
+  slope: −0.013, −0.053, −0.140, −0.273, with its scan-matched pose error 0.044 m
+  at 0.5 and 0.148 m at 2 (the policy's raw odometry error 0.473 m).
+- Collisions within 0.04 of exact odometry at every new scale.
+
+### Calibration
+
+- Partial. Held: losses ≤ 0.03 at 0.25, 0.15–0.40 at 2, success falling with
+  scale, collisions within 0.05, errors rising with every step. Failed: the
+  decision (stack −0.053 at 0.5), and the policy losing less than the stack at
+  2 (−0.290 against −0.273).
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**

@@ -2103,6 +2103,38 @@ def claims():
                     (f"footprint {arm} stall pose", 0.05,
                      round(st.median([r["pose_err_median"] for r in g]), 2))]
         out.append(("footprint no recovery on safe worlds", 0, sum(r["recovery_steps"] for r in safe)))
+    # The drift sweep, report §9.27.
+    ds = "results/drift_sweep_test.json"
+    if os.path.exists(ds):
+        dj = load(ds)
+        for ctl, pooled, errors in (
+            ("stack", (0.757, 0.743, 0.703, 0.617, 0.483), (0.025, 0.035, 0.044, 0.072, 0.148)),
+            ("policy", (0.737, 0.727, 0.727, 0.623, 0.447), (None, 0.067, 0.132, 0.268, 0.473)),
+        ):
+            out_ = dj["controllers"][ctl]
+            for k, s, e in zip(("0", "0.25", "0.5", "1", "2"), pooled, errors, strict=True):
+                out.append((f"drift {ctl} x{k} success", s, round(out_[k]["success"], 3)))
+                if e is not None:
+                    out.append((f"drift {ctl} x{k} error", e, round(out_[k]["error_median"], 3)))
+            base = out_["0"]["by_condition"]
+            out.append((f"drift {ctl} collision shift", 0.04 if ctl == "policy" else 0.02, round(max(
+                abs(out_[k]["by_condition"][c]["collision"] - base[c]["collision"])
+                for k in ("0.25", "0.5", "2") for c in base), 2)))
+        st_, po = dj["controllers"]["stack"], dj["controllers"]["policy"]
+        out += [("drift decision POLICY ONLY", 1.0, float(dj["decision"] == "POLICY ONLY")),
+                ("drift stack x0.25 delta", -0.013, round(st_["0.25"]["delta"], 3)),
+                ("drift stack x0.5 delta", -0.053, round(st_["0.5"]["delta"], 3)),
+                ("drift stack x0.5 ci lo", -0.080, round(st_["0.5"]["ci95"][0], 3)),
+                ("drift stack x0.5 ci hi", -0.027, round(st_["0.5"]["ci95"][1], 3)),
+                ("drift stack x0.5 won", 1, st_["0.5"]["won"]), ("drift stack x0.5 lost", 17, st_["0.5"]["lost"]),
+                ("drift stack x1 delta", -0.140, round(st_["1"]["delta"], 3)),
+                ("drift stack x2 delta", -0.273, round(st_["2"]["delta"], 3)),
+                ("drift policy x0.25 delta", -0.010, round(po["0.25"]["delta"], 3)),
+                ("drift policy x0.5 delta", -0.010, round(po["0.5"]["delta"], 3)),
+                ("drift policy x0.5 won", 7, po["0.5"]["won"]), ("drift policy x0.5 lost", 10, po["0.5"]["lost"]),
+                ("drift policy x0.5 p", 0.63, round(po["0.5"]["p"], 2)),
+                ("drift policy x1 delta", -0.113, round(po["1"]["delta"], 3)),
+                ("drift policy x2 delta", -0.290, round(po["2"]["delta"], 3))]
     # Graph density: slam_toolbox's linking against this back end's closures.
     if os.path.exists(sy):
         from vision_nav.mapping.posegraph import PoseGraphConfig

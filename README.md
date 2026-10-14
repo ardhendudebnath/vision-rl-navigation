@@ -74,9 +74,10 @@ decision below follows from wanting that comparison to be trustworthy.
 | The learned policy on the TurtleBot3: transfers, in 2-D and in Gazebo — its privileged goal vector spares it the localisation the classical stack pays for | Done |
 | Without that privilege, its goal read from odometry: free on Gazebo's wheel odometry, 0.11 under the published drift model | Done |
 | A validity check consistent with the planner: three quarters of the rebuilds gone, every stall still there — the rebuild loop was a symptom | Done |
+| How much odometry drift each stands: the policy is flat to half the published error, then falls; the stack loses from the first step | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Sixty-three experiments, each pre-registered where it tests a hypothesis. The
+Sixty-four experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).
