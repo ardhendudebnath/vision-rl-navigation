@@ -2263,7 +2263,9 @@ steps in every three.
 trigger cell a real surface). Not the planner's optimism, though half of every
 route a stalling robot adopts runs through cells it has never seen (median
 0.50, against 0.17 for arrivals): those routes are rebuilt before the unseen
-part is reached. Not reversals, at 4%.
+part is reached. Not reversals, at 4%. (This was wrong, and §9.30 corrects it:
+read per step rather than per rebuild, the stalls reverse their route fourteen
+times as often as arrivals, and a hovering stall is made of those reversals.)
 
 **Stated as what it is.** An association on val, with a mechanism read off the
 code and confirmed in the counts — not yet a cause. Time inside the margin could
@@ -2661,6 +2663,49 @@ three times the arrivals' rate (11%, 2.0×), and the no-route stalls ranging
 less far and holding phantom shortcuts less often than the margin-safe ones
 (2.5 m and 19.5%, against 2.1 m and 11%).
 
+### 9.30 The stall up close: flip-flopping between two ways round
+
+§9.29 found the stalled robot moving and going nowhere, but its aggregates could
+not show how. [`stall_traces.py`](../scripts/stall_traces.py) re-drives the 32
+stalls on margin-safe val clutter worlds, reproducing §9.29 exactly. It keeps
+every step, and at every rebuild the first metre of the new route. Not
+registered: it is descriptive, written after §9.29.
+
+**A third of the stalls were not stalls.** In 10 of the 32, the last 5 cm of
+progress came within the last 58 steps of the budget: these robots were still
+closing on the goal when time ran out, and end more than a metre short only
+because they were slow. The other 22 went nowhere for 153 to 494 steps. In the
+median one, the robot spends 60% of its stall phase within 0.3 m of ground it
+had already covered at least 30 steps before.
+
+**The 22 shuttle, and their routes flip.** Mostly the rebuilt route points the
+way the old one did — a median change of under 1° — but 4% of rebuilds point
+more than 90° away, round the other side of something. Per step, that is 1.6
+route flips per 100 steps in these stalls, against 1.3 reversals of the robot's
+direction of travel. Across the 22, the two counts correlate at 0.91, and 47 of
+the 104 reversals come within 20 steps after a flip. §9.22's own counts say the
+same, read per step instead of per rebuild: the stalls reverse their route 1.39
+times per 100 steps and the arrivals 0.10, fourteen times less.
+
+![Four stalls up close](figures/stall_shuttles.png)
+
+**What the hovering stall looks like.** In the four stalls that revisit their
+own ground most (above), the robot shuttles along a stretch of about a metre on
+the near side of an obstacle that lies between it and the goal, crawling inside
+its margin. The rebuilt routes go round the obstacle both ways, and the robot
+turns back when the route changes sides. The eight longest stalls are in
+[`stall_traces.png`](figures/stall_traces.png); three of them are long
+excursions that run out of steps rather than shuttles.
+
+**What it does not say.** Why the shortest way round keeps changing sides is not
+measured here. A plan is rebuilt only when the map invalidates it, so each flip
+follows something the robot saw. Which cells force those flips, and whether
+anything forgets them so that the old side reopens, is the next measurement. It
+is also the one a repair would have to answer. Route hysteresis — keeping the
+current way round unless the other is much shorter — is the standard cure for
+this, but §9.7's version never bound: it yielded to any blockage within 2 m,
+and §9.22's footprint fault put one at the robot on most rebuilds.
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -2881,8 +2926,11 @@ In order of expected information per GPU-hour:
    pacing. They move at two-thirds of an arriving robot's pace, sit inside a
    wall's margin half the time, and end a median 1.6 m from where the stall
    began, on worlds with a margin-safe route and without. Phantom shortcuts
-   through unseen space are not the reason. What turns the robot's driving
-   back on itself is the next thing to find.
+   through unseen space are not the reason. Up close (§9.30), a third of
+   those stalls were robots still closing when the budget ran out. The rest
+   flip-flop between two ways round an obstacle, reversing their route
+   fourteen times as often per step as arriving robots. What forces each flip
+   — and whether a route hysteresis that can bind would stop it — is next.
 2. **Under noise, what a stack does with the pose error it cannot remove.**
    Localisation under noise is no longer a gap to close: with the noise
    delivered, slam_toolbox ends episodes 0.220 m from the truth and this stack

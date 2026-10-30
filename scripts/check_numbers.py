@@ -2196,6 +2196,30 @@ def claims():
                 ("controller phantom ratio", 2.0, round(s["phantom_shortcut_share"] / a["phantom_shortcut_share"], 1)),
                 ("controller no route phantom", 0.195, round(nr["phantom_shortcut_share"], 3)),
                 ("controller rebuild ratio", 2.4, round(s["rebuilds_per_100"] / a["rebuilds_per_100"], 1))]
+    # The stall up close, report §9.30.
+    stt = "results/stall_traces.json"
+    if os.path.exists(stt):
+        tj = load(stt)
+        lng = [q for q in tj["per_stall"] if q["steps"] >= 100]
+        rev = tj["reversals_per_100_steps"]
+        out += [("traces reproduce 9.29", 1.0, float(tj["reproduces_diagnostic"])),
+                ("traces stalls", 32, tj["stalls"]),
+                ("traces still closing", 10, tj["still_closing_at_the_end"]),
+                ("traces still closing max phase", 58, tj["still_closing_phase_max"]),
+                ("traces went nowhere", 22, tj["went_nowhere"]),
+                ("traces went nowhere min phase", 153, tj["went_nowhere_phase_min"]),
+                ("traces went nowhere max phase", 494, max(q["steps"] for q in lng)),
+                ("traces revisit median", 0.60, round(st.median(q["revisit_share"] for q in lng), 2)),
+                ("traces swing median under 1 deg", 1.0, float(tj["route_swing_median_deg"] < 1.0)),
+                ("traces swing over 90", 0.04, round(tj["route_swing_over_90"], 2)),
+                ("traces flips per 100", 1.6, round(tj["long_flips_per_100"], 1)),
+                ("traces turnarounds per 100", 1.3, round(tj["long_turnarounds_per_100"], 1)),
+                ("traces correlation", 0.91, round(tj["flips_turnarounds_correlation"], 2)),
+                ("traces turnarounds after flip", 47, tj["long_turnarounds_after_a_flip"]),
+                ("traces turnarounds", 104, tj["long_turnarounds"]),
+                ("traces stall reversals per 100", 1.39, round(rev["stall"], 2)),
+                ("traces arrive reversals per 100", 0.10, round(rev["arrive"], 2)),
+                ("traces reversal ratio", 14, round(rev["stall"] / rev["arrive"]))]
     # Graph density: slam_toolbox's linking against this back end's closures.
     if os.path.exists(sy):
         from vision_nav.mapping.posegraph import PoseGraphConfig

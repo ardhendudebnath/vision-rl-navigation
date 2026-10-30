@@ -3844,6 +3844,26 @@ treatment in report §9.29.
   ≥ 30% and ≥ 3× arrivals (11%, 2.0×), and no-route stalls ranging less and
   holding fewer phantom shortcuts (2.5 m and 19.5% against 2.1 m and 11%).
 
+## Phase 7h — The stall up close (unregistered)
+
+`scripts/stall_traces.py` re-drives the 32 margin-safe stalls (reproducing
+§9.29 exactly), keeps every step and the first metre of every rebuilt route,
+and plots them (`docs/figures/stall_traces.png`, `docs/figures/stall_shuttles.png`).
+Descriptive, written after §9.29. Full treatment in report §9.30.
+
+- 10 of the 32 were still closing on the goal when the budget ran out (last
+  progress within 58 steps of the end); 22 went nowhere for 153–494 steps,
+  revisiting their own ground on a median 60% of the stall phase.
+- Those 22 flip their route to the other side of something 1.6 times per 100
+  steps and reverse their travel 1.3 times; the counts correlate at 0.91 across
+  stalls, and 47 of 104 reversals follow a flip within 20 steps. §9.22's counts
+  read per step: route reversals 1.39 per 100 steps in stalls, 0.10 in arrivals
+  (§9.22's "not reversals, at 4%" corrected).
+- Up close: shuttling along about a metre on the near side of an obstacle
+  between the robot and the goal, crawling inside its margin, routes round both
+  sides. Why the shortest side keeps changing is the next measurement; route
+  hysteresis is the standard cure, and §9.7's version never bound.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**
