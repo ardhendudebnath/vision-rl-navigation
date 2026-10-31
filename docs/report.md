@@ -2761,6 +2761,64 @@ a fifth as often as the stalls in both arms, and the identity control. Failed:
 newly seen cells leading (flicker leads, 56% against 38%), and fewer than half
 of the abandoned sides reopening (59%).
 
+### 9.32 Planning off the margin's edge: the first repair that moves arrival
+
+§9.31 put the flips at the margin's very edge, where binary inflation puts every
+route. The repair it points to plans off the edge.
+`MappedPursuitAgent.plan_buffer` adds a first rung to the planner's ladder,
+planned at the margin plus a buffer of 0.10 m (one map cell) and still judged at
+the margin. A cell's worth of new evidence at the edge then no longer rules the
+route out. The rung is taken only when it costs at most 1.25 times the distance
+of the route at the margin. Unknown space is free to plan through, and without
+that bound the buffer would trade a tight gap the robot can see for any detour
+round space it cannot; a unit test holds that case. Both arms carry §9.26's
+footprint-consistent check, and the footprint arm reproduces §9.26's episodes
+exactly. Registered first ([`plan_buffer_test.py`](../scripts/plan_buffer_test.py)).
+
+| val success / collision | nominal | dense | narrow |
+|---|---|---|---|
+| footprint-consistent check | 0.96 / 0.00 | 0.70 / 0.01 | 0.58 / 0.00 |
+| the same, planning 0.10 m off the edge | 0.96 / 0.00 | 0.74 / 0.00 | 0.64 / 0.00 |
+| difference (worlds won / lost) | 0.00 (1 / 1) | +0.04 (7 / 3) | +0.06 (7 / 1) |
+
+**REPAIRS, at exactly the registered threshold — and the prediction said NO
+EFFECT.** Pooled over the 200 clutter worlds the buffer wins 14 and loses 4,
++0.050 [+0.010, +0.090], McNemar p = 0.031. The registration asked for at
+least +0.05 with the interval above zero, and +10/200 is exactly that. Nothing
+collides, and nominal does not move. Of the footprint arm's 31 stalls on
+margin-safe worlds, 11 arrive when buffered, and 4 of its arrivals are lost.
+
+**A scoring correction, disclosed.** The script first printed NO EFFECT. It
+compared floats exactly, and 0.69 − 0.64 is stored as 0.0499999…, which fails
+"at least 0.05". The comparison now allows for that, and the saved episodes were
+re-scored without being driven again; every number is unchanged. The same
+exactness sits in this report's other registered scripts, and a check of their
+published decisions for values on a threshold is pending.
+
+**What it changed, and what it did not.** The buffered rung supplies 60% of the
+plans on margin-safe clutter worlds, and 48% on the worlds where the footprint
+arm stalls, where the robot is most often too close to a wall for the buffer to
+fit. Rebuilds fall by 30%, from 4.8 to 3.4 per 100 steps. Flips fall by 32%,
+from 0.44 to 0.30 per 100 steps, a little short of the third the registration
+asked of each. So the mechanism moved by about what the arrival did: a third of
+the flips gone, a third of the margin-safe stalls converted, and 53 clutter
+stalls of every route class still standing.
+
+**What it is, stated plainly.** A small, real gain on val at the edge of what
+the threshold accepts: one world fewer won would have read +0.045 and NO
+EFFECT. It is the first of six repairs aimed at this failure to move arrival.
+Commitment in distance and in time (§9.7), planning only through known space
+(§9.8), giving up the margin on a stall (§9.10) and the footprint-consistent
+check (§9.26) all left it where it was. It needs the held-out worlds before it
+is a finding, and that is the next registered test.
+
+**Calibration.** Partial, and wrong in the hopeful direction. Held: the buffered
+rung supplying at least half of the plans overall (60%), collisions at most 0.02
+(none), nominal within 0.03 (0.00), and the identity control. Failed: the
+decision (REPAIRS, not NO EFFECT), the buffered share on the stalled worlds
+(48%), rebuilds and flips each falling by a third (30% and 32%), and at most a
+third of the stalls converting (11 of 31).
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -2987,9 +3045,11 @@ In order of expected information per GPU-hour:
    fourteen times as often per step as arriving robots. What forces each flip
    is now measured (§9.31). The routes run on the margin's very edge, and a
    cell that flickers there knocks them off where the world had room, on
-   three flips in four, and the robot returns once that side reopens. The
-   registered repair that follows plans a buffer inside the edge while still
-   judging plans at the edge.
+   three flips in four, and the robot returns once that side reopens.
+   Planning a cell off the edge while still judging plans at the edge (§9.32)
+   is the first repair to move arrival: +0.050 pooled over val clutter, 14
+   worlds to 4, exactly the registered threshold. It needs the held-out worlds
+   next.
 2. **Under noise, what a stack does with the pose error it cannot remove.**
    Localisation under noise is no longer a gap to close: with the noise
    delivered, slam_toolbox ends episodes 0.220 m from the truth and this stack

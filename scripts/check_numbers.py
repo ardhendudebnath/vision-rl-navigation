@@ -2247,6 +2247,43 @@ def claims():
                 ("flip repaired length ratio", 1.33, round(r["length_ratio_median"], 2)),
                 ("flip published flicker share of all rebuilds 9.22", 0.04,
                  round(load("results/stall_diagnostic.json")["groups"]["own_pose"]["stall"]["shares"]["flicker"], 2))]
+    # Planning off the margin's edge, report §9.32.
+    pb = "results/plan_buffer_test.json"
+    if os.path.exists(pb):
+        bj = load(pb)
+        conds = ("nominal", "dense", "narrow")
+        for arm, rows in (("footprint", ((0.96, 0.00), (0.70, 0.01), (0.58, 0.00))),
+                          ("buffered", ((0.96, 0.00), (0.74, 0.00), (0.64, 0.00)))):
+            for cond, (s, c) in zip(conds, rows, strict=True):
+                e = bj["conditions"][cond][arm]
+                out += [(f"buffer {arm} {cond} success", s, round(e["success"], 2)),
+                        (f"buffer {arm} {cond} collision", c, round(e["collision"], 2))]
+        for name, d, won, lost in (("nominal", 0.00, 1, 1), ("dense", 0.04, 7, 3), ("narrow", 0.06, 7, 1),
+                                   ("clutter", 0.050, 14, 4)):
+            q = bj["pairs"][name]
+            out += [(f"buffer {name} delta", d, round(q["delta"], 3)),
+                    (f"buffer {name} won", won, q["won"]), (f"buffer {name} lost", lost, q["lost"])]
+        q, ms = bj["pairs"]["clutter"], bj["margin_safe"]
+        fpb, bfb = ms["footprint"], ms["buffered"]
+        out += [("buffer decision REPAIRS", 1.0, float(bj["decision"] == "REPAIRS")),
+                ("buffer reproduces 9.26", 1.0, float(bj["reproduces_footprint_test"])),
+                ("buffer clutter ci lo", 0.010, round(q["ci95"][0], 3)),
+                ("buffer clutter ci hi", 0.090, round(q["ci95"][1], 3)),
+                ("buffer clutter p", 0.031, round(q["p"], 3)),
+                ("buffer footprint stalls", 31, ms["footprint_stalls"]),
+                ("buffer stalls arrived", 11, ms["footprint_stalls_arrived"]),
+                ("buffer arrivals lost", 4, ms["footprint_arrivals_lost"]),
+                ("buffer plan share", 0.60, round(bfb["buffered_plan_share"], 2)),
+                ("buffer plan share stalled", 0.48, round(bfb["buffered_plan_share_in_footprint_stalls"], 2)),
+                ("buffer rebuilds footprint", 4.8, round(fpb["rebuilds_per_100_steps"], 1)),
+                ("buffer rebuilds buffered", 3.4, round(bfb["rebuilds_per_100_steps"], 1)),
+                ("buffer rebuild fall", 0.30, round(1 - bfb["rebuilds_per_100_steps"] / fpb["rebuilds_per_100_steps"], 2)),
+                ("buffer flips footprint", 0.44, round(fpb["flips_per_100_steps"], 2)),
+                ("buffer flips buffered", 0.30, round(bfb["flips_per_100_steps"], 2)),
+                ("buffer flip fall", 0.32, round(1 - bfb["flips_per_100_steps"] / fpb["flips_per_100_steps"], 2)),
+                ("buffer clutter stalls left", 53, sum(bj["conditions"][c]["buffered"]["stalls"]
+                                                       for c in ("dense", "narrow"))),
+                ("buffer one fewer", 0.045, round((q["won"] - 1 - q["lost"]) / 200, 3))]
     # Graph density: slam_toolbox's linking against this back end's closures.
     if os.path.exists(sy):
         from vision_nav.mapping.posegraph import PoseGraphConfig

@@ -79,9 +79,10 @@ decision below follows from wanting that comparison to be trustworthy.
 | What a stalled robot does with its route: keeps moving at two-thirds pace and goes nowhere, pacing within two metres | Done |
 | The stall up close: a third were still closing when time ran out; the rest flip-flop between two ways round an obstacle | Done |
 | What forces a flip: a route on the margin's edge, knocked off by a flickering cell where the world had room | Done |
+| Planning a cell off the margin's edge: the first stall repair to move arrival, +0.050 on val clutter (needs held-out) | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Sixty-eight experiments, each pre-registered where it tests a hypothesis. The
+Sixty-nine experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).

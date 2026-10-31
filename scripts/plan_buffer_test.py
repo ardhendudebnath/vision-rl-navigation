@@ -159,11 +159,16 @@ def analyse(rows: list[dict], rng: np.random.Generator) -> dict:
                                            for k in safe)),
         **mech}
     g = report["pairs"]["clutter"]
-    if g["delta"] >= BOUND and g["ci95"][0] > 0:
+    # "At least +0.05" as registered. The first run compared floats exactly, so
+    # 14 worlds won and 4 lost of 200 -- +10/200, +0.050 -- came out as
+    # 0.0499999... and was printed NO EFFECT; corrected here and disclosed in
+    # report §9.32. The outcomes were re-scored, not re-run (``--rescore``).
+    eps = 1e-9
+    if g["delta"] >= BOUND - eps and g["ci95"][0] > 0:
         decision = "REPAIRS"
-    elif g["delta"] <= -BOUND and g["ci95"][1] < 0:
+    elif g["delta"] <= -BOUND + eps and g["ci95"][1] < 0:
         decision = "HARMS"
-    elif abs(g["delta"]) <= BOUND and -2 * BOUND < g["ci95"][0] and g["ci95"][1] < 2 * BOUND:
+    elif abs(g["delta"]) <= BOUND + eps and -2 * BOUND < g["ci95"][0] and g["ci95"][1] < 2 * BOUND:
         decision = "NO EFFECT"
     else:
         decision = "UNRESOLVED"
@@ -177,15 +182,20 @@ def main(argv=None) -> int:
     p.add_argument("--episodes", type=int, default=100)
     p.add_argument("--workers", type=int, default=10)
     p.add_argument("--out", default="results/plan_buffer_test.json")
+    p.add_argument("--rescore", action="store_true",
+                   help="Score the episodes already in --out instead of driving them again.")
     args = p.parse_args(argv)
-    classes = {(c, w["seed"]): w["class"] for c in CONDITIONS
-               for w in route_classes(args.split, c, args.episodes)}
-    jobs = [(c, a, s, args.episodes, args.split) for c in CONDITIONS for a in ARMS
-            for s in sorted(seed for cond, seed in classes if cond == c)]
-    with ProcessPoolExecutor(max_workers=args.workers) as pool:
-        rows = list(pool.map(episode, jobs, chunksize=1))
-    for r in rows:
-        r["class"] = classes[(r["cond"], r["seed"])]
+    if args.rescore:
+        rows = json.loads(Path(args.out).read_text(encoding="utf-8"))["episodes_detail"]
+    else:
+        classes = {(c, w["seed"]): w["class"] for c in CONDITIONS
+                   for w in route_classes(args.split, c, args.episodes)}
+        jobs = [(c, a, s, args.episodes, args.split) for c in CONDITIONS for a in ARMS
+                for s in sorted(seed for cond, seed in classes if cond == c)]
+        with ProcessPoolExecutor(max_workers=args.workers) as pool:
+            rows = list(pool.map(episode, jobs, chunksize=1))
+        for r in rows:
+            r["class"] = classes[(r["cond"], r["seed"])]
     report = analyse(rows, np.random.default_rng(0))
     report.update(split=args.split, buffer=BUFFER, prediction=PREDICTION)
     published = Path("results/footprint_check_test.json")

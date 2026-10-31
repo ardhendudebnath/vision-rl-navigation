@@ -3892,6 +3892,39 @@ first (commit be47737). Full treatment in report §9.31.
   of the stalls' flip rate, identity. Failed: newly seen leading (flicker 56%),
   fewer than half reopening (59%).
 
+## Phase 7j — Planning off the margin's edge
+
+`MappedPursuitAgent.plan_buffer` (off by default) adds a first rung planned at
+the margin plus 0.10 m and judged at the margin, taken when it costs at most
+1.25× the distance of the route at the margin (tests hold the buffer, the
+judging radius and the fall-back through a tight known gap). Footprint-
+consistent arm against the same plus the buffer, same val worlds; the footprint
+arm reproduces §9.26 exactly. Registered first (`scripts/plan_buffer_test.py`,
+commit f463903). Full treatment in report §9.32.
+
+| val | nominal | dense | narrow |
+|---|---|---|---|
+| footprint-consistent | 0.96 / 0.00 | 0.70 / 0.01 | 0.58 / 0.00 |
+| + plan buffer 0.10 m | 0.96 / 0.00 | 0.74 / 0.00 | 0.64 / 0.00 |
+
+- **Decision REPAIRS** (predicted NO EFFECT): pooled clutter +0.050
+  [+0.010, +0.090], 14 / 4, p = 0.031 — exactly the threshold. 11 of the 31
+  margin-safe stalls arrive; 4 arrivals lost; no collisions.
+- Mechanism: buffered rung supplies 60% of plans (48% on the stalled worlds);
+  rebuilds −30%, flips −32%.
+- Scoring correction: the script's exact float comparison first read +10/200
+  as 0.0499999… and printed NO EFFECT; fixed with a tolerance, re-scored from
+  the saved episodes (unchanged numbers). An audit of the other registered
+  scripts for threshold values is pending.
+- Next: the held-out worlds.
+
+### Calibration
+
+- Partial, wrong in the hopeful direction. Held: buffered share ≥ half overall
+  (60%), collisions ≤ 0.02, nominal within 0.03, identity. Failed: the decision,
+  buffered share on stalled worlds (48%), rebuilds and flips down a third (30%,
+  32%), at most a third of stalls converting (11 of 31).
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**
