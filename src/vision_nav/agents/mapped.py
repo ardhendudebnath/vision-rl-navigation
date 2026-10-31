@@ -239,6 +239,8 @@ class MappedPursuitAgent(AStarPursuitAgent):
         #: a buffer inside the edge and judged at the edge survives a cell's
         #: worth of new evidence before it has to be rebuilt.
         self.plan_buffer = 0.0
+        #: Plans the buffered rung supplied. Diagnostic.
+        self.buffered_plans = 0
         self._plan_radius = 0.0
         self._checked_version = -1
         #: Steps between replans for anything that is not close ahead: 1 Hz at
@@ -278,6 +280,7 @@ class MappedPursuitAgent(AStarPursuitAgent):
         self.plan_kind = ""
         self.goal_plans = 0
         self.frontier_plans = 0
+        self.buffered_plans = 0
         self._best_gap = float("inf")
         self._since_gain = 0
         self.relaxed_at = -1
@@ -320,6 +323,8 @@ class MappedPursuitAgent(AStarPursuitAgent):
                 if plain is not None and (_length(plan[0])
                                           > BUFFER_DETOUR * _length(plain[0])):
                     plan = plain
+                else:
+                    self.buffered_plans += 1
             self.path, kind = plan
             self._track = densify_path(self.path, self.config.track_spacing)
             self._plan_radius = judged
