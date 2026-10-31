@@ -2220,6 +2220,33 @@ def claims():
                 ("traces stall reversals per 100", 1.39, round(rev["stall"], 2)),
                 ("traces arrive reversals per 100", 0.10, round(rev["arrive"], 2)),
                 ("traces reversal ratio", 14, round(rev["stall"] / rev["arrive"]))]
+    # What forces a flip, report §9.31.
+    fd = "results/flip_diagnostic.json"
+    if os.path.exists(fd):
+        fj = load(fd)
+        for arm, rate, arr, trig, room, slack, reopen, ret in (
+            ("published", 1.39, 0.10, (0.43, 0.24, 0.28, 0.04), 0.73, 0.036, 0.36, 0.80),
+            ("repaired", 1.09, 0.08, (0.00, 0.38, 0.56, 0.06), 0.77, 0.058, 0.59, 0.74),
+        ):
+            s, a = fj["arms"][arm]["stalls"], fj["arms"][arm]["arrivals"]
+            out += [(f"flip {arm} rate", rate, round(s["flips_per_100_steps"], 2)),
+                    (f"flip {arm} arrivals rate", arr, round(a["flips_per_100_steps"], 2)),
+                    (f"flip {arm} room", room, round(s["room_in_truth_share"], 2)),
+                    (f"flip {arm} slack", slack, round(s["true_slack_median"], 3)),
+                    (f"flip {arm} reopened", reopen, round(s["reopened_share"], 2)),
+                    (f"flip {arm} returned", ret, round(s["returned_share"], 2))]
+            for kind, v in zip(("pre-existing", "newly seen", "flicker", "discovery"), trig, strict=True):
+                out.append((f"flip {arm} {kind}", v, round(s["triggers"][kind], 2)))
+        r = fj["arms"]["repaired"]["stalls"]
+        out += [("flip decision EDGE", 1.0, float(fj["decision"] == "EDGE")),
+                ("flip reproduces 9.26", 1.0, float(fj["reproduces_footprint_test"])),
+                ("flip repaired vs arrivals", 13, int(r["flips_per_100_steps"]
+                                                      / fj["arms"]["repaired"]["arrivals"]["flips_per_100_steps"])),
+                ("flip repaired reopen median steps", 40, int(r["reopened_after_median"])),
+                ("flip repaired real", 0.74, round(r["real_share"], 2)),
+                ("flip repaired length ratio", 1.33, round(r["length_ratio_median"], 2)),
+                ("flip published flicker share of all rebuilds 9.22", 0.04,
+                 round(load("results/stall_diagnostic.json")["groups"]["own_pose"]["stall"]["shares"]["flicker"], 2))]
     # Graph density: slam_toolbox's linking against this back end's closures.
     if os.path.exists(sy):
         from vision_nav.mapping.posegraph import PoseGraphConfig

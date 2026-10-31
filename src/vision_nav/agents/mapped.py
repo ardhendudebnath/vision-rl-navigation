@@ -64,6 +64,13 @@ __all__ = ["MappedPursuitAgent", "make_sensor"]
 #: forensic's ``PROGRESS_EPS``, so "stopped closing" means the same thing in the
 #: measurement that motivated the rule and in the rule itself.
 STALL_EPS = 0.05
+#: How much longer than the route at the margin a buffered route may be and
+#: still be taken (:attr:`MappedPursuitAgent.plan_buffer`).
+BUFFER_DETOUR = 1.25
+
+
+def _length(path: np.ndarray) -> float:
+    return float(np.linalg.norm(np.diff(path, axis=0), axis=1).sum()) if len(path) > 1 else 0.0
 
 
 def make_sensor(kind: str, noise_std: float = 0.0) -> Lidar2D:
@@ -218,6 +225,20 @@ class MappedPursuitAgent(AStarPursuitAgent):
         #: scratch -- 85% of the stalls' rebuilds, 99.6% of them within the
         #: robot's radius of where the plan began.
         self.footprint_check = False
+        #: Extra clearance to plan with, in metres, while plans are still judged
+        #: at the margin: ``0`` -- every published result -- plans and judges at
+        #: the same radius. Above zero the ladder gains a first rung planned at
+        #: the margin plus this, falling back to the published rungs when no
+        #: route clears it or the one that does is more than
+        #: :data:`BUFFER_DETOUR` times as long as the route at the margin.
+        #:
+        #: The planner treats inflation as blocked-or-free, so its routes run
+        #: along the very edge of the margin, where one newly mapped cell rules
+        #: them out though the world has room; §9.30's stalls flip-flop between
+        #: two ways round an obstacle on exactly such rebuilds. A route planned
+        #: a buffer inside the edge and judged at the edge survives a cell's
+        #: worth of new evidence before it has to be rebuilt.
+        self.plan_buffer = 0.0
         self._plan_radius = 0.0
         self._checked_version = -1
         #: Steps between replans for anything that is not close ahead: 1 Hz at
@@ -282,46 +303,26 @@ class MappedPursuitAgent(AStarPursuitAgent):
         # no point offering a clearance the episode has already shown to fail.
         ladder = (base,) if self.relaxed_at >= 0 else (base + margin,
                                                        base + margin * 0.5, base)
-        for radius in ladder:
-            occ = self._clear_footprint(self.map.occupancy_at(radius), pose)
-            kind, cells, smoother = "goal", None, self.map
-            if self.frontier:
-                # Known free space only, and a frontier when the goal is not
-                # reachable inside it. Falls through to the optimistic plan
-                # below when neither is, which is the first step of an episode.
-                unknown = self.map.grid == UNKNOWN
-                closed = self._clear_footprint(occ | unknown, pose)
-                target = self._reachable_goal(closed)
-                # The goal cell goes in whether or not the map has seen it: it
-                # is what makes the exploration goal-directed. Only the routing
-                # target depends on having seen the floor there.
-                cells, kind = plan_through_known(closed, unknown, start,
-                                                 goal_cell, target)
-                if cells is not None:
-                    smoother = _KnownSpace(self.map)
-                    if kind == "goal" and target != goal_cell:
-                        kind = "relaxed"
-            if cells is None:
-                kind = "goal"
-                goal = self._reachable_goal(occ)
-                if goal is None or occ[start]:
-                    continue
-                cells = astar_grid(occ, start, goal)
-                if cells is None:
-                    continue
-                if goal != goal_cell:
-                    kind = "relaxed"
-            raw = self.map.grid_to_world(np.asarray(cells, dtype=int))
-            raw[0] = pose[:2]
-            if kind == "goal":
-                raw[-1] = self.map.goal
-            # The smoother is handed the map, not the world: its line-of-sight
-            # check only ever calls ``clearance``. Under frontier planning it is
-            # handed a view in which unknown space is blocked, so shortcutting
-            # cannot quietly put the route back through the unexplored.
-            self.path = simplify_path(smoother, raw, radius)
+        # Each rung as (radius planned at, radius the plan is judged at).
+        rungs = [(r, r) for r in ladder]
+        if self.plan_buffer > 0.0 and self.relaxed_at < 0:
+            rungs.insert(0, (base + margin + self.plan_buffer, base + margin))
+        for radius, judged in rungs:
+            plan = self._plan_at(radius, pose, start, goal_cell)
+            if plan is None:
+                continue
+            if radius != judged:
+                # The buffered rung is taken only when the room costs little
+                # distance: unknown space is free to plan through, so the
+                # buffer would otherwise trade a tight gap the robot can see
+                # for any detour round space it cannot.
+                plain = self._plan_at(judged, pose, start, goal_cell)
+                if plain is not None and (_length(plan[0])
+                                          > BUFFER_DETOUR * _length(plain[0])):
+                    plan = plain
+            self.path, kind = plan
             self._track = densify_path(self.path, self.config.track_spacing)
-            self._plan_radius = radius
+            self._plan_radius = judged
             self._pending, self._urgent = False, False
             self.plan_kind = kind
             if kind == "frontier":
@@ -331,6 +332,48 @@ class MappedPursuitAgent(AStarPursuitAgent):
             return True
         self.failed_plan_steps.append(self._steps)
         return False
+
+    def _plan_at(self, radius: float, pose: np.ndarray, start: tuple[int, int],
+                 goal_cell: tuple[int, int]) -> tuple[np.ndarray, str] | None:
+        """One rung of the ladder: the smoothed route at ``radius`` and what it
+        ends at, or ``None`` if there is none."""
+        occ = self._clear_footprint(self.map.occupancy_at(radius), pose)
+        kind, cells, smoother = "goal", None, self.map
+        if self.frontier:
+            # Known free space only, and a frontier when the goal is not
+            # reachable inside it. Falls through to the optimistic plan
+            # below when neither is, which is the first step of an episode.
+            unknown = self.map.grid == UNKNOWN
+            closed = self._clear_footprint(occ | unknown, pose)
+            target = self._reachable_goal(closed)
+            # The goal cell goes in whether or not the map has seen it: it
+            # is what makes the exploration goal-directed. Only the routing
+            # target depends on having seen the floor there.
+            cells, kind = plan_through_known(closed, unknown, start,
+                                             goal_cell, target)
+            if cells is not None:
+                smoother = _KnownSpace(self.map)
+                if kind == "goal" and target != goal_cell:
+                    kind = "relaxed"
+        if cells is None:
+            kind = "goal"
+            goal = self._reachable_goal(occ)
+            if goal is None or occ[start]:
+                return None
+            cells = astar_grid(occ, start, goal)
+            if cells is None:
+                return None
+            if goal != goal_cell:
+                kind = "relaxed"
+        raw = self.map.grid_to_world(np.asarray(cells, dtype=int))
+        raw[0] = pose[:2]
+        if kind == "goal":
+            raw[-1] = self.map.goal
+        # The smoother is handed the map, not the world: its line-of-sight
+        # check only ever calls ``clearance``. Under frontier planning it is
+        # handed a view in which unknown space is blocked, so shortcutting
+        # cannot quietly put the route back through the unexplored.
+        return simplify_path(smoother, raw, radius), kind
 
     def _reachable_goal(self, occ: np.ndarray) -> tuple[int, int] | None:
         """The goal cell, or the nearest free cell to it within the goal

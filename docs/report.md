@@ -2706,6 +2706,61 @@ current way round unless the other is much shorter — is the standard cure for
 this, but §9.7's version never bound: it yielded to any blockage within 2 m,
 and §9.22's footprint fault put one at the robot on most rebuilds.
 
+### 9.31 What forces a flip: a route on the margin's edge, knocked off by a flickering cell
+
+[`flip_diagnostic.py`](../scripts/flip_diagnostic.py) catches every flip on the
+169 margin-safe val clutter worlds, for the published stack and for the same
+stack with §9.26's footprint-consistent check, which is what a repair would run
+with. A flip is a rebuild whose route sets off more than 90° from the old one.
+Before the old route is discarded, the script records what blocked it, by the
+blocking cells' state when the plan was made. It also reads one thing from the
+truth, for this measurement only: whether the world itself left the plan its
+clearance at the blocked point. It then follows the abandoned route for 150
+steps. Both arms reproduce §9.26's episodes exactly. Registered first.
+
+| val, margin-safe worlds, stalls | published | footprint-consistent |
+|---|---|---|
+| flips per 100 steps (arrivals) | 1.39 (0.10) | 1.09 (0.08) |
+| trigger: occupied before the plan / newly seen / flicker / discovery | 43% / 24% / 28% / 4% | 0% / 38% / 56% / 6% |
+| the world left the plan its clearance at the blocked point | 73% | 77% |
+| true slack there, median | +0.036 m | +0.058 m |
+| the abandoned side reopens within 150 steps | 36% | 59% |
+| the robot returns to the abandoned side | 80% | 74% |
+
+**EDGE, as registered.** With the footprint fault gone, the stalls still flip at
+1.09 per 100 steps, thirteen times the arrivals' rate. On 77% of those flips the
+world had room at the blocked point at the clearance the plan was made at. The
+map ruled the route out by a median of 0.058 m, less than a cell.
+
+The planner treats inflation as either blocked or free, so its routes run
+along the very edge of the margin. There, a single cell the map marks occupied
+knocks a route off where the world itself had room.
+
+**What knocks it off is mostly the map changing its mind.** The registration
+expected newly seen cells to lead. With the footprint fault removed, flicker
+leads instead, at 56%: cells the map had seen occupied, then freed, and now marks
+occupied again. These are what §9.22 looked for and found forcing 4% of all
+stall rebuilds. They force over half of the flips. Three in four blocking cells
+are real surfaces: the flicker is the map's view of a real wall changing, not a
+phantom.
+
+**And the robot ping-pongs.** The abandoned side reopens within 150 steps on
+59% of flips, a median of 40 steps later; the registration said fewer than half
+would. On 74% of flips the robot's next flip takes it back to the side it left.
+The picture for the hovering stall is now specific:
+- a route along the margin's edge round one side of an obstacle;
+- a flickering cell at that edge that knocks it off;
+- the other way round, a third longer;
+- that side knocked off the same way;
+- and the first side open again by then.
+
+**Calibration.** Partial. Held: the decision, the stalls flipping at least half
+as often without the footprint fault, no flip forced by a cell occupied before
+the plan, the median slack between 0 and +0.10 m, the arrivals flipping at most
+a fifth as often as the stalls in both arms, and the identity control. Failed:
+newly seen cells leading (flicker leads, 56% against 38%), and fewer than half
+of the abandoned sides reopening (59%).
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -2930,7 +2985,11 @@ In order of expected information per GPU-hour:
    those stalls were robots still closing when the budget ran out. The rest
    flip-flop between two ways round an obstacle, reversing their route
    fourteen times as often per step as arriving robots. What forces each flip
-   — and whether a route hysteresis that can bind would stop it — is next.
+   is now measured (§9.31). The routes run on the margin's very edge, and a
+   cell that flickers there knocks them off where the world had room, on
+   three flips in four, and the robot returns once that side reopens. The
+   registered repair that follows plans a buffer inside the edge while still
+   judging plans at the edge.
 2. **Under noise, what a stack does with the pose error it cannot remove.**
    Localisation under noise is no longer a gap to close: with the noise
    delivered, slam_toolbox ends episodes 0.220 m from the truth and this stack
@@ -2997,7 +3056,7 @@ In order of expected information per GPU-hour:
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 575 tests
+pytest                                        # 578 tests
 python scripts/check_docs.py                  # every doc link resolves
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix

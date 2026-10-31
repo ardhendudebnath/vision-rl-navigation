@@ -36,7 +36,7 @@ decision below follows from wanting that comparison to be trustworthy.
 
 | Stage | State |
 |---|---|
-| Task, metrics, splits, 575-test suite | Done |
+| Task, metrics, splits, 578-test suite | Done |
 | Classical baseline (A* + pure pursuit, full map) | Done |
 | Privileged RL, robustness suite, distribution shifts | Done |
 | Four explanations for the gap, each tested and rejected | Done |
@@ -78,9 +78,10 @@ decision below follows from wanting that comparison to be trustworthy.
 | Nav2 against this stack on the rest of the held-out band: ahead again, by half as much — +0.045 over 200 worlds, still unresolved | Done |
 | What a stalled robot does with its route: keeps moving at two-thirds pace and goes nowhere, pacing within two metres | Done |
 | The stall up close: a third were still closing when time ran out; the rest flip-flop between two ways round an obstacle | Done |
+| What forces a flip: a route on the margin's edge, knocked off by a flickering cell where the world had room | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Sixty-seven experiments, each pre-registered where it tests a hypothesis. The
+Sixty-eight experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).

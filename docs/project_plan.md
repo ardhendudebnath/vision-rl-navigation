@@ -3864,6 +3864,34 @@ Descriptive, written after §9.29. Full treatment in report §9.30.
   sides. Why the shortest side keeps changing is the next measurement; route
   hysteresis is the standard cure, and §9.7's version never bound.
 
+## Phase 7i — What forces a flip
+
+`scripts/flip_diagnostic.py` catches every flip (a rebuild whose route sets off
+more than 90° from the old one) on the 169 margin-safe val clutter worlds,
+published stack and footprint-consistent check, records what blocked the old
+route and whether the world left the plan its clearance there, and follows the
+abandoned route for 150 steps. Both arms reproduce §9.26 exactly. Registered
+first (commit be47737). Full treatment in report §9.31.
+
+| val stalls | published | footprint-consistent |
+|---|---|---|
+| flips per 100 steps (arrivals) | 1.39 (0.10) | 1.09 (0.08) |
+| occupied before / newly seen / flicker / discovery | 43 / 24 / 28 / 4% | 0 / 38 / 56 / 6% |
+| world had the clearance at the blocked point | 73% | 77% (slack +0.058 m) |
+| abandoned side reopens within 150 steps / robot returns | 36% / 80% | 59% / 74% |
+
+- **Decision EDGE**, as predicted: routes on the margin's edge, knocked off by
+  the map where the world had room. Flicker leads the triggers (predicted:
+  newly seen), and the abandoned side mostly reopens (predicted: mostly not) —
+  the robot ping-pongs.
+
+### Calibration
+
+- Partial. Held: the decision, flips persisting without the footprint fault,
+  no pre-existing triggers, slack within 0 to +0.10 m, arrivals at most a fifth
+  of the stalls' flip rate, identity. Failed: newly seen leading (flicker 56%),
+  fewer than half reopening (59%).
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**
