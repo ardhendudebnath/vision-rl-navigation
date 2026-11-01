@@ -2792,8 +2792,13 @@ margin-safe worlds, 11 arrive when buffered, and 4 of its arrivals are lost.
 compared floats exactly, and 0.69 − 0.64 is stored as 0.0499999…, which fails
 "at least 0.05". The comparison now allows for that, and the saved episodes were
 re-scored without being driven again; every number is unchanged. The same
-exactness sits in this report's other registered scripts, and a check of their
-published decisions for values on a threshold is pending.
+exactness sits in this report's other registered scripts, so each of their
+published decisions was then re-scored with exact arithmetic from the saved
+results, against the registered wording: none changes. One stored label would.
+In [`dynamic_obstacles.md`](dynamic_obstacles.md) the four-step margin against
+two on dense clutter has an interval ending at exactly +6/200, which is not
+inside ±0.03, yet its result file reads bounded-inert; the text never calls it
+that, and no decision rests on it.
 
 **What it changed, and what it did not.** The buffered rung supplies 60% of the
 plans on margin-safe clutter worlds, and 48% on the worlds where the footprint
