@@ -91,7 +91,8 @@ def episode(args: tuple) -> dict:
     goal_cell = tuple(int(v) for v in world.world_to_grid(world.goal))
     field = geodesic_distance_field(world.occupancy, goal_cell) * world.config.grid_resolution
     agent = make_agent("own_pose", cfg)
-    agent.footprint_check = True
+    # "published" is the stack before §9.26 (plan_buffer_heldout_test.py).
+    agent.footprint_check = arm != "published"
     agent.plan_buffer = BUFFER if arm == "buffered" else 0.0
     watch = Watcher(agent, world)
     agent.start_episode(world, env.robot.pose)
