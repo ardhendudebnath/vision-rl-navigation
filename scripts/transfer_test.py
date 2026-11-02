@@ -39,6 +39,12 @@ ARMS = ("project", "tb3_2d", "tb3_2d_6m", "gazebo")
 CONDITIONS = ("nominal", "dense", "narrow")
 #: The bounded-null half-width for a pooled sim-to-sim difference.
 BOUND = 0.05
+#: Pooled differences over n paired worlds are multiples of 1/n, and float
+#: subtraction can leave one equal to a threshold a hair either side of it
+#: (+10/200 came out 0.0499999..., report §9.32). Every rule built on BOUND
+#: loosens its inclusive comparisons and tightens its strict ones by this
+#: much, far below any 1/n, so each reads as exact arithmetic would.
+EPS = 1e-9
 
 #: Recorded and committed before any arm had been run on these val worlds.
 #:
@@ -129,11 +135,12 @@ def main(argv=None) -> int:
                           "ci95": bootstrap(sa, sb, groups, rng)}
         report["pairs"][f"{b} - {a}"] = pair
     g = report["pairs"]["gazebo - tb3_2d"]["pooled"]
-    if abs(g["delta"]) <= BOUND and -2 * BOUND < g["ci95"][0] and g["ci95"][1] < 2 * BOUND:
+    if (abs(g["delta"]) <= BOUND + EPS and -2 * BOUND + EPS < g["ci95"][0]
+            and g["ci95"][1] < 2 * BOUND - EPS):
         decision = "TRANSFERS"
-    elif g["delta"] <= -BOUND and g["ci95"][1] < 0:
+    elif g["delta"] <= -BOUND + EPS and g["ci95"][1] < 0:
         decision = "WORSE IN GAZEBO"
-    elif g["delta"] >= BOUND and g["ci95"][0] > 0:
+    elif g["delta"] >= BOUND - EPS and g["ci95"][0] > 0:
         decision = "BETTER IN GAZEBO"
     else:
         decision = "UNRESOLVED"

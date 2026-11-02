@@ -35,7 +35,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from transfer_test import BOUND, CONDITIONS, bootstrap, mcnemar  # noqa: E402
+from transfer_test import BOUND, CONDITIONS, EPS, bootstrap, mcnemar  # noqa: E402
 
 SCALES = (0.0, 0.25, 0.5, 1.0, 2.0)
 #: Where each controller's run at each scale is.
@@ -115,10 +115,10 @@ def main(argv=None) -> int:
                 row["error_median"] = float(np.median(col(ctl, k, field)))
             out[f"{k:g}"] = row
         d = out[f"{DECIDING:g}"]
-        out["tolerates_0.5"] = bool(d["delta"] >= -BOUND and d["ci95"][0] > -2 * BOUND)
+        out["tolerates_0.5"] = bool(d["delta"] >= -BOUND - EPS and d["ci95"][0] > -2 * BOUND + EPS)
         # The largest scale swept at which the controller still tolerates drift.
-        tolerated = [k for k in SCALES[1:] if out[f"{k:g}"]["delta"] >= -BOUND
-                     and out[f"{k:g}"]["ci95"][0] > -2 * BOUND]
+        tolerated = [k for k in SCALES[1:] if out[f"{k:g}"]["delta"] >= -BOUND - EPS
+                     and out[f"{k:g}"]["ci95"][0] > -2 * BOUND + EPS]
         out["largest_tolerated"] = max(tolerated) if tolerated else 0.0
         report["controllers"][ctl] = out
     st, po = report["controllers"]["stack"]["tolerates_0.5"], report["controllers"]["policy"]["tolerates_0.5"]

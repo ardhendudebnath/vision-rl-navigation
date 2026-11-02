@@ -441,6 +441,19 @@ def test_bounded_null_and_boundaries(gain, p, ci, expected):
     """An interval that merely includes zero is not a null; the bound must hold."""
     assert _verdict()(gain, p, ci) == expected
 
+
+@pytest.mark.parametrize("gain, p, ci, expected", [
+    # +6/200 as float subtraction leaves it: "at least +0.03" holds.
+    (0.29 - 0.26, 0.01, [0.010, 0.050], "MATTERS"),
+    (0.26 - 0.29, 0.01, [-0.050, -0.010], "HARMS"),
+    # Phase 5r's four-step margin against two on dense, verbatim: the interval
+    # ends exactly at +6/200, which is not inside +-0.03.
+    (0.0, 1.0, [-0.025000000000000022, 0.029999999999999916], "inconclusive"),
+    (0.0, 1.0, [-0.030000000000000027, 0.025], "inconclusive"),
+])
+def test_values_on_the_bound_read_as_exact_arithmetic_would(gain, p, ci, expected):
+    assert _verdict()(gain, p, ci) == expected
+
 # ============================================================================
 # Temporal safety margin
 # ============================================================================

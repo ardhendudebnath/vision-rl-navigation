@@ -40,7 +40,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from spacetime_experiment import verdict  # noqa: E402
+from spacetime_experiment import EPS, verdict  # noqa: E402
 from velocity_experiment import mcnemar_p  # noqa: E402
 
 CONDITIONS = ("sparse", "large", "nominal", "noisy_lidar", "dense", "narrow")
@@ -155,12 +155,15 @@ def pooled_did(nav_with, nav_without, hw_with, hw_without, rng, n_boot):
 def classify(point: float, ci) -> str:
     """The same four-way rule as spacetime_experiment.verdict, on a pooled
     difference in costs: significant *and* material either way, bounded, or
-    neither. Positive means Nav2 pays less for losing its privileges."""
-    if ci[0] > 0 and point >= BOUND:
+    neither. Positive means Nav2 pays less for losing its privileges. Values
+    on the bound compare as exact arithmetic would (``EPS``); an interval
+    ending exactly at -0.10, as 32 beams against the second pass does, is not
+    inside it."""
+    if ci[0] > 0 and point >= BOUND - EPS:
         return "IMPLEMENTATION"
-    if ci[1] < 0 and point <= -BOUND:
+    if ci[1] < 0 and point <= -BOUND + EPS:
         return "BACKWARDS"
-    if ci[0] > -BOUND and ci[1] < BOUND:
+    if ci[0] > -BOUND + EPS and ci[1] < BOUND - EPS:
         return "PROBLEM"
     return "UNRESOLVED"
 

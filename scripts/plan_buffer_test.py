@@ -40,7 +40,7 @@ from clutter_forensic import remaining_at  # noqa: E402
 from flip_diagnostic import Watcher  # noqa: E402
 from route_class_test import route_classes  # noqa: E402
 from stall_diagnostic import STALL_DISTANCE, make_agent  # noqa: E402
-from transfer_test import BOUND, bootstrap, mcnemar  # noqa: E402
+from transfer_test import BOUND, EPS, bootstrap, mcnemar  # noqa: E402
 
 from vision_nav.envs.nav_env import ProceduralNavEnv  # noqa: E402
 from vision_nav.envs.splits import BENCHMARK_CONDITIONS  # noqa: E402
@@ -163,12 +163,13 @@ def analyse(rows: list[dict], rng: np.random.Generator) -> dict:
     # 14 worlds won and 4 lost of 200 -- +10/200, +0.050 -- came out as
     # 0.0499999... and was printed NO EFFECT; corrected here and disclosed in
     # report §9.32. The outcomes were re-scored, not re-run (``--rescore``).
-    eps = 1e-9
-    if g["delta"] >= BOUND - eps and g["ci95"][0] > 0:
+    # The strict "inside 0.10" ends are tightened by the same EPS.
+    if g["delta"] >= BOUND - EPS and g["ci95"][0] > 0:
         decision = "REPAIRS"
-    elif g["delta"] <= -BOUND + eps and g["ci95"][1] < 0:
+    elif g["delta"] <= -BOUND + EPS and g["ci95"][1] < 0:
         decision = "HARMS"
-    elif abs(g["delta"]) <= BOUND + eps and -2 * BOUND < g["ci95"][0] and g["ci95"][1] < 2 * BOUND:
+    elif (abs(g["delta"]) <= BOUND + EPS and -2 * BOUND + EPS < g["ci95"][0]
+          and g["ci95"][1] < 2 * BOUND - EPS):
         decision = "NO EFFECT"
     else:
         decision = "UNRESOLVED"

@@ -37,7 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from clutter_forensic import remaining_at  # noqa: E402
 from route_class_test import route_classes  # noqa: E402
 from stall_diagnostic import STALL_DISTANCE, make_agent  # noqa: E402
-from transfer_test import BOUND, bootstrap, mcnemar  # noqa: E402
+from transfer_test import BOUND, EPS, bootstrap, mcnemar  # noqa: E402
 
 from vision_nav.envs.nav_env import ProceduralNavEnv  # noqa: E402
 from vision_nav.envs.splits import BENCHMARK_CONDITIONS  # noqa: E402
@@ -168,11 +168,12 @@ def analyse(rows: list[dict], rng: np.random.Generator) -> dict:
                           "arrived": {arm: int(sum(by[(arm,) + k]["success"] for k in no_route))
                                       for arm in ARMS}}
     g = report["pairs"]["clutter"]
-    if g["delta"] >= BOUND and g["ci95"][0] > 0:
+    if g["delta"] >= BOUND - EPS and g["ci95"][0] > 0:
         decision = "REPAIRS"
-    elif g["delta"] <= -BOUND and g["ci95"][1] < 0:
+    elif g["delta"] <= -BOUND + EPS and g["ci95"][1] < 0:
         decision = "HARMS"
-    elif abs(g["delta"]) <= BOUND and -2 * BOUND < g["ci95"][0] and g["ci95"][1] < 2 * BOUND:
+    elif (abs(g["delta"]) <= BOUND + EPS and -2 * BOUND + EPS < g["ci95"][0]
+          and g["ci95"][1] < 2 * BOUND - EPS):
         decision = "NO EFFECT"
     else:
         decision = "UNRESOLVED"

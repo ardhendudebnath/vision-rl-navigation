@@ -55,12 +55,14 @@ def mcnemar_p(a: np.ndarray, b: np.ndarray) -> tuple[float, int, int]:
 
 
 def verdict(gain: float, p: float, ci: list[float], bound: float = BOUND) -> str:
-    """The four-outcome rule from ``spacetime_experiment.verdict``."""
-    if p < 0.05 and gain >= bound:
+    """The four-outcome rule from ``spacetime_experiment.verdict``, with its
+    tolerance for differences that sit exactly on the bound."""
+    eps = 1e-9
+    if p < 0.05 and gain >= bound - eps:
         return "MATTERS"
-    if p < 0.05 and gain <= -bound:
+    if p < 0.05 and gain <= -bound + eps:
         return "HARMS"
-    if ci[0] > -bound and ci[1] < bound:
+    if ci[0] > -bound + eps and ci[1] < bound - eps:
         return "INERT (bounded)"
     return "inconclusive"
 

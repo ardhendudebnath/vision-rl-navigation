@@ -61,6 +61,13 @@ PREDICTION = (
     "95% CI entirely inside [-0.03, +0.03]. Otherwise inconclusive."
 )
 BOUND = 0.03
+#: A success difference over n paired episodes is a multiple of 1/n, and float
+#: subtraction can leave one that equals a threshold a hair either side of it
+#: (0.69 - 0.64 is 0.0499999...). Inclusive comparisons are loosened and strict
+#: ones tightened by this much, far below any 1/n, so each reads as exact
+#: arithmetic would. Report §9.32 found the first, and the audit after it one
+#: stored label on the strict side.
+EPS = 1e-9
 
 
 def verdict(gain: float, p: float, ci: list[float], bound: float = BOUND) -> str:
@@ -74,12 +81,17 @@ def verdict(gain: float, p: float, ci: list[float], bound: float = BOUND) -> str
     significant harm a null every time one appears. The pre-registered rule
     named only MATTERS and INERT; HARMS is added here, after the run, and the
     documents say so.
+
+    "Inside" the bound is strict: an interval ending exactly on it is not
+    bounded. Phase 5r's four-step margin against two on `dynamic_dense` ends at
+    +6/200, stored as 0.0299999..., and its result file reads INERT (bounded)
+    from before :data:`EPS`; this rule now calls it inconclusive.
     """
-    if p < 0.05 and gain >= bound:
+    if p < 0.05 and gain >= bound - EPS:
         return "MATTERS"
-    if p < 0.05 and gain <= -bound:
+    if p < 0.05 and gain <= -bound + EPS:
         return "HARMS"
-    if ci[0] > -bound and ci[1] < bound:
+    if ci[0] > -bound + EPS and ci[1] < bound - EPS:
         return "INERT (bounded)"
     return "inconclusive"
 

@@ -37,7 +37,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from transfer_test import BOUND, CONDITIONS, bootstrap, mcnemar  # noqa: E402
+from transfer_test import BOUND, CONDITIONS, EPS, bootstrap, mcnemar  # noqa: E402
 
 ARMS = ("policy_project", "policy_tb3_2d", "policy_tb3_2d_naive", "policy_gazebo")
 
@@ -106,11 +106,12 @@ def main(argv=None) -> int:
                           "ci95": bootstrap(sa, sb, groups, rng)}
         report["pairs"][f"{b} - {a}"] = pair
     g = report["pairs"]["policy_gazebo - policy_tb3_2d"]["pooled"]
-    if abs(g["delta"]) <= BOUND and -2 * BOUND < g["ci95"][0] and g["ci95"][1] < 2 * BOUND:
+    if (abs(g["delta"]) <= BOUND + EPS and -2 * BOUND + EPS < g["ci95"][0]
+            and g["ci95"][1] < 2 * BOUND - EPS):
         decision = "TRANSFERS"
-    elif g["delta"] <= -BOUND and g["ci95"][1] < 0:
+    elif g["delta"] <= -BOUND + EPS and g["ci95"][1] < 0:
         decision = "WORSE IN GAZEBO"
-    elif g["delta"] >= BOUND and g["ci95"][0] > 0:
+    elif g["delta"] >= BOUND - EPS and g["ci95"][0] > 0:
         decision = "BETTER IN GAZEBO"
     else:
         decision = "UNRESOLVED"

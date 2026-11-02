@@ -42,6 +42,16 @@ def test_the_rule_needs_a_difference_that_is_significant_and_material():
     assert cmp.classify(0.2, [-0.01, 0.4]) == "UNRESOLVED"
 
 
+def test_values_on_the_bound_read_as_exact_arithmetic_would():
+    # An interval ending exactly at -0.10 is not inside +-0.10, however the
+    # float lands: as stored (32 beams against the second pass), and as
+    # subtraction can leave it.
+    assert cmp.classify(-0.05, [-0.1, 0.0]) == "UNRESOLVED"
+    assert cmp.classify(-0.05, [-0.09999999999999998, 0.0]) == "UNRESOLVED"
+    # +60/600 is at least +0.10 however it is stored.
+    assert cmp.classify(0.09999999999999998, [0.05, 0.15]) == "IMPLEMENTATION"
+
+
 # --- the statistic ------------------------------------------------------------
 def test_the_difference_in_costs_is_what_each_stack_loses():
     """Nav2 loses nothing, the hand-written stack loses everything, on every

@@ -43,7 +43,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from transfer_test import BOUND, CONDITIONS, bootstrap, mcnemar  # noqa: E402
+from transfer_test import BOUND, CONDITIONS, EPS, bootstrap, mcnemar  # noqa: E402
 
 ARMS = ("policy_project", "policy_tb3_2d", "policy_gazebo",
         "policy_project_odom", "policy_tb3_2d_odom", "policy_gazebo_odom", "gazebo")
@@ -164,11 +164,12 @@ def main(argv=None) -> int:
             "timeout_goal_distance_median": float(np.median(col(arm, "goal_distance")[timeout])),
             "timeout_believed_distance_median": float(np.median(col(arm, "odom_goal_distance_final")[timeout]))}
     g = report["pairs"]["policy_gazebo_odom - policy_gazebo"]["pooled"]
-    if abs(g["delta"]) <= BOUND and -2 * BOUND < g["ci95"][0] and g["ci95"][1] < 2 * BOUND:
+    if (abs(g["delta"]) <= BOUND + EPS and -2 * BOUND + EPS < g["ci95"][0]
+            and g["ci95"][1] < 2 * BOUND - EPS):
         decision = "FREE"
-    elif g["delta"] <= -BOUND and g["ci95"][1] < 0:
+    elif g["delta"] <= -BOUND + EPS and g["ci95"][1] < 0:
         decision = "COSTLY"
-    elif g["delta"] >= BOUND and g["ci95"][0] > 0:
+    elif g["delta"] >= BOUND - EPS and g["ci95"][0] > 0:
         decision = "HELPS"
     else:
         decision = "UNRESOLVED"
