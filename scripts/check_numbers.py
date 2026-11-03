@@ -2284,6 +2284,77 @@ def claims():
                 ("buffer clutter stalls left", 53, sum(bj["conditions"][c]["buffered"]["stalls"]
                                                        for c in ("dense", "narrow"))),
                 ("buffer one fewer", 0.045, round((q["won"] - 1 - q["lost"]) / 200, 3))]
+    # The plan buffer on held-out worlds, report §9.33.
+    ph = "results/plan_buffer_heldout_test.json"
+    if os.path.exists(ph):
+        hj = load(ph)
+
+        def pb_stalled(r):  # plan_buffer_test.stalled, with its 1 m STALL_DISTANCE
+            return (not r["success"] and not r["collision"]
+                    and math.isfinite(r["final_remaining"]) and r["final_remaining"] >= 1.0)
+
+        conds = ("nominal", "dense", "narrow")
+        for arm, rows in (("published", ((0.96, 0.00), (0.59, 0.01), (0.60, 0.01))),
+                          ("footprint", ((0.96, 0.00), (0.58, 0.00), (0.58, 0.00))),
+                          ("buffered", ((0.99, 0.00), (0.66, 0.01), (0.63, 0.02)))):
+            for cond, (s, c) in zip(conds, rows, strict=True):
+                e = hj["conditions"][cond][arm]
+                out += [(f"heldout buffer {arm} {cond} success", s, round(e["success"], 2)),
+                        (f"heldout buffer {arm} {cond} collision", c, round(e["collision"], 2))]
+        for name, d, won, lost in (("nominal", 0.03, 4, 1), ("dense", 0.08, 10, 2), ("narrow", 0.05, 5, 0),
+                                   ("clutter", 0.065, 15, 2)):
+            q = hj["pairs"][name]
+            out += [(f"heldout buffer {name} delta", d, round(q["delta"], 3)),
+                    (f"heldout buffer {name} won", won, q["won"]),
+                    (f"heldout buffer {name} lost", lost, q["lost"])]
+        q, ms, fp = hj["pairs"]["clutter"], hj["margin_safe"], hj["footprint_vs_published"]["clutter"]
+        fpb, bfb = ms["footprint"], ms["buffered"]
+        det = {(r["arm"], r["cond"], r["seed"]): r for r in hj["episodes_detail"]}
+        clutter = sorted({(r["cond"], r["seed"]) for r in hj["episodes_detail"] if r["cond"] != "nominal"})
+        won = [k for k in clutter if det[("buffered",) + k]["success"] and not det[("footprint",) + k]["success"]]
+        crashes = [k for k in clutter if det[("buffered",) + k]["collision"]]
+        cl_success = {arm: sum(det[(arm,) + k]["success"] for k in clutter) / len(clutter)
+                      for arm in ("published", "footprint", "buffered")}
+        out += [("heldout buffer decision REPAIRS", 1.0, float(hj["decision"] == "REPAIRS")),
+                ("heldout buffer reproduces 9.13", 1.0, float(hj["reproduces_backend_test"])),
+                ("heldout buffer clutter ci lo", 0.025, round(q["ci95"][0], 3)),
+                ("heldout buffer clutter ci hi", 0.105, round(q["ci95"][1], 3)),
+                ("heldout buffer clutter p", 0.002, round(q["p"], 3)),
+                ("heldout buffer four fewer", 0.045, round((q["won"] - 4 - q["lost"]) / 200, 3)),
+                ("heldout buffer wins that were stalls", 13, sum(pb_stalled(det[("footprint",) + k]) for k in won)),
+                ("heldout buffer stall wins margin-safe", 12,
+                 sum(pb_stalled(det[("footprint",) + k]) and det[("footprint",) + k]["class"] != "no route"
+                     for k in won)),
+                ("heldout buffer footprint stalls", 37, ms["footprint_stalls"]),
+                ("heldout buffer stalls arrived", 12, ms["footprint_stalls_arrived"]),
+                ("heldout buffer arrivals lost", 1, ms["footprint_arrivals_lost"]),
+                ("heldout buffer clutter stalls footprint", 77,
+                 sum(hj["conditions"][c]["footprint"]["stalls"] for c in ("dense", "narrow"))),
+                ("heldout buffer clutter stalls buffered", 62,
+                 sum(hj["conditions"][c]["buffered"]["stalls"] for c in ("dense", "narrow"))),
+                ("heldout buffer plan share", 0.63, round(bfb["buffered_plan_share"], 2)),
+                ("heldout buffer plan share stalled", 0.49, round(bfb["buffered_plan_share_in_footprint_stalls"], 2)),
+                ("heldout buffer rebuilds footprint", 5.3, round(fpb["rebuilds_per_100_steps"], 1)),
+                ("heldout buffer rebuilds buffered", 3.5, round(bfb["rebuilds_per_100_steps"], 1)),
+                ("heldout buffer rebuild fall", 0.35,
+                 round(1 - bfb["rebuilds_per_100_steps"] / fpb["rebuilds_per_100_steps"], 2)),
+                ("heldout buffer flips footprint", 0.41, round(fpb["flips_per_100_steps"], 2)),
+                ("heldout buffer flips buffered", 0.34, round(bfb["flips_per_100_steps"], 2)),
+                ("heldout buffer flip fall", 0.17, round(1 - bfb["flips_per_100_steps"] / fpb["flips_per_100_steps"], 2)),
+                ("heldout buffer collisions", 3, len(crashes)),
+                ("heldout buffer collisions on no-route worlds", 3,
+                 sum(det[("footprint",) + k]["class"] == "no route" for k in crashes)),
+                ("heldout buffer no-route worlds", 42, hj["no_route"]["worlds"]),
+                ("heldout buffer no-route arrived footprint", 2, hj["no_route"]["arrived"]["footprint"]),
+                ("heldout buffer no-route arrived buffered", 2, hj["no_route"]["arrived"]["buffered"]),
+                ("heldout footprint vs published delta", -0.015, round(fp["delta"], 3)),
+                ("heldout footprint vs published ci lo", -0.045, round(fp["ci95"][0], 3)),
+                ("heldout footprint vs published ci hi", 0.015, round(fp["ci95"][1], 3)),
+                ("heldout footprint vs published won", 3, fp["won"]),
+                ("heldout footprint vs published lost", 6, fp["lost"]),
+                ("heldout clutter success published", 0.595, round(cl_success["published"], 3)),
+                ("heldout clutter success footprint", 0.580, round(cl_success["footprint"], 3)),
+                ("heldout clutter success buffered", 0.645, round(cl_success["buffered"], 3))]
     # Graph density: slam_toolbox's linking against this back end's closures.
     if os.path.exists(sy):
         from vision_nav.mapping.posegraph import PoseGraphConfig

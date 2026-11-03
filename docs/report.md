@@ -2815,7 +2815,7 @@ EFFECT. It is the first of six repairs aimed at this failure to move arrival.
 Commitment in distance and in time (§9.7), planning only through known space
 (§9.8), giving up the margin on a stall (§9.10) and the footprint-consistent
 check (§9.26) all left it where it was. It needs the held-out worlds before it
-is a finding, and that is the next registered test.
+is a finding, and that is the next registered test (§9.33).
 
 **Calibration.** Partial, and wrong in the hopeful direction. Held: the buffered
 rung supplying at least half of the plans overall (60%), collisions at most 0.02
@@ -2823,6 +2823,65 @@ rung supplying at least half of the plans overall (60%), collisions at most 0.02
 decision (REPAIRS, not NO EFFECT), the buffered share on the stalled worlds
 (48%), rebuilds and flips each falling by a third (30% and 32%), and at most a
 third of the stalls converting (11 of 31).
+
+### 9.33 The plan buffer on held-out worlds: it holds, and grows
+
+§9.32's gain sat exactly on its threshold, and on val. The same two arms,
+unchanged, then ran on the held-out worlds §9.13 and §9.21 report: the first 100
+`test` worlds for `nominal` and the first 100 `test_ood` worlds each for `dense`
+and `narrow`, scored by the function that scored val. A third arm, the stack as
+§9.13 ran it, reproduces that section's held-out episodes exactly. Registered
+first ([`plan_buffer_heldout_test.py`](../scripts/plan_buffer_heldout_test.py)),
+with val's estimate shrunk towards zero because five repairs before it had
+failed: a gain under the threshold, NO EFFECT.
+
+| held-out success / collision | nominal | dense | narrow |
+|---|---|---|---|
+| published (§9.13) | 0.96 / 0.00 | 0.59 / 0.01 | 0.60 / 0.01 |
+| footprint-consistent check | 0.96 / 0.00 | 0.58 / 0.00 | 0.58 / 0.00 |
+| the same, planning 0.10 m off the edge | 0.99 / 0.00 | 0.66 / 0.01 | 0.63 / 0.02 |
+| buffered − footprint (worlds won / lost) | +0.03 (4 / 1) | +0.08 (10 / 2) | +0.05 (5 / 0) |
+
+**REPAIRS, clear of the threshold this time.** Pooled over the 200 held-out
+clutter worlds the buffer wins 15 and loses 2, +0.065 [+0.025, +0.105], McNemar
+p = 0.002. Val's point estimate was one world from the threshold; this one
+would need four fewer worlds won to fall under it. Both clutter conditions gain.
+Thirteen of the 15 wins were stalls in the footprint arm, 12 of them on worlds
+with a margin-safe route, and two ran out of time while still closing. Of the
+footprint arm's 37 stalls on margin-safe worlds, 12 arrive when buffered (val:
+11 of 31), and it loses 1 arrival there (val: 4). Clutter stalls fall from 77
+to 62.
+
+**The mechanism moved as on val, the flips less.** On the margin-safe worlds
+the buffered rung supplies 63% of the plans (val 60%), and 49% on the worlds
+where the footprint arm stalls (val 48%). Rebuilds fall 35%, from 5.3 to 3.5 per
+100 steps (val 30%). Flips fall 17%, from 0.41 to 0.34 (val 32%).
+
+**The price is three collisions, all where the buffer has no route to offer.**
+Every one is on a world with no margin-safe route, where the footprint arm
+collides nowhere, and one of them is the second world lost. `narrow` sits at
+the registered limit, 0.02. On the 42 worlds with no margin-safe route both arms
+arrive on 2.
+
+**The footprint check alone, out of sample, is what it was on val.** Against the
+published stack pooled over clutter it is −0.015 [−0.045, +0.015], 3 worlds won
+and 6 lost. It changes how often the robot rebuilds its plan, not whether it
+arrives (§9.26).
+
+**What it is, stated plainly.** The first repair to the clutter stall that holds
+out of sample: held-out clutter success 0.580 to 0.645 against the footprint
+arm, 0.595 for the stack as published. Most stalls are still there, and the
+worlds with no route at the margin are untouched by construction.
+
+**Calibration.** Partial, and wrong in the hopeful direction again: shrinking
+val's estimate towards zero was the mistake. Held: the buffered rung supplying
+at least half of the plans (63%), rebuilds falling by 20% to 45% (35%), a fifth
+to a half of the stalls converting (12 of 37), collisions at most 0.02 on every
+condition (0.02 on `narrow`, at the limit), nominal within 0.03 (+0.03, at the
+limit: +3/100, which an exact float comparison would have failed), the footprint
+arm within 0.03 of the published stack (−0.015), and the identity control.
+Failed: the pooled band (+0.065 against +0.01 to +0.045), flips falling by at
+least a fifth (17%), and the decision (REPAIRS, not NO EFFECT).
 
 ## 10. Discussion
 
@@ -3053,8 +3112,9 @@ In order of expected information per GPU-hour:
    three flips in four, and the robot returns once that side reopens.
    Planning a cell off the edge while still judging plans at the edge (§9.32)
    is the first repair to move arrival: +0.050 pooled over val clutter, 14
-   worlds to 4, exactly the registered threshold. It needs the held-out worlds
-   next.
+   worlds to 4, exactly the registered threshold. On held-out worlds it holds
+   and grows, +0.065, 15 worlds to 2 (§9.33), at the price of three collisions
+   on worlds with no margin-safe route. Most of the stalls remain.
 2. **Under noise, what a stack does with the pose error it cannot remove.**
    Localisation under noise is no longer a gap to close: with the noise
    delivered, slam_toolbox ends episodes 0.220 m from the truth and this stack

@@ -3914,9 +3914,11 @@ commit f463903). Full treatment in report §9.32.
   rebuilds −30%, flips −32%.
 - Scoring correction: the script's exact float comparison first read +10/200
   as 0.0499999… and printed NO EFFECT; fixed with a tolerance, re-scored from
-  the saved episodes (unchanged numbers). An audit of the other registered
-  scripts for threshold values is pending.
-- Next: the held-out worlds.
+  the saved episodes (unchanged numbers). The audit of the other registered
+  scripts that followed found no other published decision changed (report
+  §9.32), and every decision rule now compares with the tolerance on both its
+  inclusive and its strict sides.
+- Next: the held-out worlds (Phase 7k).
 
 ### Calibration
 
@@ -3924,6 +3926,39 @@ commit f463903). Full treatment in report §9.32.
   (60%), collisions ≤ 0.02, nominal within 0.03, identity. Failed: the decision,
   buffered share on stalled worlds (48%), rebuilds and flips down a third (30%,
   32%), at most a third of stalls converting (11 of 31).
+
+## Phase 7k — The plan buffer on held-out worlds
+
+The same two arms, unchanged, on the held-out worlds §9.13 and §9.21 report
+(the first 100 `test` worlds for nominal, the first 100 `test_ood` each for
+dense and narrow), scored by the function that scored val. A third arm, the
+stack as published, reproduces §9.13's held-out front-end episodes exactly.
+Registered first (`scripts/plan_buffer_heldout_test.py`, commit 0cc99c4). Full
+treatment in report §9.33.
+
+| held-out | nominal | dense | narrow |
+|---|---|---|---|
+| published (§9.13) | 0.96 / 0.00 | 0.59 / 0.01 | 0.60 / 0.01 |
+| footprint-consistent | 0.96 / 0.00 | 0.58 / 0.00 | 0.58 / 0.00 |
+| + plan buffer 0.10 m | 0.99 / 0.00 | 0.66 / 0.01 | 0.63 / 0.02 |
+
+- **Decision REPAIRS** (predicted NO EFFECT): pooled clutter +0.065
+  [+0.025, +0.105], 15 / 2, p = 0.002, clear of the threshold. 12 of the 37
+  margin-safe stalls arrive; 1 arrival lost there.
+- Mechanism: buffered rung supplies 63% of plans (49% on the stalled worlds);
+  rebuilds −35%, flips −17%.
+- The price: three collisions, all on worlds with no margin-safe route, where
+  the footprint arm has none.
+- The footprint check alone, out of sample: −0.015 [−0.045, +0.015], as on val.
+
+### Calibration
+
+- Partial, wrong in the hopeful direction again: shrinking val's estimate
+  towards zero was the mistake. Held: buffered share ≥ half (63%), rebuilds down
+  20–45% (35%), a fifth to a half of stalls converting (12 of 37), collisions
+  ≤ 0.02 (0.02 on narrow, at the limit), nominal within 0.03 (+0.03, at the
+  limit), footprint within 0.03 of published (−0.015), identity. Failed: the
+  pooled band (+0.065), flips down at least a fifth (17%), the decision.
 
 ## Hardware notes
 

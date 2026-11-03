@@ -79,10 +79,11 @@ decision below follows from wanting that comparison to be trustworthy.
 | What a stalled robot does with its route: keeps moving at two-thirds pace and goes nowhere, pacing within two metres | Done |
 | The stall up close: a third were still closing when time ran out; the rest flip-flop between two ways round an obstacle | Done |
 | What forces a flip: a route on the margin's edge, knocked off by a flickering cell where the world had room | Done |
-| Planning a cell off the margin's edge: the first stall repair to move arrival, +0.050 on val clutter (needs held-out) | Done |
+| Planning a cell off the margin's edge: the first stall repair to move arrival, +0.050 on val clutter | Done |
+| The plan buffer on held-out worlds: it holds and grows, +0.065 on clutter, 15 worlds to 2, for three collisions where no margin-safe route exists | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Sixty-nine experiments, each pre-registered where it tests a hypothesis. The
+Seventy experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).
