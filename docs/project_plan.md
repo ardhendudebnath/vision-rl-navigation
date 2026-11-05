@@ -3947,8 +3947,13 @@ treatment in report §9.33.
   margin-safe stalls arrive; 1 arrival lost there.
 - Mechanism: buffered rung supplies 63% of plans (49% on the stalled worlds);
   rebuilds −35%, flips −17%.
-- The price: three collisions, all on worlds with no margin-safe route, where
-  the footprint arm has none.
+- Three collisions, all on worlds with no margin-safe route, where the
+  footprint arm has none. Up close (unregistered,
+  `scripts/buffer_collision_forensic.py`, all 73 no-route worlds of both
+  splits): each is a bare-radius plan grazing a wall. The buffer changes the
+  early route on 72 of the 73 but not the bare-radius driving (1164 against
+  1238 steps held-out), and pooled it is 3 collisions against 1, p = 0.625.
+  Every collision in either test, any arm, is on a no-route world.
 - The footprint check alone, out of sample: −0.015 [−0.045, +0.015], as on val.
 
 ### Calibration

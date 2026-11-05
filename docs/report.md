@@ -2857,11 +2857,30 @@ the buffered rung supplies 63% of the plans (val 60%), and 49% on the worlds
 where the footprint arm stalls (val 48%). Rebuilds fall 35%, from 5.3 to 3.5 per
 100 steps (val 30%). Flips fall 17%, from 0.41 to 0.34 (val 32%).
 
-**The price is three collisions, all where the buffer has no route to offer.**
-Every one is on a world with no margin-safe route, where the footprint arm
-collides nowhere, and one of them is the second world lost. `narrow` sits at
-the registered limit, 0.02. On the 42 worlds with no margin-safe route both arms
-arrive on 2.
+**Three collisions, all where the buffer has no route to offer.** Every one is
+on a world with no margin-safe route, where the footprint arm collides nowhere,
+and one of them is the second world lost. `narrow` sits at the registered limit,
+0.02. On the 42 worlds with no margin-safe route both arms arrive on 2.
+
+**Up close, three collisions are not evidence that the buffer causes them
+(unregistered).** [`buffer_collision_forensic.py`](../scripts/buffer_collision_forensic.py)
+re-drove every clutter world with no margin-safe route, 42 held-out and 31 val,
+in both arms, logging each plan and each step; every run reproduces its stored
+episode. All three collisions are the same event: the robot following a plan
+made at the bare robot radius, with no margin left, at its 0.15 m/s caution
+speed, until its true clearance closes to nothing, with the pose 0.04 to 0.34 m
+wrong. What the buffer changes on these worlds is the way the robot goes. It
+plans on its own map, where unknown space is free, so a wide route through the
+unseen can exist for a while; the buffered arm takes one on 72 of the 73 worlds,
+and until it does the two arms drive identically. It does not then drive
+bare-radius plans more — 1164 steps against 1238 held-out, 681 against 739 on
+val — and it comes within a centimetre of a wall on 3 held-out worlds against 1,
+and on 1 val world each. Pooled over the 73 worlds the buffered arm alone
+collides on 3 and the footprint arm alone on 1, McNemar p = 0.625. Every
+collision either test recorded, in any arm, is on a world with no margin-safe
+route: the published stack's two on held-out and the footprint arm's one on val
+as well. The buffer moves which of those worlds a collision lands on; that it
+adds any is not shown.
 
 **The footprint check alone, out of sample, is what it was on val.** Against the
 published stack pooled over clutter it is −0.015 [−0.045, +0.015], 3 worlds won
@@ -3113,8 +3132,10 @@ In order of expected information per GPU-hour:
    Planning a cell off the edge while still judging plans at the edge (§9.32)
    is the first repair to move arrival: +0.050 pooled over val clutter, 14
    worlds to 4, exactly the registered threshold. On held-out worlds it holds
-   and grows, +0.065, 15 worlds to 2 (§9.33), at the price of three collisions
-   on worlds with no margin-safe route. Most of the stalls remain.
+   and grows, +0.065, 15 worlds to 2 (§9.33). Its three collisions there are
+   bare-radius plans grazing a wall on worlds with no margin-safe route, where
+   every collision either test recorded falls, and are not shown to be more
+   frequent with the buffer than without it. Most of the stalls remain.
 2. **Under noise, what a stack does with the pose error it cannot remove.**
    Localisation under noise is no longer a gap to close: with the noise
    delivered, slam_toolbox ends episodes 0.220 m from the truth and this stack

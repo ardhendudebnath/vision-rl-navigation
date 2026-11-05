@@ -80,7 +80,7 @@ decision below follows from wanting that comparison to be trustworthy.
 | The stall up close: a third were still closing when time ran out; the rest flip-flop between two ways round an obstacle | Done |
 | What forces a flip: a route on the margin's edge, knocked off by a flickering cell where the world had room | Done |
 | Planning a cell off the margin's edge: the first stall repair to move arrival, +0.050 on val clutter | Done |
-| The plan buffer on held-out worlds: it holds and grows, +0.065 on clutter, 15 worlds to 2, for three collisions where no margin-safe route exists | Done |
+| The plan buffer on held-out worlds: it holds and grows, +0.065 on clutter, 15 worlds to 2; its three collisions, up close, are bare-radius grazes on worlds with no margin-safe route, not shown to be the buffer's | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
 Seventy experiments, each pre-registered where it tests a hypothesis. The

@@ -2355,6 +2355,44 @@ def claims():
                 ("heldout clutter success published", 0.595, round(cl_success["published"], 3)),
                 ("heldout clutter success footprint", 0.580, round(cl_success["footprint"], 3)),
                 ("heldout clutter success buffered", 0.645, round(cl_success["buffered"], 3))]
+    # The buffer's collisions up close, report §9.33 (unregistered).
+    bc = "results/buffer_collision_forensic.json"
+    if os.path.exists(bc):
+        cj = load(bc)
+        sp = cj["splits"]
+        for split, n, bare in (("held-out", 42, {"footprint": 1238, "buffered": 1164}),
+                               ("val", 31, {"footprint": 739, "buffered": 681})):
+            t = sp[split]["totals"]
+            out += [(f"collision forensic {split} reproduces", 1.0, float(sp[split]["reproduces"])),
+                    (f"collision forensic {split} worlds", n, t["buffered"]["worlds"])]
+            out += [(f"collision forensic {split} {arm} bare steps", v, t[arm]["bare_steps"])
+                    for arm, v in bare.items()]
+        for split, arm, v in (("held-out", "footprint", 1), ("held-out", "buffered", 3),
+                              ("val", "footprint", 1), ("val", "buffered", 1)):
+            out.append((f"collision forensic {split} {arm} near-contact worlds", v,
+                        sp[split]["totals"][arm]["near_contact_worlds"]))
+        worlds = [r for s in sp.values() for r in s["worlds"]]
+        took = [r for r in worlds if r["first_buffered_plan"] is not None]
+        crashed = [r["buffered"]["tail"] for r in worlds if r["buffered"]["collision"]]
+        out += [("collision forensic worlds taking a buffered plan", 72, len(took)),
+                ("collision forensic no-route worlds", 73, cj["pooled"]["worlds"]),
+                ("collision forensic identical until the buffered plan", 72,
+                 sum(r["parted_at"] is None or r["parted_at"] >= r["first_buffered_plan"] for r in took)),
+                ("collision forensic buffered alone collides", 3, cj["pooled"]["only_buffered_collides"]),
+                ("collision forensic footprint alone collides", 1, cj["pooled"]["only_footprint_collides"]),
+                ("collision forensic p", 0.625, round(cj["pooled"]["p"], 3)),
+                ("collision forensic buffered collisions on bare plans", 3, sum(t[-1]["bare"] for t in crashed)),
+                ("collision forensic buffered contact speed", 0.15, round(max(t[-1]["speed"] for t in crashed), 2)),
+                ("collision forensic buffered contact speed min", 0.15, round(min(t[-1]["speed"] for t in crashed), 2)),
+                ("collision forensic pose error low", 0.04, round(min(t[-1]["pose_err"] for t in crashed), 2)),
+                ("collision forensic pose error high", 0.34, round(max(t[-1]["pose_err"] for t in crashed), 2)),
+                ("collision forensic collisions recorded", 6, len(cj["collisions"])),
+                ("collision forensic collisions on no-route worlds", 6,
+                 sum(c["class"] == "no route" for c in cj["collisions"])),
+                ("collision forensic published collisions held-out", 2,
+                 sum(c["arm"] == "published" and c["split"] == "held-out" for c in cj["collisions"])),
+                ("collision forensic footprint collisions val", 1,
+                 sum(c["arm"] == "footprint" and c["split"] == "val" for c in cj["collisions"]))]
     # Graph density: slam_toolbox's linking against this back end's closures.
     if os.path.exists(sy):
         from vision_nav.mapping.posegraph import PoseGraphConfig
