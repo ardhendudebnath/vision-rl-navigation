@@ -1,0 +1,3 @@
+# Shell scripts run under bash in WSL, where a carriage return is a syntax
+# error. Keep them LF in every checkout, whatever core.autocrlf says.
+*.sh text eol=lf

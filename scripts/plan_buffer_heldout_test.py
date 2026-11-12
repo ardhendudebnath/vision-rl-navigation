@@ -24,13 +24,13 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from plan_buffer_test import BUFFER, CLUTTER, CONDITIONS, analyse, episode, stalled  # noqa: E402
+from resumable import checkpoint_for, run_resumable  # noqa: E402
 from route_class_test import route_classes  # noqa: E402
 from transfer_test import bootstrap, mcnemar  # noqa: E402
 
@@ -86,8 +86,8 @@ def main(argv=None) -> int:
                    for w in route_classes(None, c, args.episodes)}
         jobs = [(c, a, s, args.episodes, BENCHMARK_CONDITIONS[c][0]) for c in CONDITIONS for a in ARMS
                 for s in sorted(seed for cond, seed in classes if cond == c)]
-        with ProcessPoolExecutor(max_workers=args.workers) as pool:
-            rows = list(pool.map(episode, jobs, chunksize=1))
+        # Kept episode by episode, so an interrupted run resumes (resumable.py).
+        rows = run_resumable(episode, jobs, args.workers, checkpoint_for(args.out))
         for r in rows:
             r["class"] = classes[(r["cond"], r["seed"])]
 
@@ -143,6 +143,7 @@ def main(argv=None) -> int:
     print(f"decision {report['decision']}")
     print("pre-registered: " + PREDICTION)
     Path(args.out).write_text(json.dumps(report, indent=2), encoding="utf-8")
+    checkpoint_for(args.out).unlink(missing_ok=True)
     print(f"Wrote {args.out}")
     return 0
 

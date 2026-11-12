@@ -36,7 +36,7 @@ decision below follows from wanting that comparison to be trustworthy.
 
 | Stage | State |
 |---|---|
-| Task, metrics, splits, 583-test suite | Done |
+| Task, metrics, splits, 589-test suite | Done |
 | Classical baseline (A* + pure pursuit, full map) | Done |
 | Privileged RL, robustness suite, distribution shifts | Done |
 | Four explanations for the gap, each tested and rejected | Done |
@@ -346,10 +346,16 @@ src/vision_nav/
   metrics/     Success rate, SPL, collisions, path efficiency
   training/    PPO training, evaluation harness, the shared actor interface
   viz/         Top-down renderer for figures and demo videos
+  mapping/     Occupancy map, dead reckoning, scan matching, pose graph
 configs/       Hydra configs (env / algo / train)
-scripts/       Benchmark matrix, demo rendering
-tests/         75 tests over geometry, planning, env contract and metrics
-docs/          Project plan, decisions and status
+scripts/       Every experiment's runner and analysis, each registered test's
+               prediction, and check_numbers.py, which pins the docs to results/
+results/       The results the report and this page cite
+ros2_bridge/   Nav2 against the same worlds, through ROS 2 (WSL)
+gazebo_tb3/    A virtual TurtleBot3 in Gazebo Harmonic (WSL)
+tools/wsl/     Starting long WSL runs so they outlive the session
+tests/         The unit tests, including the identity controls
+docs/          Report, project plan, one-page summary, figures
 ```
 
 ## Hardware

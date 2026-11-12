@@ -30,7 +30,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -38,6 +37,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from clutter_forensic import remaining_at  # noqa: E402
 from flip_diagnostic import Watcher  # noqa: E402
+from resumable import checkpoint_for, run_resumable  # noqa: E402
 from route_class_test import route_classes  # noqa: E402
 from stall_diagnostic import STALL_DISTANCE, make_agent  # noqa: E402
 from transfer_test import BOUND, EPS, bootstrap, mcnemar  # noqa: E402
@@ -194,8 +194,8 @@ def main(argv=None) -> int:
                    for w in route_classes(args.split, c, args.episodes)}
         jobs = [(c, a, s, args.episodes, args.split) for c in CONDITIONS for a in ARMS
                 for s in sorted(seed for cond, seed in classes if cond == c)]
-        with ProcessPoolExecutor(max_workers=args.workers) as pool:
-            rows = list(pool.map(episode, jobs, chunksize=1))
+        # Kept episode by episode, so an interrupted run resumes (resumable.py).
+        rows = run_resumable(episode, jobs, args.workers, checkpoint_for(args.out))
         for r in rows:
             r["class"] = classes[(r["cond"], r["seed"])]
     report = analyse(rows, np.random.default_rng(0))
@@ -221,6 +221,7 @@ def main(argv=None) -> int:
     print(f"decision {report['decision']}")
     print("pre-registered: " + PREDICTION)
     Path(args.out).write_text(json.dumps(report, indent=2), encoding="utf-8")
+    checkpoint_for(args.out).unlink(missing_ok=True)
     print(f"Wrote {args.out}")
     return 0
 

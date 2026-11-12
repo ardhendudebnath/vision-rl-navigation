@@ -40,3 +40,7 @@ Thumbs.db
 # Hydra
 outputs/
 multirun/
+
+# A registered run's finished episodes while it is running (scripts/resumable.py);
+# deleted when the run completes, kept only by an interrupted one.
+*.checkpoint.jsonl
