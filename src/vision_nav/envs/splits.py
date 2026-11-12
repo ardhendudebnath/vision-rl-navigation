@@ -63,11 +63,23 @@ DYNAMIC_CONDITIONS: dict[str, tuple[str, str | None, float]] = {
 }
 
 #: Disjoint seed bands, ``(low, high)`` half-open.
+#:
+#: ``holdout_a`` to ``holdout_c`` were added once the published held-out bands
+#: had been driven by most of the report's tests, so that a result found on
+#: them can still be confirmed on worlds nothing has seen. Each is spent by one
+#: registered confirmatory test and never used for development; which test
+#: spent which block, and a hash of every world in every held-out band, are in
+#: ``results/heldout_manifest.json`` (``scripts/heldout_manifest.py``), so a
+#: change to world generation cannot quietly redraw a held-out set. Any shift
+#: may be applied to them, as to ``test_ood``.
 SEED_BANDS: dict[str, tuple[int, int]] = {
     "train": (0, 1000),
     "val": (10_000, 10_100),
     "test": (20_000, 20_200),
     "test_ood": (30_000, 30_200),
+    "holdout_a": (40_000, 40_500),
+    "holdout_b": (40_500, 41_000),
+    "holdout_c": (41_000, 42_000),
 }
 
 

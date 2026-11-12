@@ -2247,6 +2247,12 @@ def claims():
                 ("flip repaired length ratio", 1.33, round(r["length_ratio_median"], 2)),
                 ("flip published flicker share of all rebuilds 9.22", 0.04,
                  round(load("results/stall_diagnostic.json")["groups"]["own_pose"]["stall"]["shares"]["flicker"], 2))]
+    # The frozen held-out worlds, report §3.2.
+    hm = "results/heldout_manifest.json"
+    if os.path.exists(hm):
+        bands = load(hm)["bands"]
+        out.append(("heldout manifest worlds", 15400,
+                    sum(len(s["worlds"]) for b in bands.values() for s in b["shifts"].values())))
     # Planning off the margin's edge, report §9.32.
     pb = "results/plan_buffer_test.json"
     if os.path.exists(pb):

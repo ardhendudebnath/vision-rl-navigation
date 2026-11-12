@@ -151,6 +151,18 @@ Disjoint seed bands: `train` 0–999, `val` 10000–10099, `test` 20000–20199,
 `test_ood` 30000–30199. Named distribution shifts (`dense`, `sparse`, `large`,
 `narrow`) change obstacle density, size, or arena scale relative to training.
 
+By §9.33 the held-out bands had been driven by most of the report's tests, so
+three blocks were added for confirmation: `holdout_a` 40000–40499, `holdout_b`
+40500–40999 and `holdout_c` 41000–41999. Nothing drove them before they were
+registered. Each is spent by one registered test, named in a ledger in the
+commit that registers it, and never used for development; a unit test fails if
+a result file holds an episode on a block its ledger does not name. Every
+held-out world — the old bands and the new, under every shift scored on them,
+15,400 in all — is hashed in
+[`heldout_manifest.json`](../results/heldout_manifest.json)
+([`heldout_manifest.py`](../scripts/heldout_manifest.py)), so a later change to
+world generation cannot quietly redraw a held-out set.
+
 ### 3.3 Metrics
 
 Success rate, SPL, collision rate, timeout rate, steps-to-goal, path
@@ -3202,7 +3214,7 @@ In order of expected information per GPU-hour:
 
 ```bash
 pip install -e ".[dev,viz]"
-pytest                                        # 589 tests
+pytest                                        # 598 tests
 python scripts/check_docs.py                  # every doc link resolves
 python -m vision_nav.training.train           # privileged RL
 python scripts/run_benchmark.py --rl <model>  # comparison matrix

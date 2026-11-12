@@ -3965,6 +3965,23 @@ treatment in report §9.33.
   limit), footprint within 0.03 of published (−0.015), identity. Failed: the
   pooled band (+0.065), flips down at least a fifth (17%), the decision.
 
+## Phase 7l — Fresh held-out worlds, frozen
+
+With `test` and `test_ood` driven by most of the report's tests, three blocks
+are added for confirmation in `splits.SEED_BANDS`: `holdout_a` 40000–40499,
+`holdout_b` 40500–40999, `holdout_c` 41000–41999. Each is spent by one
+registered test, named in `scripts/heldout_manifest.py`'s `LEDGER` in the
+commit that registers it; `tests/test_heldout_manifest.py` fails if a result
+holds an episode on a block its ledger does not name. Every held-out world (old
+bands and new, every shift scored on them: 15,400) is hashed in
+`results/heldout_manifest.json`, checked through the env itself and by full
+regeneration (`--check`). Intended use: `holdout_a` for the next repair's
+confirmation (the map-flicker repair), `holdout_b` for the final confirmation
+of the stack the paper publishes, `holdout_c` in reserve.
+
+Also: `scripts/resumable.py` keeps every episode of a registered run as it
+finishes, so a stopped run resumes; `tools/wsl/` holds the WSL launch helpers.
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**
