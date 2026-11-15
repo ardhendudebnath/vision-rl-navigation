@@ -241,6 +241,10 @@ class MappedPursuitAgent(AStarPursuitAgent):
         self.plan_buffer = 0.0
         #: Plans the buffered rung supplied. Diagnostic.
         self.buffered_plans = 0
+        #: Passed to the map: evidence below which an occupied cell is freed
+        #: (:attr:`OccupancyMap.release_at`). ``None`` -- every published
+        #: result -- frees it at the line it was marked at.
+        self.map_release_at: float | None = None
         self._plan_radius = 0.0
         self._checked_version = -1
         #: Steps between replans for anything that is not close ahead: 1 Hz at
@@ -270,7 +274,8 @@ class MappedPursuitAgent(AStarPursuitAgent):
         self.map = OccupancyMap(world, sensor,
                                 rng=np.random.default_rng(int(world.seed)),
                                 corroborate=self.corroborate,
-                                noise_margin=self.noise_margin)
+                                noise_margin=self.noise_margin,
+                                release_at=self.map_release_at)
         self.map.integrate(pose)
         self._checked_version = self.map.version
         self.failed_plan_steps = []

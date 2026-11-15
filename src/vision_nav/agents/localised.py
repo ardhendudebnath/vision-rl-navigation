@@ -194,7 +194,8 @@ class LocalisedPursuitAgent(MappedPursuitAgent):
         fresh = OccupancyMap(self._world, make_sensor(self.sensor_kind, self.noise_std),
                              rng=np.random.default_rng(int(self._world.seed)),
                              corroborate=self.corroborate,
-                             noise_margin=self.noise_margin)
+                             noise_margin=self.noise_margin,
+                             release_at=self.map_release_at)
         fresh.integrate(self._start_pose)
         for k, rel, ranges in self._history:
             fresh.integrate(compose_pose(self.graph.poses[k], rel), ranges=ranges)

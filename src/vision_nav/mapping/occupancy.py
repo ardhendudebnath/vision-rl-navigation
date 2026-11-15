@@ -57,7 +57,7 @@ class OccupancyMap:
 
     def __init__(self, world, sensor, rng: np.random.Generator | None = None,
                  corroborate: bool = False, beam_votes: bool = False,
-                 noise_margin: float = 0.0) -> None:
+                 noise_margin: float = 0.0, release_at: float | None = None) -> None:
         #: Used only for grid metadata and to be handed to the sensor, which
         #: returns ranges. See the module docstring.
         self._world = world
@@ -98,6 +98,21 @@ class OccupancyMap:
         #: never mark a surface. With a noise-free sensor the line sits at the
         #: maximum itself, so the rule is inert there by construction.
         self.noise_margin = noise_margin
+        #: Evidence below which a cell already occupied is freed. ``None`` --
+        #: every published result -- frees it below :data:`OCCUPIED_AT`, the
+        #: line it was marked at, so marking and freeing share one threshold.
+        #:
+        #: Report §9.31: a cell on a wall's edge, hit by some beams and grazed
+        #: by others, hovers about that line and flips -- one hit marks it,
+        #: two grazes free it, the next hit marks it again -- and those flips
+        #: force most of the clutter stalls' route changes. Below the marking
+        #: line, an occupied cell holds until the evidence against it outweighs
+        #: the evidence for: hysteresis, as every thermostat has.
+        self.release_at = OCCUPIED_AT if release_at is None else float(release_at)
+        #: Cells freed after being occupied, and cells occupied again after
+        #: being freed: the map changing its mind. Diagnostic.
+        self.released = 0
+        self.reoccupied = 0
         self.resolution = float(world.config.grid_resolution)
         # Extent from the arena's dimensions, not from ``world.occupancy``:
         # that property computes the true obstacle grid, and reading even its
@@ -185,10 +200,17 @@ class OccupancyMap:
         self.evidence[landed] += HIT * weight[landed]
         np.clip(self.evidence, *CLAMP, out=self.evidence)
         seen = passed | landed
-        self.grid[seen & (self.evidence >= OCCUPIED_AT)] = OCCUPIED
-        self.grid[seen & (self.evidence < OCCUPIED_AT)] = FREE
+        mark = seen & (self.evidence >= OCCUPIED_AT)
+        # An occupied cell holds until its evidence falls below the release
+        # line; at the published setting that line is the marking line, and
+        # ``hold`` is empty.
+        hold = seen & before & ~mark & (self.evidence >= self.release_at)
+        self.grid[seen & ~mark & ~hold] = FREE
+        self.grid[mark] = OCCUPIED
         after = self.grid == OCCUPIED
         newly = after & ~before
+        self.released += int((before & ~after).sum())
+        self.reoccupied += int((newly & (self.first_occupied >= 0)).sum())
         self.first_occupied[newly & (self.first_occupied < 0)] = self.scans
         if np.array_equal(before, after):
             return False
