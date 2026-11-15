@@ -2247,6 +2247,46 @@ def claims():
                 ("flip repaired length ratio", 1.33, round(r["length_ratio_median"], 2)),
                 ("flip published flicker share of all rebuilds 9.22", 0.04,
                  round(load("results/stall_diagnostic.json")["groups"]["own_pose"]["stall"]["shares"]["flicker"], 2))]
+    # The map's hysteresis, report §9.34.
+    mr = "results/map_release_test.json"
+    if os.path.exists(mr):
+        rj = load(mr)
+        for cond, (b, h, d, won, lost) in {"nominal": (0.96, 0.98, 0.02, 2, 0),
+                                           "dense": (0.74, 0.77, 0.03, 4, 1),
+                                           "narrow": (0.64, 0.63, -0.01, 2, 3),
+                                           "noisy_lidar": (0.86, 0.82, -0.04, 4, 8)}.items():
+            c, q = rj["conditions"][cond], rj["pairs"][cond]
+            out += [(f"release {cond} buffered", b, round(c["buffered"]["success"], 2)),
+                    (f"release {cond} hysteresis", h, round(c["hysteresis"]["success"], 2)),
+                    (f"release {cond} delta", d, round(q["delta"], 3)),
+                    (f"release {cond} won", won, q["won"]), (f"release {cond} lost", lost, q["lost"])]
+        q, ms = rj["pairs"]["clutter"], rj["margin_safe"]
+        bm, hm_ = ms["buffered"], ms["hysteresis"]
+        out += [("release decision NO EFFECT", 1.0, float(rj["decision"] == "NO EFFECT")),
+                ("release reproduces 9.32", 1.0, float(rj["reproduces_plan_buffer_test"])),
+                ("release clutter delta", 0.010, round(q["delta"], 3)),
+                ("release clutter ci lo", -0.020, round(q["ci95"][0], 3)),
+                ("release clutter ci hi", 0.040, round(q["ci95"][1], 3)),
+                ("release clutter won", 6, q["won"]), ("release clutter lost", 4, q["lost"]),
+                ("release clutter p", 0.75, round(q["p"], 2)),
+                ("release noisy p", 0.39, round(rj["pairs"]["noisy_lidar"]["p"], 2)),
+                ("release collisions", 0.0, max(c[a]["collision"] for c in rj["conditions"].values()
+                                                for a in ("buffered", "hysteresis"))),
+                ("release reoccupied buffered", 67.7, round(bm["reoccupied_per_100_steps"], 1)),
+                ("release reoccupied hysteresis", 25.3, round(hm_["reoccupied_per_100_steps"], 1)),
+                ("release reoccupied fall", 0.63, round(1 - hm_["reoccupied_per_100_steps"] / bm["reoccupied_per_100_steps"], 2)),
+                ("release released buffered", 115.9, round(bm["released_per_100_steps"], 1)),
+                ("release released hysteresis", 68.3, round(hm_["released_per_100_steps"], 1)),
+                ("release flips buffered", 0.30, round(bm["flips_per_100_steps"], 2)),
+                ("release flips hysteresis", 0.26, round(hm_["flips_per_100_steps"], 2)),
+                ("release flip fall", 0.15, round(1 - hm_["flips_per_100_steps"] / bm["flips_per_100_steps"], 2)),
+                ("release rebuilds buffered", 3.35, round(bm["replans_per_100_steps"], 2)),
+                ("release rebuilds hysteresis", 3.28, round(hm_["replans_per_100_steps"], 2)),
+                ("release rebuild fall", 0.02, round(1 - hm_["replans_per_100_steps"] / bm["replans_per_100_steps"], 2)),
+                ("release flicker per flip", 225, round(bm["reoccupied_per_100_steps"] / bm["flips_per_100_steps"])),
+                ("release stalls", 22, ms["buffered_stalls"]),
+                ("release stalls arrived", 2, ms["buffered_stalls_arrived"]),
+                ("release arrivals lost", 4, ms["buffered_arrivals_lost"])]
     # The frozen held-out worlds, report §3.2.
     hm = "results/heldout_manifest.json"
     if os.path.exists(hm):

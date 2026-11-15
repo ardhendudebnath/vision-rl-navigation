@@ -81,9 +81,10 @@ decision below follows from wanting that comparison to be trustworthy.
 | What forces a flip: a route on the margin's edge, knocked off by a flickering cell where the world had room | Done |
 | Planning a cell off the margin's edge: the first stall repair to move arrival, +0.050 on val clutter | Done |
 | The plan buffer on held-out worlds: it holds and grows, +0.065 on clutter, 15 worlds to 2; its three collisions, up close, are bare-radius grazes on worlds with no margin-safe route, not shown to be the buffer's | Done |
+| A map that stops changing its mind: hysteresis cuts the flicker by 63% and moves arrival by nothing measurable | Done |
 | *(Next)* Isaac Lab; sim-to-real | Not started |
 
-Seventy experiments, each pre-registered where it tests a hypothesis. The
+Seventy-one experiments, each pre-registered where it tests a hypothesis. The
 phase-by-phase record, including every prediction that failed and three
 successive corrections to the same claim, is in
 [`docs/project_plan.md`](docs/project_plan.md).

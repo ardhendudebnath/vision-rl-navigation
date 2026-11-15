@@ -2914,6 +2914,55 @@ arm within 0.03 of the published stack (−0.015), and the identity control.
 Failed: the pooled band (+0.065 against +0.01 to +0.045), flips falling by at
 least a fifth (17%), and the decision (REPAIRS, not NO EFFECT).
 
+### 9.34 A map that stops changing its mind: the flicker goes, the stalls stay
+
+§9.31 found most route flips forced by flicker. The map scores each cell by
+evidence: +0.9 for a return landing in it, −0.3 for a scan whose beams pass
+through it. A single line, 0.5, both marks a cell occupied and frees it. A cell
+on a wall's edge, hit by some beams and grazed by others, hovers about that
+line: one hit marks it, two grazes free it, the next hit marks it again.
+`OccupancyMap.release_at` gives the map hysteresis. A cell is marked at the same
+line as before, but once occupied it is freed only when its evidence falls
+below −0.15, that is, when the passes through it outweigh the hit that marked
+it. The line sits between the 0.0 that three grazes leave a once-hit cell and
+the −0.3 that four leave it. The first test, at exactly 0.0, failed on float32
+rounding, which put three grazes a hair below the line. The stack as it now
+stands (§9.33: the footprint check and the plan buffer) ran with and without
+it, on the same val worlds plus `noisy_lidar` as a guard, since holding cells
+longer could hold noise phantoms longer. Registered first
+([`map_release_test.py`](../scripts/map_release_test.py)). The baseline arm
+reproduces §9.32's buffered episodes exactly.
+
+| val success | nominal | dense | narrow | `noisy_lidar` |
+|---|---|---|---|---|
+| footprint check + plan buffer | 0.96 | 0.74 | 0.64 | 0.86 |
+| the same, with the map's hysteresis | 0.98 | 0.77 | 0.63 | 0.82 |
+| difference (worlds won / lost) | +0.02 (2 / 0) | +0.03 (4 / 1) | −0.01 (2 / 3) | −0.04 (4 / 8) |
+
+**NO EFFECT, as registered.** Pooled over the 200 clutter worlds the hysteresis
+moves success by +0.010 [−0.020, +0.040], 6 worlds won and 4 lost, p = 0.75.
+Nothing collides in either arm.
+
+**The flicker goes, and the stalls stay.** On the margin-safe clutter worlds,
+cells marked occupied again after being freed fall by 63%, from 67.7 to 25.3
+per 100 steps, and cells freed fall from 115.9 to 68.3. Route flips fall by
+only 15%, from 0.30 to 0.26 per 100 steps, and rebuilds hardly move (3.35 to
+3.28). Of the buffered arm's 22 stalls there, 2 arrive and 4 arrivals are
+lost. The map flickers more than two hundred times as often as a route flips,
+so most flicker never touches a plan. With routes planned a cell off the edge,
+what is left of the flips is no longer mostly the map's doing.
+
+**And under noise it leans the wrong way.** `noisy_lidar` loses 0.04, 4 worlds
+won and 8 lost, inside the registered ±0.05 guard and not resolved (p = 0.39).
+Holding a cell until the evidence turns against it holds a noise phantom just as
+long. The hysteresis stays in the code, off by default; the stack keeps
+footprint check and plan buffer.
+
+**Calibration.** Held: the decision, flicker falling by at least half (63%),
+route flips falling by less than a third (15%), collisions at most 0.02 (none),
+nominal within 0.03 (+0.02), `noisy_lidar` within 0.05 (−0.04), and the
+identity control. Failed: rebuilds not falling (they fell 2%).
+
 ## 10. Discussion
 
 **A learned policy did not beat a strong classical planner on this task, and
@@ -3147,7 +3196,13 @@ In order of expected information per GPU-hour:
    and grows, +0.065, 15 worlds to 2 (§9.33). Its three collisions there are
    bare-radius plans grazing a wall on worlds with no margin-safe route, where
    every collision either test recorded falls, and are not shown to be more
-   frequent with the buffer than without it. Most of the stalls remain.
+   frequent with the buffer than without it. Most of the stalls remain, and
+   the map's flicker is not what holds them: hysteresis on the map's cells
+   (§9.34) cuts it by 63% and route flips by 15%, and moves arrival by +0.010,
+   NO EFFECT. Two leads are left. A third of the margin-safe "stalls" were
+   robots still closing on the goal when the 500-step budget ran out (§9.30),
+   so the budget question has a measurable share. And what remains of the
+   flips is no longer mostly the map's doing.
 2. **Under noise, what a stack does with the pose error it cannot remove.**
    Localisation under noise is no longer a gap to close: with the noise
    delivered, slam_toolbox ends episodes 0.220 m from the truth and this stack

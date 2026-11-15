@@ -3982,6 +3982,34 @@ of the stack the paper publishes, `holdout_c` in reserve.
 Also: `scripts/resumable.py` keeps every episode of a registered run as it
 finishes, so a stopped run resumes; `tools/wsl/` holds the WSL launch helpers.
 
+## Phase 7m — The map's hysteresis
+
+`OccupancyMap.release_at` (off by default): a cell is marked occupied at 0.5
+evidence as before, and once occupied is freed only below −0.15 (between the
+0.0 three grazes leave a once-hit cell and the −0.3 four leave it; a first
+test at exactly 0.0 failed on float32 rounding). The map also counts cells
+freed and re-occupied. Stack as it stands (footprint check + plan buffer) with
+and without it, val plus `noisy_lidar` as a guard; the baseline arm reproduces
+§9.32's buffered episodes exactly. Registered first (`scripts/map_release_test.py`,
+commit c34b09c). Full treatment in report §9.34.
+
+| val | nominal | dense | narrow | noisy_lidar |
+|---|---|---|---|---|
+| footprint + buffer | 0.96 | 0.74 | 0.64 | 0.86 |
+| + hysteresis | 0.98 | 0.77 | 0.63 | 0.82 |
+
+- **Decision NO EFFECT**, as predicted: pooled clutter +0.010 [−0.020, +0.040],
+  6 / 4. Flicker (cells re-occupied) −63%, route flips −15%, rebuilds −2%. The
+  map flickers 225 times as often as a route flips; most flicker never touches
+  a plan. `noisy_lidar` −0.04 (4 / 8), inside the ±0.05 guard.
+- Not adopted; `holdout_a` stays unspent.
+
+### Calibration
+
+- Held: the decision, flicker down by half (63%), flips down by under a third
+  (15%), collisions, nominal, noisy_lidar guard, identity. Failed: rebuilds not
+  falling (−2%).
+
 ## Hardware notes
 
 Development target is a laptop RTX 5070 Ti (12 GB VRAM), which is **below**
